@@ -1,6 +1,13 @@
-﻿#include <SDL2/SDL_ttf.h>
+﻿//#include <gui.h>
+#include <stdbool.h>
 #include "stb_ds.h"
-
+//const char* appName = "FractionalMidi";
+//int main() {
+//    guiStartDrawing();
+//}
+///*
+#include <SDL2/SDL_ttf.h>
+//#include <SDL2/SDL2.h>
 typedef unsigned int u32;
 typedef short int i16;
 enum { SCREEN_WIDTH = 800,
@@ -27,10 +34,10 @@ void drawText(char* text, SDL_Renderer* renderer,  int x, int y) {
     SDL_Texture*value = textext;
     SDL_FreeSurface(surfaceMessage);
 //  }
-  SDL_Texture* texture = value;
-   int w ;  int h  ;
-   SDL_QueryTexture(texture, NULL, NULL, &w, &h);
-   SDL_Rect  Message_rect= {.x = x,  //controls the rect's x coordinate
+    SDL_Texture* texture = value;
+    int w ;  int h  ;
+    SDL_QueryTexture(texture, NULL, NULL, &w, &h);
+    SDL_Rect  Message_rect= {.x = x,  //controls the rect's x coordinate
                                     .y = y, // controls the rect's y coordinte
                                     .w = w, // controls the width of the rect
                                     .h = h}; // controls the height of the rect
@@ -45,16 +52,18 @@ void drawText(char* text, SDL_Renderer* renderer,  int x, int y) {
   // the crop size (you can ignore this if you don't want
   // to dabble with cropping), and the rect which is the size
   // and coordinate of your texture
-   SDL_RenderCopy(renderer, texture, 0, &Message_rect);
+    SDL_RenderCopy(renderer, texture, 0, &Message_rect);
 
 }
 
 
- double  freq = 440.0;
- SDL_AudioSpec  have ;
-  void MyAudioCallback(void*  userdata,
-                       Uint8* stream8,
-                       int len)
+double  freq1 = 110.0;
+double  freq2 = 110.0*1.09050773267 ;
+double  freq3 = 110.0*1.09050773267 *1.09050773267 ;//*1.61803398875;
+SDL_AudioSpec  have ;
+void MyAudioCallback(   void*  userdata,
+                        Uint8* stream8,
+                        int len)
 {
 
 
@@ -64,11 +73,59 @@ void drawText(char* text, SDL_Renderer* renderer,  int x, int y) {
     static int phase = 0;
      u32  i = 0;
     while(i <  len/ 2) {
-      stream[i] = (sin(phase * freq * tau / (have.freq))*1000);
+        stream[i] = (sin(phase * freq1 * tau / (have.freq))*1000) +(sin(phase * freq2 * tau / (have.freq))*1000)
+                +(sin(phase * freq3 * tau / (have.freq))*1000);
+//        stream[i] = (sin(phase * freq1 * tau / (have.freq))*1000) +(sin(phase * freq2 * tau / (have.freq))*1000)
+//                +(sin(phase * freq3 * tau / (have.freq))*1000);
       phase = phase+1;
       i+=1;
     }
 
+}
+Uint32 timerCallback (Uint32 interval, void *param) {
+    freq1 = freq1*1.17398499671;
+    freq2 = freq2*1.17398499671;
+    freq3 = freq3*1.17398499671;
+
+    return 1000;
+    /*static int pure = 0;
+    switch(pure%4) {
+    case 0: {
+        freq2 = freq1/pow(2,3.0/12);
+        freq3 = freq1/pow(2,7.0/12);
+        break;
+    }
+    case 1: {
+        freq2 = freq1/6.0*5;//  /4*5;
+        freq3 = freq1/6.0*4;//  /4*5;
+        break;
+    }
+    case 2: {
+        freq2 = freq1/5*4;//  /4*5;
+        freq3 = freq1/6.0*4;//  /4*5;
+        break;
+    }
+    case 3: {
+        freq2 = freq1/pow(2,4.0/12);
+        freq3 = freq1/pow(2,7.0/12);
+        break;
+    }
+    }
+    pure = (pure+1)%4;
+    fprintf(stderr, "%lf %lf %d\n", freq1/freq2,freq1/freq3, pure);
+//    pure = !pure;
+    return 2000;
+    */
+    (void)param;
+//        char notes[] = {5,4,4,5,4,4,5,4,4,5,4,4,2,1,0,2};
+    char notes[] = {9,8,8,9,8,8,9,8,8,9,8,8,4,3,0,4};
+    static int index = 0;
+    double in = pow(2, 1.0/16);
+
+    freq1 = 220*pow(in, notes[index]);
+    index = (index+1)%sizeof(notes);
+    fprintf(stderr, "freq=%lf in=%lf\n", freq1,in);
+    return 250;
 }
 
 typedef struct note {
@@ -93,7 +150,7 @@ void draw() {
     SDL_RenderPresent(renderer);
 
 }
-void   audio(){
+void audio() {
   SDL_AudioSpec  want;
   memset(&want,0,sizeof(want));//= std.mem.zeroes(SDL_AudioSpec );
   // SDL_AudioDeviceID  dev;
@@ -101,15 +158,13 @@ void   audio(){
   // inline for (want) |i| {
         // i = 0;
     // }
-//  @memset(&want, 0, sizeof(want)); /* || SDL_zero(want) */
+//  @memset(&want, 0, sizeof(want)); /* || SDL_zero(want) * /
   want.freq = 44100;
   want.format = AUDIO_S16;
   want.channels = 1;
   want.samples = 4096;
   want.callback = MyAudioCallback;  // you wrote this function elsewhere.
 //   SDL_AudioDeviceID   dev= SDL_OpenAudioDevice(NULL, 0,  SDL_AUDIO_ALLOW_FORMAT_CHANGE);
-
-
   SDL_AudioDeviceID ret =  SDL_OpenAudioDevice(
                           NULL,
                           SDL_FALSE,
@@ -120,15 +175,14 @@ void   audio(){
   SDL_PauseAudioDevice(ret, 0);
 }
 
-void   main(){
+void main() {
     // Note that info level log messages are by default printed only in Debug
     // and ReleaseSafe build modes.
-
     note n = {
         440, 0, 50
     };
     arrpush(piece, n);
-
+//    guiStartDrawing();
     fprintf(stderr,"All your codebase are belong to us." );
     if (SDL_Init( SDL_INIT_VIDEO | SDL_INIT_AUDIO  ) < 0) {
         fprintf(stderr,"SDL could not initialize! SDL_Error: {s} \n", SDL_GetError());
@@ -164,6 +218,10 @@ void   main(){
         fprintf(stderr, "{*}", Sans);
         draw();
          SDL_Event  e;
+
+         SDL_AddTimer(250,
+                          timerCallback,
+                                 NULL);
         while(1) {
           int pollres   = SDL_WaitEvent(&e);
           fprintf(stderr,"got event {x} res {}" ,e.type, pollres);
@@ -182,7 +240,7 @@ void   main(){
           }
 
           if(e.type == SDL_MOUSEMOTION) {
-            freq = e.motion.y + 140.0;
+//            freq = e.motion.y + 140.0;
             fprintf(stderr,"motion {} {}", e.motion.y, e.motion.y + 140.0);
           }
 //          fprintf(stderr,"{}", @intToEnum(SDL_EventType, e.type));
@@ -195,3 +253,4 @@ void   main(){
     }
 
 }
+//*/
