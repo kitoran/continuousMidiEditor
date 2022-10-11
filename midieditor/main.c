@@ -227,14 +227,13 @@ void main() {
           fprintf(stderr,"got event {x} res {}" ,e.type, pollres);
           if(e.type == SDL_WINDOWEVENT) {
             if(e.window.event == SDL_WINDOWEVENT_RESIZED  || e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
-            fprintf(stderr,"resizeevent" );
-            windowWidth = e.window.data1;
-            windowHeight = e.window.data2;
-            SDL_SetRenderDrawColor(renderer, 0,0,0,255);
-            SDL_Rect f = {0,0,windowWidth, windowHeight};
-            SDL_RenderFillRect(renderer, &f);
-
-
+                fprintf(stderr,"resizeevent" );
+                windowWidth = e.window.data1;
+                windowHeight = e.window.data2;
+                SDL_SetRenderDrawColor(renderer, 0,0,0,255);
+                SDL_Rect f = {0,0,windowWidth, windowHeight};
+                SDL_RenderFillRect(renderer, &f);
+//                drawToolButton
                 draw();
             }
           }
