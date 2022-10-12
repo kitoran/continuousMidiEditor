@@ -48,18 +48,18 @@ bool guiComboBoxZT(Painter *p, const char * const *elements, int* current)
         triangle = loadImageZT(GUI_RESOURCE_PATH, "triangle.png");
     }
 
-    Size size = {overallLogMax.width + triangle->width + 10,
-                MAX(overallLogMax.height, triangle->height) + 10};
+    Size size = {overallLogMax.width + triangle->IMAGE_WIDTH + 10,
+                MAX(overallLogMax.height, (u32)triangle->IMAGE_HEIGHT) + 10};
 
     bool res = false;
 //    if(event.xany.window == listWindow) {
-        if(IS_BUTTON_RELEASE(event) && context.active == current) {
+        if(event.type == ButtonRelease && context.active == current) {
             int mx = GET_X(event)-pos.x;
             int my = GET_Y(event)-pos.y - (int)size.height;
 //            , ,
             for(int i = 0; i < numberOfElements; i++) {
-                if(mx >= 1 && mx <= size.width-2  +  1 &&
-                    my >= (i)*size.height+1 && my <= size.height-2   +   (i)*size.height+1) {
+                if(mx >= 1 && mx <= (int)size.width-2  +  1 &&
+                    my >= (i)*(int)size.height+1 && my <= (int)size.height-2   +   (i)*size.height+1) {
                     res = true;
                     *current = i;
                 }
@@ -68,7 +68,7 @@ bool guiComboBoxZT(Painter *p, const char * const *elements, int* current)
 //    }
 
     if(guiSameWindow(p)) {
-        if(IS_BUTTON_RELEASE(event)) {
+        if(event.type ==ButtonRelease) {
             int mx = GET_X(event);
             int my = GET_Y(event);
             if(mx >= pos.x && mx <= pos.x + (int)size.width &&

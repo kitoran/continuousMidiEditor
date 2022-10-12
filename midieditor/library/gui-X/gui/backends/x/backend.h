@@ -3,14 +3,40 @@
 
 #ifdef SDL
 #include <SDL2/SDL_events.h>
+#include <SDL2/SDL_surface.h>
+#include <SDL2/SDL_video.h>
+#include <SDL2/SDL_render.h>
 //union SDL_Event;//struct SDL_Event;
 typedef SDL_Event Event;
-struct SDL_Window;
-typedef struct SDL_Window GuiWindow;
+typedef SDL_Window* GuiWindow;
 enum {
     MotionEvent = SDL_MOUSEMOTION,
-
+    ButtonRelease = SDL_MOUSEBUTTONUP,
+    ButtonPress = SDL_MOUSEBUTTONDOWN,
+    KeyPress = SDL_KEYDOWN,
+    TimerEvent = SDL_USEREVENT
 };
+#define GET_X(a) ((a).type == SDL_MOUSEMOTION?(a).motion.x:\
+                  ((a).type == SDL_MOUSEBUTTONUP || (a).type == SDL_MOUSEBUTTONDOWN)?(a).button.x:\
+                  (a).type == SDL_MOUSEWHEEL?(a).wheel.x:(abort(), 0))
+#define GET_Y(a) ((a).type == SDL_MOUSEMOTION?(a).motion.y:\
+((a).type == SDL_MOUSEBUTTONUP || (a).type == SDL_MOUSEBUTTONDOWN)?(a).button.y:\
+(a).type == SDL_MOUSEWHEEL?(a).wheel.y:(abort(), 0))
+#define GET_KEYSYM(a) ((a).key.keysym.sym)
+typedef enum GuiKeySym {
+    right = SDLK_RIGHT,
+    enter = SDLK_RETURN,
+    left = SDLK_LEFT,
+    backspace = SDLK_BACKSPACE
+} GuiKeySym;
+typedef SDL_Surface Image;
+#define IMAGE_WIDTH w
+#define IMAGE_HEIGHT h
+typedef struct Painter {
+    SDL_Renderer* gc;
+    SDL_Surface* drawable;
+    SDL_Window* window;
+} Painter;
 #else
 #define TimerEvent LASTEvent+1
 #include <X11/Xlib.h>
@@ -39,7 +65,7 @@ typedef enum GuiKeySym {
 } GuiKeySym;
 #endif
 
-typedef struct Painter Painter;
+//typedef struct Painter Painter;
 typedef struct Size Size;
 
 GuiWindow guiMakeWindow();

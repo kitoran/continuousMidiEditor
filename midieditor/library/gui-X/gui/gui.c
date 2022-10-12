@@ -27,7 +27,7 @@ void guiLabelWithBackground(Painter* p, char *text, int len, bool back) {
     Size size = {extents.width + 10,
                 extents.height + 10};
 
-    if(!IS_MOTION(event)) {
+    if(!(event.type == MotionEvent)) {
 //        XRenderColor            xrcolor;
 //        XftColor                xftcolor;
 //        /* Xft text color */
@@ -73,7 +73,7 @@ bool guiButton(Painter *p, char* text, int len)
     Size overallLog = guiTextExtents(text, len);
     Size size = {overallLog.width + 10,
                 overallLog.height + 10};
-    if(!IS_MOTION(event)) {
+    if(!(event.type == MotionEvent)) {
         guiSetForeground(p, 0xff555555);
 //        XSetBackground(xdisplay, l->gc, 0xffff5555);
 //        fprintf(stderr, "filling rect (%d, %d) %dx%d\n", pos.x, pos.y,
@@ -87,7 +87,7 @@ bool guiButton(Painter *p, char* text, int len)
     }
 //    XPutImage(xdisplay, l->window, l->gc, l->x+5, l->y+5, width, height);
     bool res = false;
-    if(IS_BUTTON_RELEASE(event)) {
+    if(event.type == ButtonRelease) {
         int mx = GET_X(event);
         int my = GET_Y(event);
         if(mx >= pos.x && mx <= pos.x + (int)size.width &&
@@ -103,16 +103,16 @@ bool guiButton(Painter *p, char* text, int len)
 bool guiButtonZT(Painter* p, char *text) {
     return guiButton(p, text, strlen(text));
 }
-bool guiToolButton(Painter *p, XImage *i, bool *consume) {
+bool guiToolButton(Painter *p, Image *i, bool *consume) {
     return guiToolButtonA(p,i,false,consume);
 }
-bool guiToolButtonA(Painter *p, XImage *i, bool active, bool *consume) {
+bool guiToolButtonA(Painter *p, Image *i, bool active, bool *consume) {
 //    if(consume) *consume = false;
     if(!guiSameWindow(p)) return false;
     volatile Point pos = getPos();
-    Size size = {i->width+2,
-                 i->height+2};
-    if(!IS_MOTION(event)) {
+    Size size = {i->IMAGE_WIDTH+2,
+                 i->IMAGE_HEIGHT+2};
+    if(!(event.type == MotionEvent)) {
 //        if(active) {
             guiSetForeground(p, active?0xffff9999:0xff000000);
             guiFillRectangle(p, pos.x, pos.y, size.width, size.height);
@@ -120,13 +120,13 @@ bool guiToolButtonA(Painter *p, XImage *i, bool active, bool *consume) {
         guiDrawImage(p, i, pos.x+1, pos.y+1);
     }
     bool res = false;
-    if(IS_BUTTON_RELEASE(event)
-            || IS_BUTTON_PRESS(event)) {
+    if(event.type == ButtonRelease
+            || event.type == ButtonPress) {
         int mx = GET_X(event);
         int my = GET_Y(event);
         if(mx >= pos.x && mx <= pos.x + (int)size.width &&
             my >= pos.y && my <= pos.y + (int)size.height) {
-            if(IS_BUTTON_RELEASE(event)) {
+            if(event.type == ButtonRelease) {
                 res = true;
             }
             if(consume) *consume = true;
@@ -165,7 +165,7 @@ bool guiNumberEdit(Painter *p, int digits, int *number, bool *consume) {
         res = true;
     }
 //    fprintf(stderr, "%d digits", numberOfDigits);
-    if(IS_KEY_PRESS(event) && context.active == number) {
+    if(event.type == KeyPress && context.active == number) {
         if(consume) *consume = true;
         GuiKeySym sym = GET_KEYSYM(event);
         fprintf(stderr, "%c %c! \n", (int)sym, right);
@@ -206,7 +206,7 @@ bool guiNumberEdit(Painter *p, int digits, int *number, bool *consume) {
     }
     keyPressBreak:
 
-    if(IS_BUTTON_PRESS(event) || IS_BUTTON_RELEASE(event)) {
+    if(event.type == ButtonPress || event.type == ButtonRelease) {
         int mx = GET_X(event);
         int my = GET_Y(event);
 //        fprintf(stderr, "%d", *consume);
@@ -228,7 +228,7 @@ bool guiNumberEdit(Painter *p, int digits, int *number, bool *consume) {
             commit();
         }
     }
-    if(!IS_MOTION(event)) {
+    if(!(event.type == MotionEvent)) {
         guiSetForeground(p, 0xff333333);
 //        fprintf(stderr, "filling rect (%d, %d) %dx%d\n", pos.x, pos.y,
 //                size.width, size.height);
@@ -264,7 +264,7 @@ bool guiNumberEdit(Painter *p, int digits, int *number, bool *consume) {
 //            fprintf(stderr, "%d", *consume);
 
         }
-        if(IS_TIMER(event)) {
+        if(event.type == TimerEvent) {
             cursor = !cursor;
         }
   }
@@ -309,7 +309,7 @@ void guiDoubleEdit(Painter *p, int digits, double *number)
 
     int numberOfDigits = 5;
 
-    if(IS_BUTTON_PRESS(event)) {
+    if(event.type == ButtonPress) {
         int mx = GET_X(event);
         int my = GET_Y(event);
         if(mx >= pos.x && mx <= pos.x + (int)size.width &&
@@ -353,7 +353,7 @@ void guiDoubleEdit(Painter *p, int digits, double *number)
                       pos.x + 5 + overallInk.width, pos.y + 5,
                       pos.x + 5 + overallInk.width, pos.y + 5 + maxDigitHeight);
         }
-        if(IS_TIMER(event)) {
+        if(event.type == TimerEvent) {
             cursor = !cursor;
         }
 //  }
@@ -368,10 +368,10 @@ void guiFillRawRectangle(RawPicture *p, int x, int y, int w, int h, char r, char
     assert(h >= 0);
     assert(x >= 0);
     assert(y >= 0);
-    if(x+w >= p->w) {
+    if(x+w >= (int)(p->w)) {
         w = p->w - x - 1;
     }
-    if(y+h+1 >= p->h) {
+    if(y+h+1 >= (int)(p->h)) {
         h = p->h - y - 2;
     }
     int color = rgb(r,g,b);
@@ -395,7 +395,7 @@ bool guiCheckBox(Painter *p, bool *v)
     Size size = {10,
                  10};
     bool res = false;
-    if(IS_BUTTON_PRESS(event)) {
+    if(event.type == ButtonPress) {
         int mx = GET_X(event);
         int my = GET_Y(event);
         if(mx >= pos.x && mx <= pos.x + (int)size.width &&

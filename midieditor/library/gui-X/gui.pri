@@ -5,7 +5,8 @@ DEFINES += GUI_RESOURCE_PATH=\\\"$$PWD/gui\\\"
 SOURCES +=  \
     $$PWD/gui/persistent.c \
     $$PWD/gui/draw.c \
-    $$PWD/gui/toolbuttongroup.c
+    $$PWD/gui/toolbuttongroup.c \
+    $$PWD/gui/backends/x/sdlbackend.c
 X {
 SOURCES += \
     $$PWD/gui/backends/x/xbackend.c
