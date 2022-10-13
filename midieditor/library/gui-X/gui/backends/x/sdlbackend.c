@@ -230,84 +230,41 @@ void guiDrawImage(Painter* p, IMAGE* i, int x, int y) {
 
 
 Size guiTextExtents(/*Painter*p,*/const char*text,int len) {
-    XGlyphInfo extents;
-    XftTextExtentsUtf8( xdisplay, xFont, (XftChar8 *)text, len, &extents );
-    Size res = {extents.width,extents.height};
+    Size res ;
+    TTF_SizeUTF8(font, text, &res.width, &res.height);
     return res;
 }
 
 
 void guiStartDrawing(/*const char* appName*/) {
-
-    xdisplay = XOpenDisplay(NULL);
-    assert(xdisplay);
-
-    char **missingList;
-    int missingCount;
-    char *defString;
-    xFontSet =
-        XCreateFontSet(xdisplay,  "-*-*-*-*-*-*-*-*-*-*-*-*-*-*",
-                       &missingList, &missingCount, &defString);
-    xFont = XftFontOpenName( xdisplay, DefaultScreen( xdisplay ), "morpheus-12" );
-    if (xFontSet == NULL) {
-        fprintf(stderr, "Failed to create fontset\n");
+    if (SDL_Init( SDL_INIT_VIDEO | SDL_INIT_AUDIO  ) < 0) {
+        fprintf(stderr,"SDL could not initialize! SDL_Error: {s} \n", SDL_GetError());
         abort();
     }
-    XFreeStringList(missingList);
+    TTF_Init();
+    font = TTF_OpenFont("/home/n/.fonts/comici.ttf", 24);
 
 
-    for(char d = '0'; d < '9'; d++) {
-        XRectangle overallInk;
-        XRectangle overallLog;
-        Xutf8TextExtents(xFontSet, &d, 1, &overallInk, &overallLog);
-        if(maxDigitWidth < overallLog.width) {
-            maxDigitWidth = overallLog.width;
-        }
-        if(maxDigitHeight < overallLog.height) {
-            maxDigitHeight = overallLog.height;
-        }
+    for(char d[2] = {'0', '\x00'}; d[0] < '9'; d[0]++) {
+        int w,h;
+        TTF_SizeUTF8(font, &d, &w, &h);
+        maxDigitWidth = MAX(maxDigitWidth, w);
+        maxDigitHeight = MAX(maxDigitHeight, h);
     }
 
-
-    int screen = DefaultScreen(xdisplay);
-    int blackColor = BlackPixel(xdisplay, screen );
-    int whiteColor = WhitePixel(xdisplay, screen );
-    xDepth = DefaultDepth(xdisplay, screen);
-
-//    int numberOfDepths;
-//    int* depths = XListDepths(xdisplay, screen, &numberOfDepths);
-    printf("Depth %d\n", xDepth);
-    // Create the window
-    rootWindow = XCreateSimpleWindow(xdisplay , DefaultRootWindow(xdisplay ), 0, 0,
-                                        700, 700, 0, blackColor, blackColor);
-//    XSetWindowAttributes ats = {
-//     None, blackColor, CopyFromParent, whiteColor,
-//        ForgetGravity, NorthWestGravity, NotUseful,
-//        -1, 0, False, 0, 0, False, CopyFromParent, None
-//    };
-    // We want to get MapNotify events
-    XSelectInput(xdisplay, rootWindow, StructureNotifyMask | ButtonPressMask
-                 | ExposureMask | KeyPressMask
-                 | ButtonMotionMask | ButtonReleaseMask);
-
-    XStoreName(xdisplay, rootWindow, appName);
-    // "Map" the window (that is, make it appear on the screen)
-    XMapWindow(xdisplay , rootWindow);
-
+    rootWindow = SDL_CreateWindow(
+       appName,
+       700, 700,
+       0, 0,
+       SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE
+   );
     // Create a "Graphics Context"
-    GC gc = XCreateGC(xdisplay , rootWindow, 0, NULL);
+//    GC gc = XCreateGC(xdisplay , rootWindow, 0, NULL);
 //    xFontStruct = XLoadQueryFont(xdisplay, "fixed");
     // Tell the GC we draw using the white color
-    XSetForeground(xdisplay , gc, whiteColor);
-    // Wait for the MapNotify event
-    for(;;) {
-        XEvent e;
-        XNextEvent(xdisplay, &e);
-        if (e.type == MapNotify)
-            break;
-    }
+//    XSetForeground(xdisplay , gc, whiteColor);
 
-    XFlush(xdisplay);
+//    XFlush(xdisplay);
 
 }
 static int wait_fd(int fd, double seconds)
