@@ -11,7 +11,7 @@
 #include <stdlib.h>
 #include "/home/n/library/stb/stb_ds.h"
 extern const char* appName;
-static char path[PATH_MAX] = {};
+static char path[PATH_MAX+1] = {};
 static char path_back[PATH_MAX+1] = {};
 char* fileContent;
 

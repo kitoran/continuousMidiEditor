@@ -29,7 +29,8 @@ void guiDrawImage(Painter* p, IMAGE* i, int x, int y);
 //extern Display * xdisplay;
 //extern XFontStruct *xFontStruct;
 //extern struct _XftFont *xFont;
-//extern Window rootWindow;
+extern GuiWindow rootWindow;
+extern Painter rootWindowPainter;
 //extern int xDepth;
 
 typedef struct Point {

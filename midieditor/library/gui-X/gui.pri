@@ -35,6 +35,8 @@ HEADERS += \
 INCLUDEPATH += $$PWD/gui/
 INCLUDEPATH += $$PWD/gui/backends/x
 
+X {
 #LIBS += -lSDL2 #-lSDL_TTF
 CONFIG += link_pkgconfig
 PKGCONFIG += x11 xrender xft
+}

@@ -82,7 +82,7 @@ bool guiButton(Painter *p, char* text, int len)
                        size.width, size.height);
         guiSetForeground(p, 0xffffffff);
         guiDrawText(p, text, len, STRU(Point,
-                    pos.x+5 /*+ overallLog.x*/, pos.y+5 + overallLog.height),
+                    pos.x+5 /*+ overallLog.x*/, pos.y+5 /*+ overallLog.height*/),
                     0xffffffff);
     }
 //    XPutImage(xdisplay, l->window, l->gc, l->x+5, l->y+5, width, height);

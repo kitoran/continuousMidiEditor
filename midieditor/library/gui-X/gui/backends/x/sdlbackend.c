@@ -153,7 +153,9 @@ _Bool guiSameWindow(Painter *p) {
     case SDL_MOUSEBUTTONUP:
     case SDL_MOUSEBUTTONDOWN:
         return wid == event.edit.windowID;
+    default: return true;
     }
+
 }
 
 void guiDrawLine(Painter *a, int b, int c, int d, int e)
@@ -209,16 +211,21 @@ Size guiDrawText(Painter* p, const char *text, int len, Point pos,
             255};
     SDL_Surface *surfaceMessage =
             TTF_RenderUTF8_Solid(font, text, sdlcolor);
+    SDL_Texture*textext = SDL_CreateTextureFromSurface
+                    (p->gc, surfaceMessage);
     Size res = {surfaceMessage->w, surfaceMessage->h};
+    SDL_FreeSurface(surfaceMessage);
+
     SDL_Rect rect = {
         pos.x,
         pos.y,
         res.width,
         res.height
     };
-    SDL_BlitSurface(surfaceMessage, 0, p->drawable, &rect);
+    SDL_RenderCopy(p->gc, textext, 0, &rect);
 
-    SDL_FreeSurface(surfaceMessage);
+///    SDL_BlitSurface(surfaceMessage, 0, p->drawable, &rect);
+
     return res;
 }
 
@@ -247,15 +254,15 @@ void guiStartDrawing(/*const char* appName*/) {
 
     for(char d[2] = {'0', '\x00'}; d[0] < '9'; d[0]++) {
         int w,h;
-        TTF_SizeUTF8(font, &d, &w, &h);
+        TTF_SizeUTF8(font, d, &w, &h);
         maxDigitWidth = MAX(maxDigitWidth, w);
         maxDigitHeight = MAX(maxDigitHeight, h);
     }
 
     rootWindow = SDL_CreateWindow(
        appName,
-       700, 700,
-       0, 0,
+       0,0,700, 700,
+//       0, 0,
        SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE
    );
     // Create a "Graphics Context"
@@ -280,30 +287,18 @@ static int wait_fd(int fd, double seconds)
 
 void guiNextEvent()
 {
-    if(redraw) {
-        redraw = false;
-        event.type = Expose;
-        return;
-    }
+//    if(redraw) {
+//        redraw = false;
+//        event.type = Expose;
+//        return;
+//    }
 
-    if (XPending(xdisplay) || wait_fd(ConnectionNumber(xdisplay),0.530)) {
-       XNextEvent(xdisplay, &event);
-       if(event.xany.window != rootWindow) {
-            fprintf(stderr, "got wrong event %d %lud\n", event.type, event.xany.window );
-           abort();
-       }
+    SDL_WaitEvent(&event);
 
-        if(event.type == ConfigureNotify) {
-            Size newSize = {
-                event.xconfigure.width,
-                event.xconfigure.height};
-            rootWindowSize = newSize;
-//            fprintf(stderr, "reconfigure  %d x %d\n!!",
-//                    newSize.width,
-//                                          newSize.height);;
-        }
-       return;
-    } else {
-        event.type = TimerEvent;
-    }
+//        if(event.type == ConfigureNotify) {
+//            Size newSize = {
+//                event.xconfigure.width,
+//                event.xconfigure.height};
+//            rootWindowSize = newSize;
+//        }
 }
