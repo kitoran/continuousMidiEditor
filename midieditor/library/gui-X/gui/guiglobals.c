@@ -11,3 +11,5 @@ struct context context = {
     0
 };
 Size rootWindowSize;
+
+Painter rootWindowPainter;

@@ -265,6 +265,11 @@ void guiStartDrawing(/*const char* appName*/) {
 //       0, 0,
        SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE
    );
+    SDL_Renderer* renderer = SDL_CreateRenderer(rootWindow, -1,  0);
+//    SDL_Rect f = {0,0,windowWidth, windowHeight};
+//    SDL_RenderFillRect(renderer, &f);
+    rootWindowPainter = STRU(Painter,
+                             renderer, SDL_GetWindowSurface(rootWindow), rootWindow);
     // Create a "Graphics Context"
 //    GC gc = XCreateGC(xdisplay , rootWindow, 0, NULL);
 //    xFontStruct = XLoadQueryFont(xdisplay, "fixed");
@@ -292,13 +297,17 @@ void guiNextEvent()
 //        event.type = Expose;
 //        return;
 //    }
-
-    SDL_WaitEvent(&event);
-
-//        if(event.type == ConfigureNotify) {
-//            Size newSize = {
-//                event.xconfigure.width,
-//                event.xconfigure.height};
-//            rootWindowSize = newSize;
-//        }
+    SDL_RenderPresent(rootWindowPainter.gc);
+    int res = SDL_WaitEvent(&event);
+    assert(res);
+    if(event.type == SDL_WINDOWEVENT) {
+        if(event.window.event == SDL_WINDOWEVENT_RESIZED  || event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
+            fprintf(stderr,"resizeevent" );
+            rootWindowSize.width = event.window.data1;
+            rootWindowSize.height = event.window.data2;
+        }
+        if(event.window.event == SDL_WINDOWEVENT_CLOSE) {
+            return;
+        }
+    }
 }
