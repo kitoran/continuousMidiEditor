@@ -9,5 +9,9 @@ include(../../library/stb/stb_ds.pri)
 #include(../../library/gui-SDL/gui.pri)
 include(library/gui-X/gui.pri)
 
-SOURCES += main.c
+SOURCES += main.c \
+    sortediterable.c
 LIBS += -lSDL2 -lSDL2_ttf
+
+HEADERS += \
+    sortediterable.h

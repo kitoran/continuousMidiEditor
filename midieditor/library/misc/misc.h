@@ -2,6 +2,8 @@
 #define MISC_H
 
 typedef unsigned int u32;
+typedef long long int i64;
+typedef short int i16;
 #define MAX(x,y) ((x)>(y)?(x):(y))
 #define MIN(x,y) ((x)<(y)?(x):(y))
 #define ELEMS(a) (sizeof(a)/sizeof(*(a)))
