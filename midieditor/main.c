@@ -2,25 +2,8 @@
 #include <gridlayout.h>
 #include <stdbool.h>
 #include "stb_ds.h"
-//const char* appName = "FractionalMidi";
-//int main() {
-//    guiStartDrawing();
-//}
-///*
+
 #include "misc.h"
-#include <SDL2/SDL_ttf.h>
-//#include <SDL2/SDL2.h>
-enum { SCREEN_WIDTH = 800,
-       SCREEN_HEIGHT = 600};
-int windowWidth = SCREEN_WIDTH;
-int windowHeight = SCREEN_HEIGHT;
-//const double tau = 6.283185307179586;
-TTF_Font* Sans;
-typedef struct textures {
-    char* key;
-    SDL_Texture*value;
-} textures;
-textures *textTextures = NULL;
 void drawText(char* text, SDL_Renderer* renderer,  int x, int y) {
     fprintf(stderr,"drawText {%s}" ,text);
     //  var zigs = std.mem.span(text);
@@ -306,22 +289,7 @@ Uint32 timerCallback (Uint32 interval, void *param) {
 }
 
 SDL_Renderer* renderer;
-void draw() {
 
-    drawText("440", renderer, 10, windowHeight/2);
-    // SDL_Log("Window %d resized to %dx%d",
-    // event->window.windowID, ,
-    // );
-    SDL_SetRenderDrawColor(renderer, 255,0,255,255);
-//    int start = 0;
-    FOR_STB_ARRAY(anote, piece) {
-        SDL_Rect r = {anote->start*20, windowHeight/2-(anote->freq-400), anote->length*20, 10};
-        SDL_RenderFillRect(renderer, &r);
-//        start += r.w;
-    }
-//    SDL_RenderPresent(renderer);
-
-}
 SDL_AudioDeviceID ret;
 void audio() {
     SDL_AudioSpec  want;
@@ -442,15 +410,7 @@ int main() {
         draw();
         SDL_RenderPresent(renderer);
 
-        if(event.type == SDL_MOUSEBUTTONUP) {
-            SDL_MouseButtonEvent e =
-                    event.button;
-            Note n = {-(e.y-windowHeight/2)+400,
-                     e.x / 20.0,
-                     0.5};
-            insert(n);
-            draw();
-        }
+
         if(event.type == SDL_WINDOWEVENT) {
             if(event.window.event == SDL_WINDOWEVENT_RESIZED  || event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
                 fprintf(stderr,"resizeevent" );

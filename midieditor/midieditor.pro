@@ -10,8 +10,12 @@ include(../../library/stb/stb_ds.pri)
 include(library/gui-X/gui.pri)
 
 SOURCES += main.c \
+    melody.c \
+    roll.c \
     sortediterable.c
 LIBS += -lSDL2 -lSDL2_ttf
 
 HEADERS += \
+    melody.h \
+    roll.h \
     sortediterable.h
