@@ -8,6 +8,7 @@ QMAKE_CFLAGS += -Wno-pointer-sign -Werror-implicit-function-declaration
 include(../../library/stb/stb_ds.pri)
 #include(../../library/gui-SDL/gui.pri)
 include(library/gui-X/gui.pri)
+include(../../library/extmath/extmath.pri)
 
 SOURCES += main.c \
     melody.c \

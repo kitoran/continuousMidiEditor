@@ -292,12 +292,12 @@ static int wait_fd(int fd, double seconds)
 
 void guiNextEvent()
 {
+    SDL_RenderPresent(rootWindowPainter.gc);
 //    if(redraw) {
 //        redraw = false;
 //        event.type = Expose;
 //        return;
 //    }
-    SDL_RenderPresent(rootWindowPainter.gc);
     int res = SDL_WaitEvent(&event);
     assert(res);
     if(event.type == SDL_WINDOWEVENT) {

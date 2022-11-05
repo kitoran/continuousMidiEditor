@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include "stb_ds.h"
 #include "melody.h"
+#include "extmath.h"
 #include "roll.h"
 
 #include "misc.h"
@@ -53,12 +54,18 @@ int countSamples(double time) {
     return time * have.freq;
 }
 
+SDL_AudioDeviceID audioDevice;
 void buffer(void* userdata,
             Uint8* stream8,
             int wrongLen)
 {
+    if(arrlen(piece) == 0) {
+        SDL_PauseAudioDevice(audioDevice, 1);
+        return;
+    }
+
     int trueLen = wrongLen/2;
-    i16* stream = stream8;
+    i16* stream = (i16*)stream8;
     typedef struct StrippedNote {
         int samples;
         double freq;
@@ -71,7 +78,7 @@ void buffer(void* userdata,
 //        static double time = 0;
         const Note silenceEnd = {INFINITY, INFINITY, 0};
         const Note silenceStart = {0, 0, 0};
-        Note* nextNote = position+1 < arrlen(piece)? piece+position+1 : &silenceEnd;
+        const Note* nextNote = position+1 < arrlen(piece)? piece+position+1 : &silenceEnd;
         const Note* previousNote = position > 0? piece+position-1 : &silenceStart;
         double duration = started?MIN(currentNote->length, nextNote->start - currentNote->start):
                                MAX(currentNote->start - (previousNote->start+previousNote->length), 0);
@@ -137,7 +144,6 @@ void buffer(void* userdata,
 
 SDL_Renderer* renderer;
 
-SDL_AudioDeviceID ret;
 void audio() {
     SDL_AudioSpec  want;
     memset(&want,0,sizeof(want));
@@ -148,7 +154,7 @@ void audio() {
     want.samples = 4096;
     want.callback = buffer;
 
-    ret =  SDL_OpenAudioDevice(
+    audioDevice =  SDL_OpenAudioDevice(
                 NULL,
                 SDL_FALSE,
                 &want, &have,
@@ -156,19 +162,19 @@ void audio() {
     fprintf(stderr,"%s, returend %d %d %d %d %d %d \n",
             SDL_GetError(), want.format, want.channels, want.samples,have.format, have.channels, have.samples);
 
-    SDL_PauseAudioDevice(ret, 0);
+    SDL_PauseAudioDevice(audioDevice, 0);
 }
 char* appName = "piano roll continous";
 int main() {
     // Note that info level log messages are by default printed only in Debug
     // and ReleaseSafe build modes.
-    Note n = {
-        440, 0, 0.5
-    };
-    double sq = pow(2, 1.0/12);
-    arrpush(piece, n);
+//    Note n = {
+//        440, 0, 0.5
+//    };
+//    double sq = pow(2, 1.0/12);
+//    arrpush(piece, n);
 
-    arrpush(piece, STRU(Note, 440*sq*sq, 0, 0.5));
+//    arrpush(piece, STRU(Note, 440*sq*sq, 0, 0.5));
 //    arrpush(piece, STRU(Note, 440*sq*sq*sq*sq, pos++/2, 0.5));
 //    arrpush(piece, STRU(Note, 440*sq*sq, pos++/2, 0.5));
 //    arrpush(piece, STRU(Note, 440, pos++/2, 0.5));
@@ -212,10 +218,10 @@ int main() {
             guiClearWindow(rootWindow);
         setCurrentGridPos(0,0);
         if(guiButton(&rootWindowPainter, "play", 4)) {
-            SDL_PauseAudioDevice(ret, 0);
+            SDL_PauseAudioDevice(audioDevice, 0);
         } gridNextColumn();
         if(guiButton(&rootWindowPainter, "stop", 4)) {
-            SDL_PauseAudioDevice(ret, 1);
+            SDL_PauseAudioDevice(audioDevice, 1);
         }
         roll(&rootWindowPainter, getGridBottom(topGrid()));
         SDL_RenderPresent(renderer);

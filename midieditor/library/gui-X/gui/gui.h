@@ -34,19 +34,20 @@ extern Painter rootWindowPainter;
 //extern int xDepth;
 
 typedef struct Point {
-    int x;
-    int y;
+    i32 x;
+    i32 y;
 } Point;
 typedef struct Size {
     u32 width;
     u32 height;
 } Size;
 typedef struct Rect {
-    u32 x;
-    u32 y;
+    i32 x;
+    i32 y;
     u32 width;
     u32 height;
 } Rect;
+_Bool pointInRect(Point p, Rect r);
 extern Point (*getPos)();
 extern void (*feedbackSize)(Size);
 

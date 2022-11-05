@@ -421,3 +421,9 @@ bool guiCheckBox(Painter *p, bool *v)
     feedbackSize(size);
     return res;
 }
+
+_Bool pointInRect(Point p, Rect r)
+{
+    return p.x >= r.x && p.x <= r.x+(i32)r.width &&
+            p.y >= r.y && p.y <= r.y +(i32)r.height;
+}
