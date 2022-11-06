@@ -4,9 +4,41 @@
 #include "extmath.h"
 #include "stb_ds.h"
 #include "melody.h"
-double fractions[] = {/*0.0/1,*/ 1.0/7, 1.0/6, 1.0/5, 1.0/4, 2.0/7,
-                    1.0/3, 2.0/5, 3.0/7, 1.0/2, 4.0/7, 3.0/5,
-                    2.0/3, 5.0/7, 3.0/4, 4.0/5, 5.0/6, 6.0/7, 1.0/1};
+typedef struct {
+    int num;
+    int den;
+} fraction;
+fraction fractions[] = {{1,8}, {1, 7}, {1, 6}, {1, 5}, {1, 4}, {2, 7},
+                        {1, 3}, {3,8}, {2, 5}, {3, 7}, {1, 2}, {4, 7},
+                        {3, 5}, {5,8}, {2, 3}, {5, 7}, {3, 4}, {4, 5},
+                        {5, 6}, {6, 7}, {7,8}, {1, 1}};
+double toDouble(fraction f) {
+   return f.num*1.0/f.den;
+}
+
+fraction searchFraction(double test) {
+    if(test > 1) {
+        fraction inv = searchFraction(1/test);
+        return STRU(fraction, inv.den, inv.num);
+    }
+    int il = 0, ih = ELEMS(fractions)-1;
+    while(ih-il>1) {
+        fraction interm = fractions[(ih+il)/2];
+        if(test == toDouble(interm)) return interm;
+        if(test > toDouble(interm)) {
+            il = (ih+il)/2;
+        } else {
+            ih = (ih+il)/2;
+        }
+    }
+    if(fabs(toDouble(fractions[ih]) - test) > fabs(toDouble(fractions[il]) - test)) {
+        return fractions[il];
+    } else return fractions[ih];
+}
+
+//double fractions[] = {/*0.0/1,*/ 1.0/7, 1.0/6, 1.0/5, 1.0/4, 2.0/7,
+//                    1.0/3, 2.0/5, 3.0/7, 1.0/2, 4.0/7, 3.0/5,
+//                    2.0/3, 5.0/7, 3.0/4, 4.0/5, 5.0/6, 6.0/7, 1.0/1};
 Point dragStart = {-1,-1};
 Note* base = NULL;
 Note editedNote = {-1, -1, -1};
@@ -45,12 +77,17 @@ void roll(Painter* p, int y) {
         guiSetForeground(p, 0xff111111);
         FOR_STATIC_ARRAY(frac, fractions) {
 //            for(int i = 0; i < 3; i++) {
-            coord c = {base->freq * (*frac), 0};
+            coord c = {base->freq * frac->num/frac->den, 0};
             Point r = fromCoord(c);
             if(r.y >= y) guiDrawLine(p, 0, r.y, windowSize.width, r.y);
-            c = STRU(coord, base->freq / (*frac), 0);
+            char str[30];
+            sprintf(str, "%d/%d", frac->num, frac->den);
+            guiDrawTextZT(p, str, r, 0xffffffff);
+            c = STRU(coord, base->freq / frac->num*frac->den, 0);
             r = fromCoord(c);
             if(r.y >= y) guiDrawLine(p, 0, r.y, windowSize.width, r.y);
+            sprintf(str, "%d/%d", frac->num, frac->den);
+            guiDrawTextZT(p, str, r, 0xffffffff);
 //            }
         }
     }

@@ -53,8 +53,14 @@ SDL_AudioSpec  have;
 int countSamples(double time) {
     return time * have.freq;
 }
-
+#define CHANNELS 16
 SDL_AudioDeviceID audioDevice;
+//int binaryFind(int samples) {
+//    int l = 0, h = arrlen(piece)-1;
+//    while(h-l > 1) {
+//        if(
+//    }
+//}
 void buffer(void* userdata,
             Uint8* stream8,
             int wrongLen)
@@ -63,73 +69,120 @@ void buffer(void* userdata,
         SDL_PauseAudioDevice(audioDevice, 1);
         return;
     }
-
     int trueLen = wrongLen/2;
+    static int currentPositionInSamples = 0;
+
     i16* stream = (i16*)stream8;
-    typedef struct StrippedNote {
-        int samples;
-        double freq;
-    } StrippedNote;
+//    typedef struct StrippedNote {
+//        int samples;
+//        double freq;
+//    } StrippedNote;
 
-    StrippedNote newNote() {
-        static int position = 0;
-        static bool started = false;
-        Note* currentNote = piece+position;
-//        static double time = 0;
-        const Note silenceEnd = {INFINITY, INFINITY, 0};
-        const Note silenceStart = {0, 0, 0};
-        const Note* nextNote = position+1 < arrlen(piece)? piece+position+1 : &silenceEnd;
-        const Note* previousNote = position > 0? piece+position-1 : &silenceStart;
-        double duration = started?MIN(currentNote->length, nextNote->start - currentNote->start):
-                               MAX(currentNote->start - (previousNote->start+previousNote->length), 0);
-
-        StrippedNote res = { countSamples(duration),
-                             started? currentNote->freq : 0};
-        if(!started) started = true;
-        else {
-            position++;
-            started = false;
-            if(position >= arrlen(piece)) position = 0;
+    void newNotes(double freqs[CHANNELS], int *samples) {
+//        static int positionEnd = 0;
+//        static int positionStart = 0;
+//        static bool started = false;
+        int filledPositions = 0;
+        *samples = INT32_MAX;//0x7fffffff;
+        int i ;
+        for(i = 0; i < arrlen(piece) && filledPositions < CHANNELS; i++) {
+            if(piece[i].start <= currentPositionInSamples*1.0/have.freq &&
+                    piece[i].start + piece[i].length > currentPositionInSamples*1.0/have.freq) {
+                freqs[filledPositions] = piece[i].freq;
+                filledPositions++;
+                int remSam = countSamples(piece[i].start + piece[i].length) - currentPositionInSamples;
+                if(remSam<*samples) *samples = remSam;
+            }
+            if(countSamples(piece[i].start) > currentPositionInSamples) {
+                int remSam = countSamples(piece[i].start) - currentPositionInSamples;
+                if(remSam<*samples) *samples = remSam;
+                break;
+            }
         }
-        return res;
+        if(filledPositions  < CHANNELS) freqs[filledPositions] = -1;
+//        if(filledPositions == 0) {
+//            FOR_STB_ARRAY(anote, piece) {
+//                if(countSamples(anote->start) > currentPositionInSamples) {
+//                    *samples = countSamples(anote->start) - currentPositionInSamples;
+//                    break;
+//                }
+//            }
+//        }
+        if(i >= arrlen(piece) && filledPositions == 0) {
+                *samples = 0;
+                currentPositionInSamples = 0;
+        }
+//        Note* currentNote = piece+position;
+//        static double time = 0;
+//        const Note silenceEnd = {INFINITY, INFINITY, 0};
+//        const Note silenceStart = {0, 0, 0};
+//        const Note* nextNote = position+1 < arrlen(piece)? piece+position+1 : &silenceEnd;
+//        const Note* previousNote = position > 0? piece+position-1 : &silenceStart;
+//        double duration = started?MIN(currentNote->length, nextNote->start - currentNote->start):
+//                               MAX(currentNote->start - (previousNote->start+previousNote->length), 0);
+
+//        StrippedNote res = { countSamples(duration),
+//                             started? currentNote->freq : 0};
+//        if(!started) started = true;
+//        else {
+//            positionEnd++;
+////            positionStart++;
+//            started = false;
+//            if(position >= arrlen(piece)) {
+//                    /*positionStart = */positionEnd = 0;
+//                    currentPositionInSamples = 0;
+//            }
+//        }
+//        return res;
     }
 
     static struct State {
         int samplesToFill;
-        double freq;
+        double freq[CHANNELS];
         bool smooth;
-        double lastFreq;
-        int framesLeftLastFreq;
+        double lastFreq[CHANNELS];
+        int framesLeftLastFreq[CHANNELS];
     } state;
     loop:
     int samplesToFillNow = MIN(trueLen, state.samplesToFill);
 
-    static u32 phase = 0;
+    static u32 phase[CHANNELS] = {0};
     for(int i = 0; i < samplesToFillNow; i++) {
-        stream[i] = (sin(phase/4.0*tau/(SDL_MAX_UINT32/4))*1000);
-        if(state.framesLeftLastFreq == 0) {
-            phase = phase+(SDL_MAX_UINT32/((double)have.freq)*(state.freq));
-        } else {
-            phase = phase +
-                     ((SDL_MAX_UINT32/((double)have.freq)*(state.lastFreq)))*
-                            (state.framesLeftLastFreq/(double)EASE_FRAMES)
-                    + (SDL_MAX_UINT32/((double)have.freq)*(state.freq))*
-                            (1-state.framesLeftLastFreq/(double)EASE_FRAMES);
-            state.framesLeftLastFreq--;
+        stream[i] = 0;
+        FOR(j, CHANNELS) {
+            stream[i] += (sin(phase[j]/4.0*tau/(SDL_MAX_UINT32/4))*1000);
+            if(state.framesLeftLastFreq[j] == 0) {
+                phase[j] += (SDL_MAX_UINT32/((double)have.freq)*(state.freq[j]));
+            } else {
+                phase[j] +=
+                         ((SDL_MAX_UINT32/((double)have.freq)*(state.lastFreq[j])))*
+                                (state.framesLeftLastFreq[j]/(double)EASE_FRAMES)
+                        + (SDL_MAX_UINT32/((double)have.freq)*(state.freq[j]))*
+                                (1-state.framesLeftLastFreq[j]/(double)EASE_FRAMES);
+                state.framesLeftLastFreq[j]--;
+            }
         }
+        currentPositionInSamples++;
     }
     state.samplesToFill -= samplesToFillNow;
     stream += samplesToFillNow;
     trueLen -= samplesToFillNow;
     if(state.samplesToFill == 0) {
-        StrippedNote note = newNote();
+//        fprintf(stderr, "this just for breakpoint:");
+        double freqs[CHANNELS];
+        int samples;
+        newNotes(freqs, &samples);
         struct State newstate = {
-            note.samples,
-            note.freq,
+            samples,
+            {0},
             true,
-            state.freq,
-            EASE_FRAMES
+            {0},
+            {0},//EASE_FRAMES
         };
+        FOR(i, CHANNELS) {
+            newstate.lastFreq[i] = state.freq[i];
+            newstate.freq[i] = freqs[i];//.freq;
+        }
         state = newstate;
         goto loop;
     }
