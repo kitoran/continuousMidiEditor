@@ -16,7 +16,7 @@
 //    int x;
 //    int y;
 //} State;
-typedef int i32;
+//typedef int i32;
 //typedef struct Image Image;
 extern Event event;
 
@@ -88,13 +88,15 @@ void guiDrawTextWithLen(Painter*, int, int, char*, unsigned long);
 void guiSetSize(u32, u32);
 Size guiGetSize();
 
-
 static const unsigned int GuiDarkMagenta = 0x880088;
 static inline unsigned int rgb(int r, int g, int b) {
     return r << 16 | g << 8 | b;
 }
 static inline unsigned int rgbf(double r, double g, double b) {
     return rgb(r*255, g*255, b*255);
+}
+static inline u32 gray(int gv) {
+    return rgb(gv,gv,gv);
 }
 void guiStartDrawing();
 void guiNextEvent();

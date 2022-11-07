@@ -2,6 +2,7 @@
 #include "misc.h"
 #include "gui.h"
 #include "extmath.h"
+#include "playback.h"
 #include "stb_ds.h"
 #include "melody.h"
 typedef struct {
@@ -47,6 +48,7 @@ typedef struct {
     double time;
 } coord;
 void roll(Painter* p, int y) {
+//    static Image
     Size windowSize = guiGetSize();
     int height = windowSize.height-y;
     coord toCoord(int mx, int my) {
@@ -73,23 +75,43 @@ void roll(Painter* p, int y) {
     // event->window.windowID, ,
     // );
 //    int start = 0;
+
+    Point cur = fromCoord(STRU(coord, 0, samplesToTime(currentPositionInSamples)));
+    guiSetForeground(p, 0xff333333);
+    guiDrawLine(p, cur.x, y, cur.x, windowSize.height);
+    STATIC(int, digSize, guiTextExtents("3/5", 3).height);
     if(base) {
-        guiSetForeground(p, 0xff111111);
         FOR_STATIC_ARRAY(frac, fractions) {
+
+            guiSetForeground(p, gray((9-frac->den) *255 / 9));
 //            for(int i = 0; i < 3; i++) {
             coord c = {base->freq * frac->num/frac->den, 0};
             Point r = fromCoord(c);
             if(r.y >= y) guiDrawLine(p, 0, r.y, windowSize.width, r.y);
             char str[30];
             sprintf(str, "%d/%d", frac->num, frac->den);
-            guiDrawTextZT(p, str, r, 0xffffffff);
+            guiDrawTextZT(p, str, STRU(Point, r.x, r.y-digSize/2), 0xffffffff);
             c = STRU(coord, base->freq / frac->num*frac->den, 0);
             r = fromCoord(c);
             if(r.y >= y) guiDrawLine(p, 0, r.y, windowSize.width, r.y);
-            sprintf(str, "%d/%d", frac->num, frac->den);
-            guiDrawTextZT(p, str, r, 0xffffffff);
+            sprintf(str, "%d/%d", frac->den, frac->num);
+            guiDrawTextZT(p, str, STRU(Point, r.x, r.y-digSize/2), 0xffffffff);
 //            }
         }
+//        guiSetForeground(p, gray(0x33));
+//        FOR(i, 16) {
+//            coord c = {base->freq * pow(2, i*1.0/16), 0};
+//            Point r = fromCoord(c);
+//            if(r.y >= y) guiDrawLine(p, 0, r.y, windowSize.width, r.y);
+//            char str[30];
+//            sprintf(str, "%d", i);
+//            guiDrawTextZT(p, str, r, 0xffffffff);
+//            c = STRU(coord, base->freq / pow(2, i*1.0/16), 0);
+//            r = fromCoord(c);
+//            if(r.y >= y) guiDrawLine(p, 0, r.y, windowSize.width, r.y);
+//            sprintf(str, "%d", -i);
+//            guiDrawTextZT(p, str, r, 0xffffffff);
+//        }
     }
     FOR_STB_ARRAY(anote, piece) {
         Rect r = noteToRect(*anote);
@@ -132,7 +154,7 @@ void roll(Painter* p, int y) {
                 event.button;
         if(e.y < y) return;
         dragStart = STRU(Point, e.x, e.y);
-        base = NULL;
+        Note* select = NULL;
         FOR_STB_ARRAY(anote, piece) {
             if(pointInRect(STRU(Point, e.x, e.y),
                            noteToRect(*anote))) {
@@ -140,8 +162,29 @@ void roll(Painter* p, int y) {
                 DEBUG_PRINT(anote->start, "%lf");
             }
         }
-        if(base == NULL && e.button == 1) {
-            coord c = toCoord(e.x, e.y);
+        if(select) {
+            base = select;
+        }
+        coord c = toCoord(e.x, e.y);
+        if(base != NULL && select == NULL && e.button == 1) {
+            fraction frac = searchFraction(c.freq/base->freq);
+            fprintf(stderr, "frac is %d/%d (%lf)\n", frac.num, frac.den, toDouble(frac));
+            coord le = toCoord(e.x, e.y+5);
+            coord mo = toCoord(e.x, e.y-5);
+//            fprintf(stderr, "le/b is %lf %d\n", le.freq/base->freq, le.freq/base->freq<toDouble(frac));
+//            fprintf(stderr, "mo/b is %lf %d\n", mo.freq/base->freq,  mo.freq/base->freq>);
+            if(le.freq/base->freq < toDouble(frac) &&
+                    mo.freq/base->freq > toDouble(frac)
+                    && !(frac.den==1&&frac.num==1)) {
+
+                fprintf(stderr, "in if\n");
+                editedNote = STRU(Note, toDouble(frac)*base->freq, c.time, 0.5);
+                fprintf(stderr, "editednotefrq is %lf\n", editedNote.freq);
+
+            }
+        }
+        if(base == NULL && select == NULL && e.button == 1) {
+            fprintf(stderr, "oops im here !!!L_)(\n");
             editedNote = STRU(Note, c.freq, c.time, 0.5);
         }
         if(e.button==3) {
@@ -154,6 +197,7 @@ void roll(Painter* p, int y) {
         if(e.y < y) return;
         coord c = toCoord(e.x, e.y);
         if(  editedNote.freq >= 0) {
+            DEBUG_PRINT("in other if", "%s")
             guiSetForeground(p,0xff000000);
             Rect r = noteToRect(editedNote);
             guiFillRectangle(p, r.x, r.y, r.width, r.height);
@@ -161,7 +205,10 @@ void roll(Painter* p, int y) {
             coord s = toCoord(dragStart.x, dragStart.y);
             double start = MIN(s.time, c.time);
             double end = MAX(s.time, c.time);
-            editedNote = STRU(Note, s.freq, start, end-start);
+
+            DEBUG_PRINT(editedNote.freq, "%lf")
+            editedNote = STRU(Note, /*s.freq,*/ editedNote.freq, start, end-start);
+            DEBUG_PRINT(editedNote.freq, "%lf after")
 
             r = noteToRect(editedNote);
             guiSetForeground(p,0xffff77ff);

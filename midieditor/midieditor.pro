@@ -12,11 +12,13 @@ include(../../library/extmath/extmath.pri)
 
 SOURCES += main.c \
     melody.c \
+    playback.c \
     roll.c \
     sortediterable.c
 LIBS += -lSDL2 -lSDL2_ttf
 
 HEADERS += \
     melody.h \
+    playback.h \
     roll.h \
     sortediterable.h

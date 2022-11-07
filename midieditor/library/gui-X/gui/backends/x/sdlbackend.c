@@ -248,6 +248,10 @@ void guiStartDrawing(/*const char* appName*/) {
         fprintf(stderr,"SDL could not initialize! SDL_Error: {s} \n", SDL_GetError());
         abort();
     }
+//    int events = SDL_RegisterEvents(1);
+//    assert(events == SDL_USEREVENT);
+
+
     TTF_Init();
     font = TTF_OpenFont("/home/n/.fonts/comici.ttf", 24);
 
@@ -261,7 +265,7 @@ void guiStartDrawing(/*const char* appName*/) {
 
     rootWindow = SDL_CreateWindow(
        appName,
-       0,0,700, 700,
+       700,0,700, 700,
 //       0, 0,
        SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE
    );

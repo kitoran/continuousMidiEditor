@@ -14,7 +14,7 @@ enum {
     ButtonRelease = SDL_MOUSEBUTTONUP,
     ButtonPress = SDL_MOUSEBUTTONDOWN,
     KeyPress = SDL_KEYDOWN,
-    TimerEvent = SDL_USEREVENT
+    TimerEvent = SDL_USEREVENT,
 };
 #define GET_X(a) ((a).type == SDL_MOUSEMOTION?(a).motion.x:\
                   ((a).type == SDL_MOUSEBUTTONUP || (a).type == SDL_MOUSEBUTTONDOWN)?(a).button.x:\
