@@ -67,6 +67,7 @@ int main() {
 //                           10.5, 10.5, 105.5, er++);
 
         guiNextEvent();
+//        DEBUG_PRINT(event.type, "%x");
         guiSetForeground(&rootWindowPainter,0);
         if(event.type != MotionEvent)
             guiClearWindow(rootWindow);
@@ -76,7 +77,12 @@ int main() {
         } gridNextColumn();
         if(guiButton(&rootWindowPainter, "stop", 4)) {
             SDL_PauseAudioDevice(audioDevice, 1);
-        }
+        } gridNextColumn();
+        guiDoubleField(&rootWindowPainter, 6, &bpm); gridNextColumn();
+        guiLabelZT(&rootWindowPainter, "bpm"); gridNextColumn();
+        static int d;
+        guiIntField(&rootWindowPainter, 6, &d); gridNextColumn();
+
         roll(&rootWindowPainter, getGridBottom(topGrid()));
         SDL_RenderPresent(renderer);
 

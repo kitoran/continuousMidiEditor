@@ -80,6 +80,13 @@ void roll(Painter* p, int y) {
     guiSetForeground(p, 0xff333333);
     guiDrawLine(p, cur.x, y, cur.x, windowSize.height);
     STATIC(int, digSize, guiTextExtents("3/5", 3).height);
+    double lastVisibleTime = toCoord(windowSize.width, 0).time;
+    guiSetForeground(p, gray(0x11));
+    for(double s = 0; s < lastVisibleTime; s+= 60/bpm) {
+        int c = fromCoord(STRU(coord, 0, s)).x;
+        guiDrawLine(p, c, y, c, windowSize.height);
+    }
+
     if(base) {
         FOR_STATIC_ARRAY(frac, fractions) {
 

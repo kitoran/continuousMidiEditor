@@ -9,5 +9,5 @@ typedef struct Note {
 
 extern Note* piece;
 void insert(Note note);
-
+extern double bpm;
 #endif // MELODY_H

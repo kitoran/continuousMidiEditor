@@ -4,7 +4,7 @@
 #include <math.h>
 #include <stdio.h>
 Note* piece = 0;
-
+double bpm;
 void insert(Note note) {
     int pos = 0;
     while(arrlen(piece) > pos && piece[pos].start < note.start) pos++;
