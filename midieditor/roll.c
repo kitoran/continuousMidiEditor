@@ -82,7 +82,7 @@ void roll(Painter* p, int y) {
     STATIC(int, digSize, guiTextExtents("3/5", 3).height);
     double lastVisibleTime = toCoord(windowSize.width, 0).time;
     guiSetForeground(p, gray(0x11));
-    for(double s = 0; s < lastVisibleTime; s+= 60/bpm) {
+    for(double s = 0; s < lastVisibleTime; s+= BEAT) {
         int c = fromCoord(STRU(coord, 0, s)).x;
         guiDrawLine(p, c, y, c, windowSize.height);
     }
@@ -173,6 +173,20 @@ void roll(Painter* p, int y) {
             base = select;
         }
         coord c = toCoord(e.x, e.y);
+        double time = c.time;
+        {
+            double closest = round(time/BEAT)*BEAT;
+            coord le = toCoord(e.x-5, e.y);
+            coord mo = toCoord(e.x+5, e.y);
+            DEBUG_PRINT(closest, "%lf");
+            DEBUG_PRINT(le.time, "%lf");
+            DEBUG_PRINT(mo.time, "%lf");
+            if(le.time < closest &&
+                    mo.time > closest) {
+                time = closest;
+            }
+            DEBUG_PRINT(time, "%lf");
+        }
         if(base != NULL && select == NULL && e.button == 1) {
             fraction frac = searchFraction(c.freq/base->freq);
             fprintf(stderr, "frac is %d/%d (%lf)\n", frac.num, frac.den, toDouble(frac));
@@ -185,14 +199,14 @@ void roll(Painter* p, int y) {
                     && !(frac.den==1&&frac.num==1)) {
 
                 fprintf(stderr, "in if\n");
-                editedNote = STRU(Note, toDouble(frac)*base->freq, c.time, 0.5);
+                editedNote = STRU(Note, toDouble(frac)*base->freq, time, 0.5);
                 fprintf(stderr, "editednotefrq is %lf\n", editedNote.freq);
 
             }
         }
         if(base == NULL && select == NULL && e.button == 1) {
             fprintf(stderr, "oops im here !!!L_)(\n");
-            editedNote = STRU(Note, c.freq, c.time, 0.5);
+            editedNote = STRU(Note, c.freq, time, 0.5);
         }
         if(e.button==3) {
 
@@ -204,7 +218,7 @@ void roll(Painter* p, int y) {
         if(e.y < y) return;
         coord c = toCoord(e.x, e.y);
         if(  editedNote.freq >= 0) {
-            DEBUG_PRINT("in other if", "%s")
+//            DEBUG_PRINT("in other if", "%s")
             guiSetForeground(p,0xff000000);
             Rect r = noteToRect(editedNote);
             guiFillRectangle(p, r.x, r.y, r.width, r.height);
@@ -213,9 +227,9 @@ void roll(Painter* p, int y) {
             double start = MIN(s.time, c.time);
             double end = MAX(s.time, c.time);
 
-            DEBUG_PRINT(editedNote.freq, "%lf")
-            editedNote = STRU(Note, /*s.freq,*/ editedNote.freq, start, end-start);
-            DEBUG_PRINT(editedNote.freq, "%lf after")
+//            DEBUG_PRINT(editedNote.freq, "%lf")
+            editedNote = STRU(Note, /*s.freq,*/ editedNote.freq, editedNote.start, end-start);
+//            DEBUG_PRINT(editedNote.freq, "%lf after")
 
             r = noteToRect(editedNote);
             guiSetForeground(p,0xffff77ff);

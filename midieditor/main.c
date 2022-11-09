@@ -1,4 +1,5 @@
 ﻿#include <gui.h>
+#include <persistent.h>
 #include <gridlayout.h>
 #include <stdbool.h>
 #include "stb_ds.h"
@@ -78,7 +79,7 @@ int main() {
         if(guiButton(&rootWindowPainter, "stop", 4)) {
             SDL_PauseAudioDevice(audioDevice, 1);
         } gridNextColumn();
-        guiDoubleField(&rootWindowPainter, 6, &bpm); gridNextColumn();
+        persistentDoubleField(&rootWindowPainter, 6, bpm); gridNextColumn();
         guiLabelZT(&rootWindowPainter, "bpm"); gridNextColumn();
         static int d;
         guiIntField(&rootWindowPainter, 6, &d); gridNextColumn();
