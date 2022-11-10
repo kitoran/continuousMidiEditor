@@ -5,9 +5,10 @@
 #include <stdio.h>
 Note* piece = 0;
 double bpm;
-void insert(Note note) {
+int insertNote(Note note) {
     int pos = 0;
     while(arrlen(piece) > pos && piece[pos].start < note.start) pos++;
+    int res = pos;
     Note temp;
     while(pos < arrlen(piece)) {
         temp = piece[pos];
@@ -16,6 +17,14 @@ void insert(Note note) {
         pos++;
     }
     arrpush(piece, note);
+    return res;
+}
+void removeNote(int ind) {
+//    assert(note - piece < arrlen(piece));
+    for(; ind < arrlen(piece)-1; ind++) {
+        piece[ind]=piece[ind+1];//*note = *(note+1);
+    }
+    arrsetlen(piece, ind);
 }
 double  freq1 = 110.0;
 double  freq2 = 110.0*1.09050773267 ;

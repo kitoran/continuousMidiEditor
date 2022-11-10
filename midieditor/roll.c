@@ -41,8 +41,9 @@ fraction searchFraction(double test) {
 //                    1.0/3, 2.0/5, 3.0/7, 1.0/2, 4.0/7, 3.0/5,
 //                    2.0/3, 5.0/7, 3.0/4, 4.0/5, 5.0/6, 6.0/7, 1.0/1};
 Point dragStart = {-1,-1};
-Note* base = NULL;
+int base = -1;
 Note editedNote = {-1, -1, -1};
+double horizontalScale = 20;
 typedef struct {
     double freq;
     double time;
@@ -54,11 +55,11 @@ void roll(Painter* p, int y) {
     coord toCoord(int mx, int my) {
         return STRU(coord,
                     -(my-y-height/2)+400,
-                    mx/20.0);
+                    mx/horizontalScale);
     }
     Point fromCoord(coord c) {
         return STRU(Point,
-                    c.time*20,
+                    c.time*horizontalScale,
                     y + height/2-(c.freq-400));
     }
     Rect noteToRect(Note n) {
@@ -67,6 +68,17 @@ void roll(Painter* p, int y) {
         c.time += n.length;
         Point e = fromCoord(c);
         return STRU(Rect, s.x, s.y-5, e.x-s.x, 10);
+    }
+    double closestTime(int x) {
+        coord tr = toCoord(x, 0);
+        double closest = round(tr.time/BEAT)*BEAT;
+        coord le = toCoord(x-5, 0);
+        coord mo = toCoord(x+5, 0);
+        if(le.time < closest &&
+                mo.time > closest) {
+            tr.time = closest;
+        }
+        return tr.time;
     }
 //    Point pos = getPos();
 
@@ -87,18 +99,18 @@ void roll(Painter* p, int y) {
         guiDrawLine(p, c, y, c, windowSize.height);
     }
 
-    if(base) {
+    if(base >= 0) {
         FOR_STATIC_ARRAY(frac, fractions) {
 
             guiSetForeground(p, gray((9-frac->den) *255 / 9));
 //            for(int i = 0; i < 3; i++) {
-            coord c = {base->freq * frac->num/frac->den, 0};
+            coord c = {piece[base].freq * frac->num/frac->den, 0};
             Point r = fromCoord(c);
             if(r.y >= y) guiDrawLine(p, 0, r.y, windowSize.width, r.y);
             char str[30];
             sprintf(str, "%d/%d", frac->num, frac->den);
             guiDrawTextZT(p, str, STRU(Point, r.x, r.y-digSize/2), 0xffffffff);
-            c = STRU(coord, base->freq / frac->num*frac->den, 0);
+            c = STRU(coord, piece[base].freq / frac->num*frac->den, 0);
             r = fromCoord(c);
             if(r.y >= y) guiDrawLine(p, 0, r.y, windowSize.width, r.y);
             sprintf(str, "%d/%d", frac->den, frac->num);
@@ -107,13 +119,13 @@ void roll(Painter* p, int y) {
         }
 //        guiSetForeground(p, gray(0x33));
 //        FOR(i, 16) {
-//            coord c = {base->freq * pow(2, i*1.0/16), 0};
+//            coord c = {piece[base].freq * pow(2, i*1.0/16), 0};
 //            Point r = fromCoord(c);
 //            if(r.y >= y) guiDrawLine(p, 0, r.y, windowSize.width, r.y);
 //            char str[30];
 //            sprintf(str, "%d", i);
 //            guiDrawTextZT(p, str, r, 0xffffffff);
-//            c = STRU(coord, base->freq / pow(2, i*1.0/16), 0);
+//            c = STRU(coord, piece[base].freq / pow(2, i*1.0/16), 0);
 //            r = fromCoord(c);
 //            if(r.y >= y) guiDrawLine(p, 0, r.y, windowSize.width, r.y);
 //            sprintf(str, "%d", -i);
@@ -122,7 +134,7 @@ void roll(Painter* p, int y) {
     }
     FOR_STB_ARRAY(anote, piece) {
         Rect r = noteToRect(*anote);
-        if(anote == base) {
+        if(anote == piece + base) {
             guiSetForeground(p, 0xffffffff);
         } else {
             guiSetForeground(p, 0xffff00ff);
@@ -138,11 +150,15 @@ void roll(Painter* p, int y) {
     }
     if(event.type == ButtonRelease) {
         dragStart = STRU(Point, -1, -1);
-//        SDL_MouseButtonEvent e =
-//                event.button;
+        SDL_MouseButtonEvent e =
+                event.button;
 //        coord c = toCoord(e.x, e.y);
+        double releaseTime = closestTime(e.x);
         if(editedNote.freq >= 0) {
-            insert(editedNote);
+            editedNote.length = releaseTime - editedNote.start;
+            if(base >= insertNote(editedNote)) {
+                base++;
+            }
         }
         editedNote = STRU(Note,-1,-1,-1);
 //        if(e.button == 1) {
@@ -156,55 +172,53 @@ void roll(Painter* p, int y) {
 //            guiRedraw();
 //        }
     }
+    if(event.type == MouseWheel) {
+        SDL_MouseWheelEvent e = event.wheel;
+        DEBUG_PRINT(e.x, "%d");
+        DEBUG_PRINT(e.y, "%d");
+
+        /*if(e.y >  0)*/ horizontalScale *= pow(1.5, e.y);// e.direction == SDL_MOUSEWHEEL_
+    }
     if(event.type == ButtonPress) {
         SDL_MouseButtonEvent e =
                 event.button;
+        DEBUG_PRINT(e.button, "%d");
         if(e.y < y) return;
         dragStart = STRU(Point, e.x, e.y);
         Note* select = NULL;
         FOR_STB_ARRAY(anote, piece) {
             if(pointInRect(STRU(Point, e.x, e.y),
                            noteToRect(*anote))) {
-                base = anote;
-                DEBUG_PRINT(anote->start, "%lf");
+                select = anote;//-piece;
+//                DEBUG_PRINT(anote->start, "%lf");
             }
         }
         if(select) {
-            base = select;
+            base = select-piece;
         }
         coord c = toCoord(e.x, e.y);
-        double time = c.time;
-        {
-            double closest = round(time/BEAT)*BEAT;
-            coord le = toCoord(e.x-5, e.y);
-            coord mo = toCoord(e.x+5, e.y);
-            DEBUG_PRINT(closest, "%lf");
-            DEBUG_PRINT(le.time, "%lf");
-            DEBUG_PRINT(mo.time, "%lf");
-            if(le.time < closest &&
-                    mo.time > closest) {
-                time = closest;
-            }
-            DEBUG_PRINT(time, "%lf");
-        }
-        if(base != NULL && select == NULL && e.button == 1) {
-            fraction frac = searchFraction(c.freq/base->freq);
+        double time = closestTime(e.x);
+//        DEBUG_PRINT(select, "%ld");
+
+        if(base >= 0 && select == NULL && e.button == 1) {
+            fraction frac = searchFraction(c.freq/piece[base].freq);
             fprintf(stderr, "frac is %d/%d (%lf)\n", frac.num, frac.den, toDouble(frac));
             coord le = toCoord(e.x, e.y+5);
             coord mo = toCoord(e.x, e.y-5);
-//            fprintf(stderr, "le/b is %lf %d\n", le.freq/base->freq, le.freq/base->freq<toDouble(frac));
-//            fprintf(stderr, "mo/b is %lf %d\n", mo.freq/base->freq,  mo.freq/base->freq>);
-            if(le.freq/base->freq < toDouble(frac) &&
-                    mo.freq/base->freq > toDouble(frac)
-                    && !(frac.den==1&&frac.num==1)) {
+//            fprintf(stderr, "le/b is %lf %d\n", le.freq/piece[base].freq, le.freq/piece[base].freq<toDouble(frac));
+//            fprintf(stderr, "mo/b is %lf %d\n", mo.freq/piece[base].freq,  mo.freq/piece[base].freq>);
+            if(le.freq/piece[base].freq < toDouble(frac) &&
+                    mo.freq/piece[base].freq > toDouble(frac)
+//                    && !(frac.den==1&&frac.num==1)
+                    ) {
 
                 fprintf(stderr, "in if\n");
-                editedNote = STRU(Note, toDouble(frac)*base->freq, time, 0.5);
+                editedNote = STRU(Note, toDouble(frac)*piece[base].freq, time, 0.5);
                 fprintf(stderr, "editednotefrq is %lf\n", editedNote.freq);
 
             }
         }
-        if(base == NULL && select == NULL && e.button == 1) {
+        if(base < 0 && select == NULL && e.button == 1) {
             fprintf(stderr, "oops im here !!!L_)(\n");
             editedNote = STRU(Note, c.freq, time, 0.5);
         }
@@ -217,6 +231,8 @@ void roll(Painter* p, int y) {
                 event.motion;
         if(e.y < y) return;
         coord c = toCoord(e.x, e.y);
+//        DEBUG_PRINT(editedNote.freq, "%lf")
+
         if(  editedNote.freq >= 0) {
 //            DEBUG_PRINT("in other if", "%s")
             guiSetForeground(p,0xff000000);
@@ -226,20 +242,21 @@ void roll(Painter* p, int y) {
             coord s = toCoord(dragStart.x, dragStart.y);
             double start = MIN(s.time, c.time);
             double end = MAX(s.time, c.time);
-
 //            DEBUG_PRINT(editedNote.freq, "%lf")
             editedNote = STRU(Note, /*s.freq,*/ editedNote.freq, editedNote.start, end-start);
 //            DEBUG_PRINT(editedNote.freq, "%lf after")
-
             r = noteToRect(editedNote);
             guiSetForeground(p,0xffff77ff);
             guiFillRectangle(p, r.x, r.y, r.width, r.height);
-
             //            guiClearWindow(rootWindow);
 //            guiRedraw();
         }
 //        if(base) {
-//            c.freq/base->freq
+//            c.freq/piece[base].freq
 //        }
+    }
+    if(event.type == KeyPress && (GET_KEYSYM(event) == '\x7f' || GET_KEYSYM(event) == backspace) && base >= 0) {
+        removeNote(base);
+        base = -1;
     }
 }

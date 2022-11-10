@@ -8,7 +8,8 @@ typedef struct Note {
 } Note;
 
 extern Note* piece;
-void insert(Note note);
+int insertNote(Note note);
+void removeNote(int ind);
 extern double bpm;
 #define BEAT (60/bpm)
 #endif // MELODY_H

@@ -68,11 +68,21 @@ int main() {
 //                           10.5, 10.5, 105.5, er++);
 
         guiNextEvent();
-//        DEBUG_PRINT(event.type, "%x");
         guiSetForeground(&rootWindowPainter,0);
-        if(event.type != MotionEvent)
+        if(event.type != MotionEvent) {
             guiClearWindow(rootWindow);
+            DEBUG_PRINT(event.type, "%x");
+        }
         setCurrentGridPos(0,0);
+        int keyPressed = -1;
+        if(event.type==KeyPress) {
+            keyPressed = GET_KEYSYM(event);
+            if(keyPressed == ' ') {
+                bool paused = SDL_GetAudioDeviceStatus(audioDevice) == SDL_AUDIO_PAUSED;
+                if(paused) SDL_PauseAudioDevice(audioDevice, 0);
+                else SDL_PauseAudioDevice(audioDevice, 1);
+            }
+        }
         if(guiButton(&rootWindowPainter, "play", 4)) {
             SDL_PauseAudioDevice(audioDevice, 0);
         } gridNextColumn();
