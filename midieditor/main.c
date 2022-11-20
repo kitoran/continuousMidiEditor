@@ -68,11 +68,14 @@ int main() {
 //                           10.5, 10.5, 105.5, er++);
 
         guiNextEvent();
-        guiSetForeground(&rootWindowPainter,0);
-        if(event.type != MotionEvent) {
-            guiClearWindow(rootWindow);
-            DEBUG_PRINT(event.type, "%x");
+        if(event.type == ButtonRelease) {
+            DEBUG_PRINT(event.button.which, "%d");
         }
+        guiSetForeground(&rootWindowPainter,0);
+//        if(event.type != MotionEvent) {
+            guiClearWindow(rootWindow);
+//            DEBUG_PRINT(event.type, "%x");
+//        }
         setCurrentGridPos(0,0);
         int keyPressed = -1;
         if(event.type==KeyPress) {
@@ -93,9 +96,12 @@ int main() {
         guiLabelZT(&rootWindowPainter, "bpm"); gridNextColumn();
         static int d;
         guiIntField(&rootWindowPainter, 6, &d); gridNextColumn();
-
+        static double scroll = 0;
+        setCurrentGridPos(3,0);
+//        guiScrollBar(&rootWindowPainter, 500, &scroll, 0.2);
+//        DEBUG_PRINT(scroll, "%lf");
         roll(&rootWindowPainter, getGridBottom(topGrid()));
-        SDL_RenderPresent(renderer);
+//        SDL_RenderPresent(renderer);
 
         if(event.type == SDL_QUIT) {
             return 0;

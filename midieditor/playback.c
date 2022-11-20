@@ -195,3 +195,8 @@ double samplesToTime(int samples)
 {
     return samples*1.0/have.freq;
 }
+
+int timeToSamples(double time)
+{
+    return round(time*have.freq);
+}

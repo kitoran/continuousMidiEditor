@@ -1,5 +1,6 @@
 #include "roll.h"
 #include "misc.h"
+#include "gridlayout.h"
 #include "gui.h"
 #include "extmath.h"
 #include "playback.h"
@@ -48,55 +49,122 @@ typedef struct {
     double freq;
     double time;
 } coord;
+static double horizontalScroll = 0;
+
+// So there are two ways to do scrolling - rendere everything into a surface/texture and then copy the relevant part of the textuew
+// or just render the relevant part of the widget and clip the parts that stick out with SDL_RenderSetClipRect
+// i'm doing the worst of both worlds - rendering all the rectangles and clipping themwith this function, but thecode issimpler
+
+void rollCl(Painter* p, int y);
 void roll(Painter* p, int y) {
-//    static Image
+//    DEBUG_PRINT(y, "in \'roll\'%d");
+    STATIC(Grid, grid, allocateGrid(2,2,0));
+    pushGrid(&grid);
+    grid.gridStart = STRU(Point, 0, y);
+    setCurrentGridPos(0, 0);
+    rollCl(p, y);
+    gridNextRow();
     Size windowSize = guiGetSize();
-    int height = windowSize.height-y;
-    coord toCoord(int mx, int my) {
-        return STRU(coord,
-                    -(my-y-height/2)+400,
-                    mx/horizontalScale);
+    guiScrollBar(p,windowSize.w-SCROLLBAR_THICKNESS, &horizontalScroll, 0.1);
+    popGrid();
+}
+double xToTime(int mx) {
+    return mx/horizontalScale+end*horizontalScroll;
+}
+int timeToX(double time) {
+    return (time-end*horizontalScroll)*horizontalScale;
+}
+
+void navigationBar(Painter* p);
+void noteArea(Painter* p);
+void rollCl(Painter* p, int y) {
+    STATIC(Grid, grid, allocateGrid(2,2,0));
+    pushGrid(&grid);
+
+    grid.gridStart = (Point){0, y};
+    setCurrentGridPos(0, 0);
+    navigationBar(p);
+    gridNextRow();
+    noteArea(p);
+
+    Size size = getGridSize(&grid);
+    popGrid();
+    feedbackSize(size);
+}
+
+#define NAVIGATION_THICKNESS 30
+void navigationBar(Painter* p) {
+    Point pos = getPos();
+    Size size = {guiGetSize().w, NAVIGATION_THICKNESS};
+    Rect rect = {pos.x, pos.y, size.w, size.h};
+    _Bool update = event.type == SDL_MOUSEBUTTONDOWN;
+    if(event.type == SDL_MOUSEMOTION) {
+        update = event.motion.state != 0;
     }
-    Point fromCoord(coord c) {
-        return STRU(Point,
-                    c.time*horizontalScale,
-                    y + height/2-(c.freq-400));
+
+    if(update)  {
+        Point mp = {GET_X(event), GET_Y(event)};
+        if(pointInRect(mp, rect)) {
+            currentPositionInSamples = timeToSamples(xToTime(mp.x));
+        }
     }
+
+    feedbackSize(size);
+}
+
+void noteArea(Painter* p) {
+    Point pos = getPos();
+    Size windowSize = guiGetSize();
+    int height = windowSize.h-pos.y - SCROLLBAR_THICKNESS*10;
+    double yToFreq(int my) {
+        return -(my-pos.y-height/2)+400;
+    }
+    int freqToY(double freq) {
+        return pos.y + height/2-(freq-400);
+    }
+    Rect rect = {0, pos.y, windowSize.w, height};
+    guiSetClipRect(p, rect);
+//    guiSetForeground(p,0);
+//    guiFillRectangle(p, rect.x,rect.y, rect.width, rect.height);
+//    if(redraw) {
+
+
+//    }
+    //    ry + height
+
     Rect noteToRect(Note n) {
-        coord c = {n.freq, n.start};
-        Point s = fromCoord(c);
-        c.time += n.length;
-        Point e = fromCoord(c);
-        return STRU(Rect, s.x, s.y-5, e.x-s.x, 10);
+        Point s = {timeToX(n.start), freqToY(n.freq)};
+        int right = timeToX(n.start+n.length);
+        return STRU(Rect, s.x, s.y-5, right-s.x, 10);
     }
     double closestTime(int x) {
-        coord tr = toCoord(x, 0);
-        double closest = round(tr.time/BEAT)*BEAT;
-        coord le = toCoord(x-5, 0);
-        coord mo = toCoord(x+5, 0);
-        if(le.time < closest &&
-                mo.time > closest) {
-            tr.time = closest;
+        double tr = xToTime(x);
+        double closest = round(tr/BEAT)*BEAT;
+        double le = xToTime(x-5);
+        double mo = xToTime(x+5);
+        if(le < closest &&
+                mo > closest) {
+            tr  = closest;
         }
-        return tr.time;
+        return tr;
     }
 //    Point pos = getPos();
 
-    guiDrawTextZT(p, "440", STRU(Point, 10, y + height/2), 0xffffffff);
+//    guiDrawTextZT(p, "440", STRU(Point, 10, y + height/2), 0xffffffff);
     // SDL_Log("Window %d resized to %dx%d",
     // event->window.windowID, ,
     // );
 //    int start = 0;
 
-    Point cur = fromCoord(STRU(coord, 0, samplesToTime(currentPositionInSamples)));
+    int cur = timeToX(samplesToTime(currentPositionInSamples));
     guiSetForeground(p, 0xff333333);
-    guiDrawLine(p, cur.x, y, cur.x, windowSize.height);
-    STATIC(int, digSize, guiTextExtents("3/5", 3).height);
-    double lastVisibleTime = toCoord(windowSize.width, 0).time;
+    guiDrawLine(p, cur, pos.y, cur, pos.y+height);
+    STATIC(int, digSize, guiTextExtents("3/5", 3).h);
+    double lastVisibleTime = xToTime(windowSize.w);
     guiSetForeground(p, gray(0x11));
     for(double s = 0; s < lastVisibleTime; s+= BEAT) {
-        int c = fromCoord(STRU(coord, 0, s)).x;
-        guiDrawLine(p, c, y, c, windowSize.height);
+        int c = timeToX(s);
+        guiDrawLine(p, c, pos.y, c, pos.y+height);
     }
 
     if(base >= 0) {
@@ -104,33 +172,21 @@ void roll(Painter* p, int y) {
 
             guiSetForeground(p, gray((9-frac->den) *255 / 9));
 //            for(int i = 0; i < 3; i++) {
-            coord c = {piece[base].freq * frac->num/frac->den, 0};
-            Point r = fromCoord(c);
-            if(r.y >= y) guiDrawLine(p, 0, r.y, windowSize.width, r.y);
+            int r = freqToY(piece[base].freq * frac->num/frac->den);
             char str[30];
-            sprintf(str, "%d/%d", frac->num, frac->den);
-            guiDrawTextZT(p, str, STRU(Point, r.x, r.y-digSize/2), 0xffffffff);
-            c = STRU(coord, piece[base].freq / frac->num*frac->den, 0);
-            r = fromCoord(c);
-            if(r.y >= y) guiDrawLine(p, 0, r.y, windowSize.width, r.y);
-            sprintf(str, "%d/%d", frac->den, frac->num);
-            guiDrawTextZT(p, str, STRU(Point, r.x, r.y-digSize/2), 0xffffffff);
-//            }
+            if(r >= pos.y && r < pos.y+height) {
+                guiDrawLine(p, 0, r, windowSize.w, r);
+                sprintf(str, "%d/%d", frac->num, frac->den);
+                guiDrawTextZT(p, str, STRU(Point, 10, r-digSize/2), 0xffffffff);
+            }
+            r = freqToY(piece[base].freq / frac->num*frac->den);
+            if(r >= pos.y && r < pos.y+height) {
+                guiDrawLine(p, 0, r, windowSize.w, r);
+                sprintf(str, "%d/%d", frac->den, frac->num);
+                guiDrawTextZT(p, str, STRU(Point, 10, r-digSize/2), 0xffffffff);
+            }
         }
-//        guiSetForeground(p, gray(0x33));
-//        FOR(i, 16) {
-//            coord c = {piece[base].freq * pow(2, i*1.0/16), 0};
-//            Point r = fromCoord(c);
-//            if(r.y >= y) guiDrawLine(p, 0, r.y, windowSize.width, r.y);
-//            char str[30];
-//            sprintf(str, "%d", i);
-//            guiDrawTextZT(p, str, r, 0xffffffff);
-//            c = STRU(coord, piece[base].freq / pow(2, i*1.0/16), 0);
-//            r = fromCoord(c);
-//            if(r.y >= y) guiDrawLine(p, 0, r.y, windowSize.width, r.y);
-//            sprintf(str, "%d", -i);
-//            guiDrawTextZT(p, str, r, 0xffffffff);
-//        }
+
     }
     FOR_STB_ARRAY(anote, piece) {
         Rect r = noteToRect(*anote);
@@ -149,17 +205,21 @@ void roll(Painter* p, int y) {
                          r.x, r.y, r.width, r.height);
     }
     if(event.type == ButtonRelease) {
-        dragStart = STRU(Point, -1, -1);
         SDL_MouseButtonEvent e =
                 event.button;
 //        coord c = toCoord(e.x, e.y);
         double releaseTime = closestTime(e.x);
         if(editedNote.freq >= 0) {
-            editedNote.length = releaseTime - editedNote.start;
+            double pressTime = closestTime(dragStart.x);
+            double start = MIN(releaseTime, pressTime);
+            double end = MAX(releaseTime, pressTime);
+//
+            editedNote = STRU(Note, editedNote.freq, start, end-start);
             if(base >= insertNote(editedNote)) {
                 base++;
             }
         }
+        dragStart = STRU(Point, -1, -1);
         editedNote = STRU(Note,-1,-1,-1);
 //        if(e.button == 1) {
 //            Note n = {c.freq,
@@ -174,6 +234,7 @@ void roll(Painter* p, int y) {
     }
     if(event.type == MouseWheel) {
         SDL_MouseWheelEvent e = event.wheel;
+
         DEBUG_PRINT(e.x, "%d");
         DEBUG_PRINT(e.y, "%d");
 
@@ -182,8 +243,8 @@ void roll(Painter* p, int y) {
     if(event.type == ButtonPress) {
         SDL_MouseButtonEvent e =
                 event.button;
-        DEBUG_PRINT(e.button, "%d");
-        if(e.y < y) return;
+        if(!pointInRect((Point){e.x, e.y}, rect)) goto fuckThisEvent;
+//        DEBUG_PRINT(e.button, "%d");
         dragStart = STRU(Point, e.x, e.y);
         Note* select = NULL;
         FOR_STB_ARRAY(anote, piece) {
@@ -196,30 +257,30 @@ void roll(Painter* p, int y) {
         if(select) {
             base = select-piece;
         }
-        coord c = toCoord(e.x, e.y);
+        coord c = {yToFreq(e.y), xToTime(e.x)};
         double time = closestTime(e.x);
 //        DEBUG_PRINT(select, "%ld");
 
         if(base >= 0 && select == NULL && e.button == 1) {
             fraction frac = searchFraction(c.freq/piece[base].freq);
-            fprintf(stderr, "frac is %d/%d (%lf)\n", frac.num, frac.den, toDouble(frac));
-            coord le = toCoord(e.x, e.y+5);
-            coord mo = toCoord(e.x, e.y-5);
+//            fprintf(stderr, "frac is %d/%d (%lf)\n", frac.num, frac.den, toDouble(frac));
+            double le = yToFreq(e.y+5);
+            double mo = yToFreq(e.y-5);
 //            fprintf(stderr, "le/b is %lf %d\n", le.freq/piece[base].freq, le.freq/piece[base].freq<toDouble(frac));
 //            fprintf(stderr, "mo/b is %lf %d\n", mo.freq/piece[base].freq,  mo.freq/piece[base].freq>);
-            if(le.freq/piece[base].freq < toDouble(frac) &&
-                    mo.freq/piece[base].freq > toDouble(frac)
+            if(le/piece[base].freq < toDouble(frac) &&
+                    mo/piece[base].freq > toDouble(frac)
 //                    && !(frac.den==1&&frac.num==1)
                     ) {
 
-                fprintf(stderr, "in if\n");
+//                fprintf(stderr, "in if\n");
                 editedNote = STRU(Note, toDouble(frac)*piece[base].freq, time, 0.5);
-                fprintf(stderr, "editednotefrq is %lf\n", editedNote.freq);
+//                fprintf(stderr, "editednotefrq is %lf\n", editedNote.freq);
 
             }
         }
         if(base < 0 && select == NULL && e.button == 1) {
-            fprintf(stderr, "oops im here !!!L_)(\n");
+//            fprintf(stderr, "oops im here !!!L_)(\n");
             editedNote = STRU(Note, c.freq, time, 0.5);
         }
         if(e.button==3) {
@@ -229,8 +290,8 @@ void roll(Painter* p, int y) {
     if(event.type == MotionEvent) {
         SDL_MouseMotionEvent e =
                 event.motion;
-        if(e.y < y) return;
-        coord c = toCoord(e.x, e.y);
+        if(e.y < pos.y) goto fuckThisEvent;
+        coord c = {yToFreq(e.y), closestTime(e.x)};
 //        DEBUG_PRINT(editedNote.freq, "%lf")
 
         if(  editedNote.freq >= 0) {
@@ -239,24 +300,24 @@ void roll(Painter* p, int y) {
             Rect r = noteToRect(editedNote);
             guiFillRectangle(p, r.x, r.y, r.width, r.height);
             SDL_RenderPresent(p->gc);
-            coord s = toCoord(dragStart.x, dragStart.y);
+            coord s = {yToFreq(dragStart.y), closestTime(dragStart.x)};
             double start = MIN(s.time, c.time);
             double end = MAX(s.time, c.time);
 //            DEBUG_PRINT(editedNote.freq, "%lf")
-            editedNote = STRU(Note, /*s.freq,*/ editedNote.freq, editedNote.start, end-start);
+            editedNote = STRU(Note, /*s.freq,*/ editedNote.freq, start, end-start);
 //            DEBUG_PRINT(editedNote.freq, "%lf after")
             r = noteToRect(editedNote);
             guiSetForeground(p,0xffff77ff);
             guiFillRectangle(p, r.x, r.y, r.width, r.height);
-            //            guiClearWindow(rootWindow);
-//            guiRedraw();
         }
-//        if(base) {
-//            c.freq/piece[base].freq
-//        }
     }
     if(event.type == KeyPress && (GET_KEYSYM(event) == '\x7f' || GET_KEYSYM(event) == backspace) && base >= 0) {
         removeNote(base);
         base = -1;
     }
+
+    fuckThisEvent:
+    guiUnsetClipRect(p);
+    feedbackSize(STRU(Size, windowSize.w, height));
+
 }

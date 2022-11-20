@@ -12,4 +12,6 @@ int insertNote(Note note);
 void removeNote(int ind);
 extern double bpm;
 #define BEAT (60/bpm)
+
+extern double end;
 #endif // MELODY_H

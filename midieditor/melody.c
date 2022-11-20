@@ -3,8 +3,10 @@
 #include "misc.h"
 #include <math.h>
 #include <stdio.h>
+#include <stdbool.h>
 Note* piece = 0;
 double bpm;
+double end = 0;
 int insertNote(Note note) {
     int pos = 0;
     while(arrlen(piece) > pos && piece[pos].start < note.start) pos++;
@@ -17,6 +19,8 @@ int insertNote(Note note) {
         pos++;
     }
     arrpush(piece, note);
+
+    if(note.start + note.length > end) end = note.start + note.length;
     return res;
 }
 void removeNote(int ind) {
@@ -25,7 +29,14 @@ void removeNote(int ind) {
         piece[ind]=piece[ind+1];//*note = *(note+1);
     }
     arrsetlen(piece, ind);
+    end = 0;
+    FOR_STB_ARRAY_I(i, piece) {
+        if(piece[i].start+piece[i].length > end) {
+            end = piece[i].start+piece[i].length;
+        }
+    }
 }
+
 double  freq1 = 110.0;
 double  freq2 = 110.0*1.09050773267 ;
 double  freq3 = 110.0*1.09050773267 *1.09050773267 ;//*1.61803398875;
@@ -75,3 +86,5 @@ u32 timerCallback (u32 interval, void *param) {
     fprintf(stderr, "freq=%lf in=%lf\n", freq1,in);
     return 250;
 }
+
+
