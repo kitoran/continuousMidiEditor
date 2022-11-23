@@ -1,6 +1,7 @@
 ﻿#include <gui.h>
 #include <persistent.h>
 #include <gridlayout.h>
+#include "save.h"
 #include <stdbool.h>
 #include "stb_ds.h"
 #include "melody.h"
@@ -11,6 +12,7 @@
 #include "misc.h"
 #include <SDL2/SDL.h>
 
+#include "newFile.h"
 
 
 
@@ -28,7 +30,6 @@ int main() {
 //    };
 //    double sq = pow(2, 1.0/12);
 //    arrpush(piece, n);
-
 //    arrpush(piece, STRU(Note, 440*sq*sq, 0, 0.5));
 //    arrpush(piece, STRU(Note, 440*sq*sq*sq*sq, pos++/2, 0.5));
 //    arrpush(piece, STRU(Note, 440*sq*sq, pos++/2, 0.5));
@@ -92,14 +93,41 @@ int main() {
         if(guiButton(&rootWindowPainter, "stop", 4)) {
             SDL_PauseAudioDevice(audioDevice, 1);
         } gridNextColumn();
+        if(guiButton(&rootWindowPainter, "save", 4)) {
+            FILE* fp = popen("/home/n/exercises/build-FileDialog-Desktop-Debug/FileDialog --file-selection --save", "r");
+            char line[1024];
+            while (fgets(line,sizeof(line),fp)) fprintf(stderr,
+                    "FileDialog says %s \n",line);
+
+            if(!WEXITSTATUS(pclose(fp))) {
+                saveMelody(line);
+            } else fprintf(stderr,"FileDialog extted unsuccessfully\n");
+        } gridNextColumn();
+        if(guiButton(&rootWindowPainter, "load", 4)) {
+            FILE* fp = popen("/home/n/exercises/build-FileDialog-Desktop-Debug/FileDialog --file-selection", "r");
+            char line[1024];
+            while (fgets(line,sizeof(line),fp)) fprintf(stderr,
+                    "FileDialog says %s \n",line);
+
+            if(!WEXITSTATUS(pclose(fp))) {
+                loadMelody(line);
+            } else fprintf(stderr,"FileDialog extted unsuccessfully\n");
+        } gridNextColumn();
+        if(guiButtonZT(&rootWindowPainter, "export")) {
+            FILE* fp = popen("/home/n/exercises/build-FileDialog-Desktop-Debug/FileDialog --file-selection --save", "r");
+            char line[1024];
+            while (fgets(line,sizeof(line),fp)) fprintf(stderr,
+                    "FileDialog says %s \n",line);
+
+            if(!WEXITSTATUS(pclose(fp))) {
+                export(line);
+            } else fprintf(stderr,"FileDialog extted unsuccessfully\n");
+        } gridNextColumn();
         persistentDoubleField(&rootWindowPainter, 6, bpm); gridNextColumn();
         guiLabelZT(&rootWindowPainter, "bpm"); gridNextColumn();
         static int d;
         guiIntField(&rootWindowPainter, 6, &d); gridNextColumn();
-        static double scroll = 0;
         setCurrentGridPos(3,0);
-//        guiScrollBar(&rootWindowPainter, 500, &scroll, 0.2);
-//        DEBUG_PRINT(scroll, "%lf");
         roll(&rootWindowPainter, getGridBottom(topGrid()));
 //        SDL_RenderPresent(renderer);
 

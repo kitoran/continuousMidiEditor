@@ -37,6 +37,28 @@ void removeNote(int ind) {
     }
 }
 
+_Bool saveMelody(char* filename) {
+    FILE* f = fopen(filename, "w");
+    FOR_STB_ARRAY(note, piece) {
+        fprintf(f, NOTE_FORMAT "\n", NOTE_ARGS((*note)));
+    }
+    fclose(f);
+    return 0;
+}
+
+_Bool loadMelody(char* filename) {
+    FILE* f = fopen(filename, "r");
+    arrsetlen(piece, 0);
+    Note scanned;
+    // FIXME vot eto ==3 zdes' plohoe
+    while(fscanf(f, NOTE_FORMAT "\n", NOTE_ARGS(&scanned)) == 3) {
+        insertNote(scanned);
+    }
+
+    fclose(f);
+    return 0;
+}
+
 double  freq1 = 110.0;
 double  freq2 = 110.0*1.09050773267 ;
 double  freq3 = 110.0*1.09050773267 *1.09050773267 ;//*1.61803398875;

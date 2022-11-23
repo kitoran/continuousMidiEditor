@@ -10,10 +10,11 @@ typedef struct {
     int num;
     int den;
 } fraction;
-fraction fractions[] = {{1,8}, {1, 7}, {1, 6}, {1, 5}, {1, 4}, {2, 7},
-                        {1, 3}, {3,8}, {2, 5}, {3, 7}, {1, 2}, {4, 7},
-                        {3, 5}, {5,8}, {2, 3}, {5, 7}, {3, 4}, {4, 5},
-                        {5, 6}, {6, 7}, {7,8}, {1, 1}};
+fraction fractions[] = {{1,9}, {1,8}, {1, 7}, {1, 6}, {1, 5}, {2,9}, {1, 4}, {2, 7},
+                        {1, 3}, {3,8}, {2, 5}, {3, 7}, {4,9}, {1, 2}, {5,9}, {4, 7},
+                        {3, 5}, {5,8}, {2, 3}, {5, 7}, {3, 4}, {7, 9}, {4, 5},
+                        {5, 6}, {6, 7}, {7,8}, {8,9}, {1, 1}};
+#define MAX_DEN 9
 double toDouble(fraction f) {
    return f.num*1.0/f.den;
 }
@@ -43,6 +44,7 @@ fraction searchFraction(double test) {
 //                    2.0/3, 5.0/7, 3.0/4, 4.0/5, 5.0/6, 6.0/7, 1.0/1};
 Point dragStart = {-1,-1};
 int base = -1;
+int dragged = -1;
 Note editedNote = {-1, -1, -1};
 double horizontalScale = 20;
 typedef struct {
@@ -98,10 +100,11 @@ void navigationBar(Painter* p) {
     Size size = {guiGetSize().w, NAVIGATION_THICKNESS};
     Rect rect = {pos.x, pos.y, size.w, size.h};
     _Bool update = event.type == SDL_MOUSEBUTTONDOWN;
+    guiSetForeground(p, gray(20));
+    guiFillRectangle(p, pos.x, pos.y, size.w, size.h);
     if(event.type == SDL_MOUSEMOTION) {
         update = event.motion.state != 0;
     }
-
     if(update)  {
         Point mp = {GET_X(event), GET_Y(event)};
         if(pointInRect(mp, rect)) {
@@ -117,10 +120,10 @@ void noteArea(Painter* p) {
     Size windowSize = guiGetSize();
     int height = windowSize.h-pos.y - SCROLLBAR_THICKNESS*10;
     double yToFreq(int my) {
-        return -(my-pos.y-height/2)+400;
+        return -(my-pos.y-height/2)+500;
     }
     int freqToY(double freq) {
-        return pos.y + height/2-(freq-400);
+        return pos.y + height/2-(freq-500);
     }
     Rect rect = {0, pos.y, windowSize.w, height};
     guiSetClipRect(p, rect);
@@ -148,13 +151,19 @@ void noteArea(Painter* p) {
         }
         return tr;
     }
-//    Point pos = getPos();
+    double closestFreq(int y) {
+        if(base < 0) return yToFreq(y);
+        fraction frac = searchFraction(yToFreq(y)/piece[base].freq);
+        double le = yToFreq(y+5);
+        double mo = yToFreq(y-5);
+        if(le/piece[base].freq < toDouble(frac) &&
+                mo/piece[base].freq > toDouble(frac)
+                ) {
+            return toDouble(frac)*piece[base].freq;
+        }
+        else return yToFreq(y);
+    }
 
-//    guiDrawTextZT(p, "440", STRU(Point, 10, y + height/2), 0xffffffff);
-    // SDL_Log("Window %d resized to %dx%d",
-    // event->window.windowID, ,
-    // );
-//    int start = 0;
 
     int cur = timeToX(samplesToTime(currentPositionInSamples));
     guiSetForeground(p, 0xff333333);
@@ -170,7 +179,7 @@ void noteArea(Painter* p) {
     if(base >= 0) {
         FOR_STATIC_ARRAY(frac, fractions) {
 
-            guiSetForeground(p, gray((9-frac->den) *255 / 9));
+            guiSetForeground(p, gray((MAX_DEN+1-frac->den) *255 / (MAX_DEN+1)));
 //            for(int i = 0; i < 3; i++) {
             int r = freqToY(piece[base].freq * frac->num/frac->den);
             char str[30];
@@ -207,7 +216,7 @@ void noteArea(Painter* p) {
     if(event.type == ButtonRelease) {
         SDL_MouseButtonEvent e =
                 event.button;
-//        coord c = toCoord(e.x, e.y);
+        dragged = -1;
         double releaseTime = closestTime(e.x);
         if(editedNote.freq >= 0) {
             double pressTime = closestTime(dragStart.x);
@@ -244,7 +253,6 @@ void noteArea(Painter* p) {
         SDL_MouseButtonEvent e =
                 event.button;
         if(!pointInRect((Point){e.x, e.y}, rect)) goto fuckThisEvent;
-//        DEBUG_PRINT(e.button, "%d");
         dragStart = STRU(Point, e.x, e.y);
         Note* select = NULL;
         FOR_STB_ARRAY(anote, piece) {
@@ -254,48 +262,34 @@ void noteArea(Painter* p) {
 //                DEBUG_PRINT(anote->start, "%lf");
             }
         }
+
         if(select) {
-            base = select-piece;
+            if(e.button == 2) base = select-piece;
+            if(e.button == 1) dragged  = select-piece;
         }
+
         coord c = {yToFreq(e.y), xToTime(e.x)};
         double time = closestTime(e.x);
 //        DEBUG_PRINT(select, "%ld");
 
         if(base >= 0 && select == NULL && e.button == 1) {
-            fraction frac = searchFraction(c.freq/piece[base].freq);
-//            fprintf(stderr, "frac is %d/%d (%lf)\n", frac.num, frac.den, toDouble(frac));
-            double le = yToFreq(e.y+5);
-            double mo = yToFreq(e.y-5);
-//            fprintf(stderr, "le/b is %lf %d\n", le.freq/piece[base].freq, le.freq/piece[base].freq<toDouble(frac));
-//            fprintf(stderr, "mo/b is %lf %d\n", mo.freq/piece[base].freq,  mo.freq/piece[base].freq>);
-            if(le/piece[base].freq < toDouble(frac) &&
-                    mo/piece[base].freq > toDouble(frac)
-//                    && !(frac.den==1&&frac.num==1)
-                    ) {
 
-//                fprintf(stderr, "in if\n");
-                editedNote = STRU(Note, toDouble(frac)*piece[base].freq, time, 0.5);
-//                fprintf(stderr, "editednotefrq is %lf\n", editedNote.freq);
-
-            }
+            double freq = closestFreq(e.y);
+            editedNote = STRU(Note, freq, time, 0.5);
         }
         if(base < 0 && select == NULL && e.button == 1) {
 //            fprintf(stderr, "oops im here !!!L_)(\n");
             editedNote = STRU(Note, c.freq, time, 0.5);
-        }
-        if(e.button==3) {
-
         }
     }
     if(event.type == MotionEvent) {
         SDL_MouseMotionEvent e =
                 event.motion;
         if(e.y < pos.y) goto fuckThisEvent;
-        coord c = {yToFreq(e.y), closestTime(e.x)};
+        coord c = {closestFreq(e.y), closestTime(e.x)};
 //        DEBUG_PRINT(editedNote.freq, "%lf")
 
-        if(  editedNote.freq >= 0) {
-//            DEBUG_PRINT("in other if", "%s")
+        if(editedNote.freq >= 0) {
             guiSetForeground(p,0xff000000);
             Rect r = noteToRect(editedNote);
             guiFillRectangle(p, r.x, r.y, r.width, r.height);
@@ -303,12 +297,15 @@ void noteArea(Painter* p) {
             coord s = {yToFreq(dragStart.y), closestTime(dragStart.x)};
             double start = MIN(s.time, c.time);
             double end = MAX(s.time, c.time);
-//            DEBUG_PRINT(editedNote.freq, "%lf")
             editedNote = STRU(Note, /*s.freq,*/ editedNote.freq, start, end-start);
-//            DEBUG_PRINT(editedNote.freq, "%lf after")
             r = noteToRect(editedNote);
             guiSetForeground(p,0xffff77ff);
             guiFillRectangle(p, r.x, r.y, r.width, r.height);
+        } else if(dragged >= 0) {
+            Note draggedNote = piece[dragged];
+            draggedNote.freq = c.freq;
+            removeNote(dragged);
+            dragged = insertNote(draggedNote);
         }
     }
     if(event.type == KeyPress && (GET_KEYSYM(event) == '\x7f' || GET_KEYSYM(event) == backspace) && base >= 0) {

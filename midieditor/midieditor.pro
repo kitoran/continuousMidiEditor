@@ -10,16 +10,21 @@ include(../../library/stb/stb_ds.pri)
 #include(../../library/gui-SDL/gui.pri)
 include(../../library/gui/gui.pri)
 include(../../library/extmath/extmath.pri)
-
 SOURCES += main.c \
     melody.c \
     playback.c \
     roll.c \
+    save.c \
     sortediterable.c
-LIBS += -lSDL2 -lSDL2_ttf
+LIBS += -lSDL2 -lSDL2_ttf -lsmf
 
 HEADERS += \
     melody.h \
     playback.h \
     roll.h \
+    save.h \
     sortediterable.h
+
+CONFIG += link_pkgconfig
+
+PKGCONFIG += glib-2.0

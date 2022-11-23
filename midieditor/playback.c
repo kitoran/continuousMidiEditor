@@ -28,7 +28,6 @@ SDL_AudioSpec  have;
 int countSamples(double time) {
     return time * have.freq;
 }
-#define CHANNELS 16
 SDL_AudioDeviceID audioDevice;
 //int binaryFind(int samples) {
 //    int l = 0, h = arrlen(piece)-1;
