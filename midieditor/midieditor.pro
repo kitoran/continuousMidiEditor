@@ -12,14 +12,17 @@ include(../../library/gui/gui.pri)
 include(../../library/extmath/extmath.pri)
 SOURCES += main.c \
     melody.c \
+    midi.c \
     playback.c \
     roll.c \
     save.c \
     sortediterable.c
-LIBS += -lSDL2 -lSDL2_ttf -lsmf
+LIBS += -lSDL2 -lSDL2_ttf -lsmf -lrtmidi
 
 HEADERS += \
     melody.h \
+    midi.h \
+    midiprot.h \
     playback.h \
     roll.h \
     save.h \

@@ -61,14 +61,14 @@ void rollCl(Painter* p, int y);
 void roll(Painter* p, int y) {
 //    DEBUG_PRINT(y, "in \'roll\'%d");
     STATIC(Grid, grid, allocateGrid(2,2,0));
-    pushGrid(&grid);
+    pushLayout(&grid);
     grid.gridStart = STRU(Point, 0, y);
     setCurrentGridPos(0, 0);
     rollCl(p, y);
     gridNextRow();
     Size windowSize = guiGetSize();
     guiScrollBar(p,windowSize.w-SCROLLBAR_THICKNESS, &horizontalScroll, 0.1);
-    popGrid();
+    popLayout();
 }
 double xToTime(int mx) {
     return mx/horizontalScale+end*horizontalScroll;
@@ -81,7 +81,7 @@ void navigationBar(Painter* p);
 void noteArea(Painter* p);
 void rollCl(Painter* p, int y) {
     STATIC(Grid, grid, allocateGrid(2,2,0));
-    pushGrid(&grid);
+    pushLayout(&grid);
 
     grid.gridStart = (Point){0, y};
     setCurrentGridPos(0, 0);
@@ -90,7 +90,7 @@ void rollCl(Painter* p, int y) {
     noteArea(p);
 
     Size size = getGridSize(&grid);
-    popGrid();
+    popLayout();
     feedbackSize(size);
 }
 

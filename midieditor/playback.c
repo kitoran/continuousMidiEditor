@@ -103,7 +103,7 @@ void openAudio() {
     want.freq = 44100;
     want.format = AUDIO_S16;
     want.channels = 1;
-    want.samples = 4096;
+    want.samples = 1024;
     want.callback = buffer;
 
     audioDevice =  SDL_OpenAudioDevice(

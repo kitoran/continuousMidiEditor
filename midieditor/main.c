@@ -10,9 +10,11 @@
 #include "roll.h"
 
 #include "misc.h"
+#include "midi.h"
 #include <SDL2/SDL.h>
 
 #include "newFile.h"
+//#include <stdbool.h>
 
 
 
@@ -23,6 +25,10 @@ SDL_Renderer* renderer;
 
 char* appName = "piano roll continous";
 int main() {
+    midi_open();
+    while(true) {
+        midi_read();
+    }
     // Note that info level log messages are by default printed only in Debug
     // and ReleaseSafe build modes.
 //    Note n = {
@@ -54,11 +60,9 @@ int main() {
 //    SDL_Init(SDL_INIT_AUDIO);
     openAudio();
 
-    getPos = gridGetPos; feedbackSize = gridFeedbackSize;
-
     Grid grid = allocateGrid(100, 100, 5);
     grid.gridStart.x = grid.gridStart.y = 0;
-    pushGrid(&grid);
+    pushLayout(&grid);
 
 //    static int er = 30;
 //    SDL_RenderDrawLine(renderer,
@@ -71,6 +75,29 @@ int main() {
         guiNextEvent();
         if(event.type == ButtonRelease) {
             DEBUG_PRINT(event.button.which, "%d");
+        }
+
+        if(event.type ==SDL_DROPFILE) {      // In case if dropped file
+            char*dropped_filedir = event.drop.file;
+            // Shows directory of dropped file
+            SDL_ShowSimpleMessageBox(
+                SDL_MESSAGEBOX_INFORMATION,
+                "File dropped on window",
+                dropped_filedir,
+                rootWindow
+            );
+            SDL_free(dropped_filedir);    // Free dropped_filedir memory
+        }
+        if(event.type ==SDL_DROPTEXT) {      // In case if dropped file
+            char*dropped_filedir = event.drop.file;
+            // Shows directory of dropped file
+            SDL_ShowSimpleMessageBox(
+                SDL_MESSAGEBOX_INFORMATION,
+                "Text dropped on window",
+                dropped_filedir,
+                rootWindow
+            );
+            SDL_free(dropped_filedir);    // Free dropped_filedir memory
         }
         guiSetForeground(&rootWindowPainter,0);
 //        if(event.type != MotionEvent) {
@@ -128,7 +155,7 @@ int main() {
         static int d;
         guiIntField(&rootWindowPainter, 6, &d); gridNextColumn();
         setCurrentGridPos(3,0);
-        roll(&rootWindowPainter, getGridBottom(topGrid()));
+        roll(&rootWindowPainter, getGridBottom(topLayout()));
 //        SDL_RenderPresent(renderer);
 
         if(event.type == SDL_QUIT) {
