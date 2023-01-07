@@ -1,3 +1,6 @@
+
+#ifndef _MSC_VER
+
 #include "midi.h"
 #include "midiprot.h"
 #include <rtmidi/rtmidi_c.h>
@@ -109,3 +112,4 @@ PmEvent midi_read()
 //    }
 //    return r;
 }
+#endif

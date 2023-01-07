@@ -1,3 +1,4 @@
+#ifndef _MSC_VER
 #include "save.h"
 #include "melody.h"
 #include <stdbool.h>
@@ -36,7 +37,7 @@ _Bool export(char* filename)
     }
 
     smf_add_track(smf, track);
-    FOR_STB_ARRAY(note, piece) {
+    FOR_NOTES(note, piece) {
         bool found = false;
         int channel = 0;
         for(channel = 0; channel < CHANNELS; channel++) {
@@ -80,3 +81,4 @@ _Bool export(char* filename)
     smf_delete(smf);
     return ret;
 }
+#endif

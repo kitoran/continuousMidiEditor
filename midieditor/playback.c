@@ -1,11 +1,13 @@
 #include "playback.h"
-#include <SDL2/SDL_audio.h>
-#include <SDL2/SDL_events.h>
+#include <SDL_audio.h>
+#include <SDL_events.h>
+#include <SDL.h>
 #include "stb_ds.h"
 #include "melody.h"
 #include "extmath.h"
 #include "misc.h"
 #include <stdbool.h>
+#include <stdio.h>
 
 int currentPositionInSamples = 0;
 double smoothstep (double edge0, double edge1, double x)
@@ -96,6 +98,7 @@ void buffer(void* userdata,
 
 int PlaybackEvent;
 void openAudio() {
+    SDL_Init(SDL_INIT_AUDIO);
     PlaybackEvent = SDL_RegisterEvents(1);
     SDL_AudioSpec  want;
     memset(&want,0,sizeof(want));

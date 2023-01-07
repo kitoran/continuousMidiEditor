@@ -39,7 +39,7 @@ void removeNote(int ind) {
 
 _Bool saveMelody(char* filename) {
     FILE* f = fopen(filename, "w");
-    FOR_STB_ARRAY(note, piece) {
+    FOR_NOTES(note, piece) {
         fprintf(f, NOTE_FORMAT "\n", NOTE_ARGS((*note)));
     }
     fclose(f);
@@ -51,7 +51,7 @@ _Bool loadMelody(char* filename) {
     arrsetlen(piece, 0);
     Note scanned;
     // FIXME vot eto ==3 zdes' plohoe
-    while(fscanf(f, NOTE_FORMAT "\n", NOTE_ARGS(&scanned)) == 3) {
+    while(fscanf_s(f, NOTE_FORMAT "\n", NOTE_ARGS(&scanned)) == 3) {
         insertNote(scanned);
     }
 
