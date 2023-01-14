@@ -82,14 +82,18 @@ int pianorollgui(void) {
         setCurrentGridPos(0,0);
         int keyPressed = -1;
         if(event.type==KeyPress) {
-#ifndef REAPER
             keyPressed = GET_KEYSYM(event);
             if(keyPressed == ' ') {
+#ifndef REAPER
                 bool paused = SDL_GetAudioDeviceStatus(audioDevice) == SDL_AUDIO_PAUSED;
                 if(paused) SDL_PauseAudioDevice(audioDevice, 0);
                 else SDL_PauseAudioDevice(audioDevice, 1);
-            }
+#else
+
 #endif
+                const u32 playStop = 40044;
+                reaperOnCommand(playStop);
+            }
         }
         if(event.type==SDL_WINDOWEVENT) {
             if(event.window.event == SDL_WINDOWEVENT_CLOSE) {

@@ -131,6 +131,7 @@ extern "C" void SetThreadName(DWORD dwThreadID, const char* threadName) {
 //std::thread th;
 std::mutex mutex_;
 bool data_ready = false;
+bool timeToLeave = false;
 std::condition_variable condVar;
 //std::atomic<MediaItem*> item = NULL;
 void sdlThread() {
@@ -141,57 +142,65 @@ void sdlThread() {
     while(true) {
         std::unique_lock lk(mutex_);
         condVar.wait(lk, [](){return data_ready;});
+        if(timeToLeave) {
+            lk.unlock();
+            break;
+        }
         pianorollgui();
         data_ready = false;
     }
 }
+void closeSDLWindowAndLockMutex() {
+    if(!mutex_.try_lock()) {
+        SDL_WindowEvent windowevent = {
+            SDL_WINDOWEVENT, SDL_GetTicks(), SDL_GetWindowID(rootWindow),
+            SDL_WINDOWEVENT_CLOSE};
+        SDL_Event event; event.window = windowevent;
+        SDL_PushEvent(&event);
+        while(!mutex_.try_lock()) {
+            timer_function();
+        }
+    }
+}
+std::thread th;
 bool hookCommandProc(int iCmd, int flag)
 {
     char msg[100];
     snprintf(msg, 100, "hookCommandProc! %d\n", iCmd);
     ShowConsoleMsg(msg);
     if(iCmd == command) {
+        STATIC(bool, init, (th=std::thread(sdlThread), true)) //TODO: check if this
+                // use-case of STATIC warrants its own macro
+        closeSDLWindowAndLockMutex();
+//            std::lock_guard lg(mutex_);
+        MediaItem* item = GetSelectedMediaItem(NULL, 0);
+        take = GetActiveTake(item);
+        bool res = true; //MIDI_GetAllEvts(take, events, &size);
+        double startppqpos;
+        double endppqpos;
+        int pitch;
+        int vel;
+        int i = 0;
+        itemStart = GetMediaItemInfo_Value(item, "D_POSITION");
+        while(res) {
+            res = MIDI_GetNote(take, i++, 0, 0, &startppqpos, &endppqpos, 0, &pitch, &vel);
 
-        static std::thread th(sdlThread);
-        if(!mutex_.try_lock()) {
-            SDL_WindowEvent windowevent = {
-                SDL_WINDOWEVENT, SDL_GetTicks(), SDL_GetWindowID(rootWindow),
-                SDL_WINDOWEVENT_CLOSE};
-            SDL_Event event; event.window = windowevent;
-            SDL_PushEvent(&event);
-            while(!mutex_.try_lock()) {
-                timer_function();
+            if(res) {
+                double start = MIDI_GetProjTimeFromPPQPos(take, startppqpos);
+                double end = MIDI_GetProjTimeFromPPQPos(take, endppqpos);
+                double freq = (440.0 / 32) * pow(2, ((pitch - 9) / 12.0));
+                message("st %lf end %lf pitch %d vel %d\n"
+                        "start %lf end %lf freq %lf", startppqpos, endppqpos, pitch, vel
+                        , start, end, freq);
+                insertNote({.freq= freq,
+                           .start = start - itemStart,
+                           .length = end-start}, false);
             }
         }
-//            std::lock_guard lg(mutex_);
-            MediaItem* item = GetSelectedMediaItem(NULL, 0);
-            take = GetActiveTake(item);
-            bool res = true; //MIDI_GetAllEvts(take, events, &size);
-            double startppqpos;
-            double endppqpos;
-            int pitch;
-            int vel;
-            int i = 0;
-            itemStart = GetMediaItemInfo_Value(item, "D_POSITION");
-            while(res) {
-                res = MIDI_GetNote(take, i++, 0, 0, &startppqpos, &endppqpos, 0, &pitch, &vel);
-
-                if(res) {
-                    double start = MIDI_GetProjTimeFromPPQPos(take, startppqpos);
-                    double end = MIDI_GetProjTimeFromPPQPos(take, endppqpos);
-                    double freq = (440.0 / 32) * pow(2, ((pitch - 9) / 12.0));
-                    message("st %lf end %lf pitch %d vel %d\n"
-                            "start %lf end %lf freq %lf", startppqpos, endppqpos, pitch, vel
-                            , start, end, freq);
-                    insertNote({.freq= freq,
-                               .start = start - itemStart,
-                               .length = end-start}, false);
-                }
-            }
-            double bpiOut;
-    //                double* bpmOut, double* bpiOut
-            GetProjectTimeSignature2(NULL, &bpm, &bpiOut);
-            data_ready = true;
+        double bpiOut;
+//                double* bpmOut, double* bpiOut
+        GetProjectTimeSignature2(NULL, &bpm, &bpiOut);
+        data_ready = true;
         mutex_.unlock();
         condVar.notify_one();
 //        if(th.joinable()) {
@@ -233,7 +242,12 @@ extern "C" REAPER_PLUGIN_DLL_EXPORT int REAPER_PLUGIN_ENTRYPOINT(
     reaperMainThread = true;
   if(!rec) {
     // cleanup code here
-
+    closeSDLWindowAndLockMutex();
+    timeToLeave = true;
+    data_ready = true;
+    mutex_.unlock();
+    condVar.notify_one();
+    th.join();
     return 0;
   }
 

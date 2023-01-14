@@ -18,4 +18,13 @@ extern "C"
 #endif
 void reaperDelete(int note);
 
+#ifdef __cplusplus
+extern "C"
+#endif
+void reaperSetPosition(double d);
+
+#ifdef __cplusplus
+extern "C"
+#endif
+void reaperOnCommand(u32 command);
 #endif // ACTIONS_H

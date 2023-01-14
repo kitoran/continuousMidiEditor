@@ -112,6 +112,9 @@ void navigationBar(Painter* p) {
         Point mp = {GET_X(event), GET_Y(event)};
         if(pointInRect(mp, rect)) {
             currentPositionInSamples = timeToSamples(xToTime(mp.x));
+#if REAPER
+            reaperSetPosition(xToTime(mp.x));
+#endif
         }
     }
 

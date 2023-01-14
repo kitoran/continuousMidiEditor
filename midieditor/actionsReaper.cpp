@@ -7,7 +7,6 @@
 #include "melody.h"
 #include "actions.h"
 
-
 thread_local bool reaperMainThread;
 
 //TODO: need to call these all from the main thread
@@ -57,6 +56,16 @@ void reaperInsert(Note note) {
     message("inserting note %lf - %lf\n", startppqpos, endppqpos);
     if(!res) ShowConsoleMsg("note insertion failed");
 
+}
+void reaperSetPosition(double d) {
+
+    //TODO: this is prob wrong
+    SetEditCurPos(d+itemStart, false, true);
+}
+
+
+void reaperOnCommand(u32 command) {
+    Main_OnCommand(command, 0);
 }
 void reaperDelete(int note) {
     bool res = MIDI_DeleteNote(take, note);
