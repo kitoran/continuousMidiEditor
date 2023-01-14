@@ -24,19 +24,30 @@
 #define REAPERAPI_IMPLEMENT
 //#define __cplusplus // wtf why was this not defined in the first place/
 #include  <thread>
-//#include "gui.h"
+#include  <condition_variable>
+#include "gui.h"
 #include "melody.h"
+#include "actions.h"
+#include "actionsReaper.h"
+#include "editorinstance.h"
 
 #include <cstdio>
+#include <SDL.h>
 //#include <WinUser.h>
 #include "reaper_plugin_functions.h"
+//#ifdef __cplusplus
+// #define UINT void
+//#endif
 
+#include <processthreadsapi.h>
 extern "C" {
     int pianorollgui(void);
+    extern _Atomic bool running;
 }
+//extern double __declspec(selectany) itemStart;
 
 UINT command;
-UINT play = 1007;
+//UINT play = 1007;
 //// This function creates the extension menu (flag==0) and handles checking menu items (flag==1).
 //// Reaper automatically checks menu items of customized menus using toggleActionHook above,
 //// but since we can't tell if a menu is customized we always check either way.
@@ -76,64 +87,132 @@ UINT play = 1007;
 //        InsertMenuItemA(hMenu, 0, TRUE, &mii);
 //    }
 //}
-
-void message(const char* format, ...) {
-
-    va_list arg_ptr;
-
-    va_start(arg_ptr, format);
-    char msg[100];
-    vsnprintf(msg, 100,format, arg_ptr);
-    ShowConsoleMsg(msg);
-
-    va_end(arg_ptr);
+void timer_function() {
+    std::unique_lock lk(actionChannel.mutex);
+    if(actionChannel.action==actionChannel.insertNote) {
+        reaperInsert(actionChannel.note);
+    }
+    if(actionChannel.action==actionChannel.deleteNote) {
+        reaperDelete(actionChannel.intgr);
+    }
+    if(actionChannel.action==actionChannel.consoleMessage) {
+        ShowConsoleMsg(actionChannel.string);
+    }
+    actionChannel.action = actionChannel.none;
+    lk.unlock();
+    actionChannel.cv.notify_one();
+//    ShowConsoleMsg("unlockedandnotified");
 }
+const DWORD MS_VC_EXCEPTION = 0x406D1388;
+#pragma pack(push,8)
+typedef struct tagTHREADNAME_INFO
+{
+    DWORD dwType; // Must be 0x1000.
+    LPCSTR szName; // Pointer to name (in user addr space).
+    DWORD dwThreadID; // Thread ID (-1=caller thread).
+    DWORD dwFlags; // Reserved for future use, must be zero.
+ } THREADNAME_INFO;
+#pragma pack(pop)
+extern "C" void SetThreadName(DWORD dwThreadID, const char* threadName) {
+    THREADNAME_INFO info;
+    info.dwType = 0x1000;
+    info.szName = threadName;
+    info.dwThreadID = dwThreadID;
+    info.dwFlags = 0;
+#pragma warning(push)
+#pragma warning(disable: 6320 6322)
+    __try{
+        RaiseException(MS_VC_EXCEPTION, 0, sizeof(info) / sizeof(ULONG_PTR), (ULONG_PTR*)&info);
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER){
+    }
+#pragma warning(pop)
+}
+//std::thread th;
+std::mutex mutex_;
+bool data_ready = false;
+std::condition_variable condVar;
+//std::atomic<MediaItem*> item = NULL;
+void sdlThread() {
 
+    SetThreadName ((DWORD)-1, "contMidiEditorThread");
+    reaperMainThread = false;
+
+    while(true) {
+        std::unique_lock lk(mutex_);
+        condVar.wait(lk, [](){return data_ready;});
+        pianorollgui();
+        data_ready = false;
+    }
+}
 bool hookCommandProc(int iCmd, int flag)
 {
     char msg[100];
     snprintf(msg, 100, "hookCommandProc! %d\n", iCmd);
     ShowConsoleMsg(msg);
-//    getCom
     if(iCmd == command) {
-        MediaItem* item = GetSelectedMediaItem(NULL, 0);
-        MediaItem_Take* take = GetActiveTake(item);
-//        char events[10000];
-//        int size = 10000, originalSize = 10000;
-        bool res = true; //MIDI_GetAllEvts(take, events, &size);
-        double startppqpos;
-        double endppqpos;
-        int pitch;
-        int vel;
-        int i = 0;
-        while(res) {
-            res = MIDI_GetNote(take, i++, 0, 0, &startppqpos, &endppqpos, 0, &pitch, &vel);
 
-            if(res) {
-                double start = MIDI_GetProjTimeFromPPQPos(take, startppqpos);
-                double end = MIDI_GetProjTimeFromPPQPos(take, endppqpos);
-                double freq = (440.0 / 32) * pow(2, ((pitch - 9) / 12.0));
-                message("st %lf end %lf pitch %d vel %d\n"
-                        "start %lf end %lf freq %lf", startppqpos, endppqpos, pitch, vel
-                        , start, end, freq);
-                insertNote({.freq= freq,
-                           .start = start,
-                           .length = end-start});
+        static std::thread th(sdlThread);
+        if(!mutex_.try_lock()) {
+            SDL_WindowEvent windowevent = {
+                SDL_WINDOWEVENT, SDL_GetTicks(), SDL_GetWindowID(rootWindow),
+                SDL_WINDOWEVENT_CLOSE};
+            SDL_Event event; event.window = windowevent;
+            SDL_PushEvent(&event);
+            while(!mutex_.try_lock()) {
+                timer_function();
             }
         }
-        double pos1 = GetMediaItemInfo_Value(item, "D_POSITION");
-//        double pos2 = *(reinterpret_cast<void*>(pos1));
-//        message("pos1 %lf pos1(i64) %lx\n",pos1,pos1);
+//            std::lock_guard lg(mutex_);
+            MediaItem* item = GetSelectedMediaItem(NULL, 0);
+            take = GetActiveTake(item);
+            bool res = true; //MIDI_GetAllEvts(take, events, &size);
+            double startppqpos;
+            double endppqpos;
+            int pitch;
+            int vel;
+            int i = 0;
+            itemStart = GetMediaItemInfo_Value(item, "D_POSITION");
+            while(res) {
+                res = MIDI_GetNote(take, i++, 0, 0, &startppqpos, &endppqpos, 0, &pitch, &vel);
 
-//        if(size == originalSize) {
-//            message("item too big\n");
-//            return true;
+                if(res) {
+                    double start = MIDI_GetProjTimeFromPPQPos(take, startppqpos);
+                    double end = MIDI_GetProjTimeFromPPQPos(take, endppqpos);
+                    double freq = (440.0 / 32) * pow(2, ((pitch - 9) / 12.0));
+                    message("st %lf end %lf pitch %d vel %d\n"
+                            "start %lf end %lf freq %lf", startppqpos, endppqpos, pitch, vel
+                            , start, end, freq);
+                    insertNote({.freq= freq,
+                               .start = start - itemStart,
+                               .length = end-start}, false);
+                }
+            }
+            double bpiOut;
+    //                double* bpmOut, double* bpiOut
+            GetProjectTimeSignature2(NULL, &bpm, &bpiOut);
+            data_ready = true;
+        mutex_.unlock();
+        condVar.notify_one();
+//        if(th.joinable()) {
+//            SDL_WindowEvent windowevent = {
+//                SDL_WINDOWEVENT, SDL_GetTicks(), SDL_GetWindowID(rootWindow),
+//                SDL_WINDOWEVENT_CLOSE};
+//            SDL_Event event; event.window = windowevent;
+//            SDL_PushEvent(&event);
+//            th.join();
+//            ASSERT(!th.joinable());
 //        }
-        double bpiOut;
-//                double* bpmOut, double* bpiOut
-        GetProjectTimeSignature2(NULL, &bpm, &bpiOut);
-        std::thread th(pianorollgui);
-        th.detach();
+
+//        ASSERT(!th.joinable());
+//        th = std::thread(pianorollgui);
+
+//        SetThreadName ((DWORD)-1, "Hi this is thresf");
+//        SetThreadName ((DWORD)th.native_handle(), "Hi this is thread another");
+//        SetThreadDescription(
+//        th.native_handle(),
+//                    L"ContMidi!");
+//        th.detach();
         return true;
     }
     return false;
@@ -151,6 +230,7 @@ bool hookCommandProc2(KbdSectionInfo* sec, int cmdId, int val, int valhw, int re
 extern "C" REAPER_PLUGIN_DLL_EXPORT int REAPER_PLUGIN_ENTRYPOINT(
   REAPER_PLUGIN_HINSTANCE instance, reaper_plugin_info_t *rec)
 {
+    reaperMainThread = true;
   if(!rec) {
     // cleanup code here
 
@@ -345,6 +425,8 @@ extern "C" REAPER_PLUGIN_DLL_EXPORT int REAPER_PLUGIN_ENTRYPOINT(
       abort();
 
   if (!rec->Register("hookcommand", (void*)hookCommandProc))
+      abort();
+  if (!rec->Register("timer", (void*)timer_function))
       abort();
 
   char* name = (char*)malloc(200);

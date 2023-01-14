@@ -17,7 +17,7 @@ extern "C"
 #else
 extern
 #endif
-int insertNote(Note note);
+int insertNote(Note note, bool propagate);
 void removeNote(int ind);
 bool saveMelody(char* filename);
 bool loadMelody(char* filename);

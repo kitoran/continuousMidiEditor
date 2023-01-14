@@ -2,7 +2,7 @@ TEMPLATE = lib
 CONFIG -= app_bundle
 CONFIG -= qt
 CONFIG += c++20
-DEFINES += MY_PATH=\\\"$$PWD\\\" GUI_NO_PERSISTENT_WIDGETS
+DEFINES += MY_PATH=\\\"$$PWD\\\" GUI_NO_PERSISTENT_WIDGETS REAPER
 #MAX_STRING_LEN=100
 CONFIG += SDL
 TARGET = reaper_midieditor
@@ -29,6 +29,7 @@ include(../../library/gui/gui.pri)
 include(../../library/extmath/extmath.pri)
 SOURCES += \
     actionsReaper.cpp \
+    editorinstance.cpp \
     mainprogram.c \
     melody.c \
     midi.c \
@@ -45,6 +46,8 @@ linux {
 QMAKE_LIBDIR += C:\src\SDL2-devel-2.26.1-VC\SDL2-2.26.1\lib\x64 C:\src\SDL2-devel-2.26.1-VC\SDL2_ttf-2.20.1\lib\x64
 HEADERS += \
     actions.h \
+    actionsReaper.h \
+    editorinstance.h \
     mainprogram.h \
     melody.h \
     midi.h \

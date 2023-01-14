@@ -228,7 +228,7 @@ double closestFreq(int height, Point pos, int y) {
             double end = MAX(releaseTime, pressTime);
 //
             editedNote = (Note){ editedNote.freq, start, end - start };
-            if(base >= insertNote(editedNote)) {
+            if(base >= insertNote(editedNote, true)) {
                 base++;
             }
         }
@@ -309,7 +309,7 @@ double closestFreq(int height, Point pos, int y) {
             Note draggedNote = piece[dragged];
             draggedNote.freq = c.freq;
             removeNote(dragged);
-            dragged = insertNote(draggedNote);
+            dragged = insertNote(draggedNote, true);
         }
     }
     if(event.type == KeyPress && (GET_KEYSYM(event) == '\x7f' || GET_KEYSYM(event) == backspace) && base >= 0) {

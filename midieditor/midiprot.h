@@ -3,10 +3,11 @@
 #include <misc.h>
 #include <shittyintrospection.h>
 
+
 INTROSPECT_ENUM_VALUES (ChannelVoice,
     noteOff , 0b10000000,
     noteOn  , 0b10010000,
-    pitchWheel , 0b11100000,
+    pitchWheelEvent , 0b11100000,
     control, 0b10110000
 )
 

@@ -31,16 +31,21 @@ char* appName = "piano roll continous";
 #else
 #define FILE_DIALOG_PATH "/home/n/exercises/build-FileDialog-Desktop-Debug/FileDialog"
 #endif
+extern void SetThreadName(u32 dwThreadID, const char* threadName);
 int pianorollgui(void) {
+//    running = true;
     SDL_SetHint( SDL_HINT_RENDER_SCALE_QUALITY, "2" );
+//    STATIC(bool, inited, guiInit());
     guiStartDrawing();
+    SetThreadName(-1, "midicont");
 #ifndef REAPER
     openAudio();
 #endif
     Grid grid = allocateGrid(100, 100, 5);
     grid.gridStart.x = grid.gridStart.y = 0;
     pushLayout(&grid);
-
+    SDL_ShowWindow(rootWindow);
+    SDL_RaiseWindow(rootWindow);
     while(1) {
         guiNextEvent();
         if(event.type == ButtonRelease) {
@@ -77,11 +82,21 @@ int pianorollgui(void) {
         setCurrentGridPos(0,0);
         int keyPressed = -1;
         if(event.type==KeyPress) {
+#ifndef REAPER
             keyPressed = GET_KEYSYM(event);
             if(keyPressed == ' ') {
                 bool paused = SDL_GetAudioDeviceStatus(audioDevice) == SDL_AUDIO_PAUSED;
                 if(paused) SDL_PauseAudioDevice(audioDevice, 0);
                 else SDL_PauseAudioDevice(audioDevice, 1);
+            }
+#endif
+        }
+        if(event.type==SDL_WINDOWEVENT) {
+            if(event.window.event == SDL_WINDOWEVENT_CLOSE) {
+                message("closing the window"
+                        "\n");
+                arrsetlen(piece, 0);
+                break;
             }
         }
         if(guiButton(&rootWindowPainter, "play", 4)) {
@@ -158,8 +173,17 @@ int pianorollgui(void) {
 //        SDL_RenderPresent(renderer);
 
         if(event.type == SDL_QUIT) {
-            return 0;
+            continue;
         }
     }
+    message("broke out of loop"
+            "\n");
+
+    popLayout();
+    SDL_FlushEvents(0, SDL_LASTEVENT);
+    SDL_HideWindow(rootWindow);
+//    running = false;
+
+    return 0;
 }
 //*/

@@ -7,11 +7,6 @@
 #include "stb_ds.h"
 #include <smf.h>
 
-enum MidiEventType {
-    note_off = 0b1000 << 4,
-    note_on = 0b1001 << 4,
-    pitch_wheel = 0b1110 << 4,
-};
 
 
 _Bool export(char* filename)

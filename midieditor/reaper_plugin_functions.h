@@ -63,7 +63,10 @@ class joystick_device;
 // easiest to include reaper_plugin.h before reaper_plugin_functions.h in your application code.
 // if not, you may need to edit this path.
 #ifndef _REAPER_PLUGIN_H_
+__pragma( warning (push) )
+__pragma( warning (disable:4100 ) )
 #include "reaper_plugin.h"
+__pragma( warning (pop))
 #endif
 
 #ifdef REAPERAPI_DEF

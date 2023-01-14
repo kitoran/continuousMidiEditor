@@ -1,13 +1,19 @@
 #include "stb_ds.h"
 #include "melody.h"
 #include "misc.h"
+#include "actions.h"
 #include <math.h>
 #include <stdio.h>
 #include <stdbool.h>
 Note* piece = 0;
 double bpm;
 double end = 0;
-int insertNote(Note note) {
+int insertNote(Note note, bool propagate) {
+#if REAPER
+    if(propagate)
+        reaperInsert(note);
+#endif
+
     int pos = 0;
     while(arrlen(piece) > pos && piece[pos].start < note.start) pos++;
     int res = pos;
@@ -25,6 +31,9 @@ int insertNote(Note note) {
 }
 void removeNote(int ind) {
 //    assert(note - piece < arrlen(piece));
+#if REAPER
+    reaperDelete(ind);
+#endif
     for(; ind < arrlen(piece)-1; ind++) {
         piece[ind]=piece[ind+1];//*note = *(note+1);
     }
@@ -52,7 +61,7 @@ _Bool loadMelody(char* filename) {
     Note scanned;
     // FIXME vot eto ==3 zdes' plohoe
     while(fscanf_s(f, NOTE_FORMAT "\n", NOTE_ARGS(&scanned)) == 3) {
-        insertNote(scanned);
+        insertNote(scanned, true);
     }
 
     fclose(f);
