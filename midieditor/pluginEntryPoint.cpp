@@ -39,6 +39,7 @@
 // #define UINT void
 //#endif
 
+#include "midiprot.h"
 #include <processthreadsapi.h>
 extern "C" {
     int pianorollgui(void);
@@ -176,25 +177,60 @@ bool hookCommandProc(int iCmd, int flag)
         MediaItem* item = GetSelectedMediaItem(NULL, 0);
         take = GetActiveTake(item);
         bool res = true; //MIDI_GetAllEvts(take, events, &size);
-        double startppqpos;
-        double endppqpos;
-        int pitch;
+        double ppqpos;
         int vel;
         int i = 0;
         itemStart = GetMediaItemInfo_Value(item, "D_POSITION");
-        while(res) {
-            res = MIDI_GetNote(take, i++, 0, 0, &startppqpos, &endppqpos, 0, &pitch, &vel);
+        double channelPitches[16];// don't care about channel 0 because in MPE it's different
+        // but allocate it anyway just 'cause
+        double channelNoteStarts[16];
+        for(int i = 0; i < 16; i++) {
+            channelPitches[i] = 0;
+            channelNoteStarts[i]=-1;
+        }
+        while(true) {
+            //TODO: use getAllEvents? i don't want to because there's no way to get needed buffer size ahead
+            // of time. Maybe if midi track is more than 4 kb i can just tell the user that tey are too
+            // musical for this extension // there's MIDI_CountEvts
+            bool mutedUnusedForNow;
+#define MAX_MIDI_EVENT_LENGTH 3
+#define PADINCASEIMISSEDSOMELONGEREVENTS 100
+            u8 msg[MAX_MIDI_EVENT_LENGTH+PADINCASEIMISSEDSOMELONGEREVENTS];
+            int size = 3;
+            res = MIDI_GetEvt(take, i++, 0, &mutedUnusedForNow, &ppqpos, (char*)(&msg[0]), &size);
+            if(!res) break;
+            ASSERT(size <= 3, "got midi event longer than 3 bytes, dying\n");
+            int channel = msg[0] & MIDI_CHANNEL_MASK;
+            if((msg[0] & MIDI_COMMAND_MASK) == pitchWheelEvent) {
+               i16 pitchWheel =
+                       (msg[2] << 7) |
+                       (msg[1]&MIDI_7HB_MASK);
+               // TODO: setting of whether pitch bend is 2 semitones or 48 semitones
+               double differenceInTones =
+                       double(pitchWheel-0x2000)/0x2000;
+               double differenceInHz = pow(2, differenceInTones/6);
+               channelPitches[channel] = differenceInHz;
+            }
+            //TODO: store velocity value too
+//          res = MIDI_GetNote(take, i++, 0, 0, , &endppqpos, 0, &pitch, &vel);
 
-            if(res) {
-                double start = MIDI_GetProjTimeFromPPQPos(take, startppqpos);
-                double end = MIDI_GetProjTimeFromPPQPos(take, endppqpos);
-                double freq = (440.0 / 32) * pow(2, ((pitch - 9) / 12.0));
+            // TODO: indicate when we changed the take
+    // we think that all the simultaneous notes are on different channels
+    // so to get note's key we only need to read it from onteOff event
+            double pos = MIDI_GetProjTimeFromPPQPos(take, ppqpos);
+            if((msg[0] & MIDI_COMMAND_MASK) == noteOn) {
+                channelNoteStarts[channel] = pos;
+            }
+            if((msg[0] & MIDI_COMMAND_MASK) == noteOff) {
+                int key = msg[1];
+                double freq = (440.0 / 32) * pow(2, ((key - 9) / 12.0));
+                freq += channelPitches[channel];
                 message("st %lf end %lf pitch %d vel %d\n"
-                        "start %lf end %lf freq %lf", startppqpos, endppqpos, pitch, vel
-                        , start, end, freq);
+                        "start %lf  freq %lf", pos, channelNoteStarts[channel] , key, vel
+                        , start, freq);
                 insertNote({.freq= freq,
-                           .start = start - itemStart,
-                           .length = end-start}, false);
+                           .start = channelNoteStarts[channel]  - itemStart,
+                           .length = pos-channelNoteStarts[channel] }, false);
             }
         }
         double bpiOut;
@@ -229,10 +265,11 @@ bool hookCommandProc(int iCmd, int flag)
 
 bool hookCommandProc2(KbdSectionInfo* sec, int cmdId, int val, int valhw, int relmode, HWND hwnd)
 {
-    char msg[100];
-    snprintf(msg, 100, "hookCommandProc2! %d\n", cmdId);
-    ShowConsoleMsg(msg);
-    return false;
+    return hookCommandProc(cmdId, 0);
+//    char msg[100];
+//    snprintf(msg, 100, "hookCommandProc2! %d\n", cmdId);
+//    ShowConsoleMsg(msg);
+//    return false;
 }
 
 

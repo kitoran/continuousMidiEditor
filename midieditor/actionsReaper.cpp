@@ -43,11 +43,12 @@ void reaperInsert(Note note) {
     int key = round(log(note.freq)/logSemitone-bias);
     double freqOfTheKey = (440.0 / 32) * pow(2, ((key - 9) / 12.0));
     double difference = note.freq/freqOfTheKey;
-    double differenceInTones = log(difference)/log(pow(2, 1.0/6));
+
+    double differenceInTones = 6*log(difference)/log(2);
     int pitchWheel = round(differenceInTones*0x2000)+0x2000;
 
     char pitchEvent[] = {pitch_wheel | channel, pitchWheel&0b1111111, pitchWheel>>7};
-    MIDI_InsertEvt(take, false, false, startppqpos, pitchEvent, sizeof(pitchEvent));
+    MIDI_InsertEvt(take, false, false, startppqpos-1, pitchEvent, sizeof(pitchEvent));
     bool res = MIDI_InsertNote(take, false, false,
                     startppqpos, endppqpos,
                     channel, key,
