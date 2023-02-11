@@ -258,6 +258,14 @@ void noteArea(Painter* p, Size size) {
         guiDrawLine(p, c, pos.y, c, pos.y+size.h);
         numOfBeat = (numOfBeat+1)%last.num;
     }
+    if(end < lastVisibleTime) {
+        int endX = timeToX(size.w, end);
+        Rect r = { endX, pos.y, pos.x+size.w-endX, size.h};
+        SDL_SetRenderDrawBlendMode(p->gc, SDL_BLENDMODE_BLEND);
+        guiSetForeground(p, 0x66333333);
+        guiFillRectangle(p, r);
+        SDL_SetRenderDrawBlendMode(p->gc, SDL_BLENDMODE_NONE);
+    }
     int cur;
     if(playing) {
         cur = timeToX(size.w, samplesToTime(currentPositionInSamples));

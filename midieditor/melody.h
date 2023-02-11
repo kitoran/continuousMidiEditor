@@ -31,6 +31,7 @@ typedef struct {
 } TempoMarker;
 extern TempoMarker* tempoMarkers;
 extern TempoMarker projectSignature;
+extern double end;
 
 #ifdef __cplusplus
 }
@@ -39,5 +40,4 @@ bool saveMelody(char* filename);
 bool loadMelody(char* filename);
 
 
-extern double end;
 #endif // MELODY_H

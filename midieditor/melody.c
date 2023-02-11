@@ -12,7 +12,7 @@ extern TempoMarker projectSignature = {
 };
 //double qpm;
 //int numeratorOfProjectTimeSig;
-double end = 0;
+extern double end = 0;
 int insertNote(Note note, bool propagate) {
 #if REAPER
     if(propagate)
@@ -43,12 +43,12 @@ void removeNote(int ind) {
         piece[ind]=piece[ind+1];//*note = *(note+1);
     }
     arrsetlen(piece, ind);
-    end = 0;
-    FOR_STB_ARRAY_I(i, piece) {
-        if(piece[i].start+piece[i].length > end) {
-            end = piece[i].start+piece[i].length;
-        }
-    }
+//    end = 0;
+//    FOR_STB_ARRAY_I(i, piece) {
+//        if(piece[i].start+piece[i].length > end) {
+//            end = piece[i].start+piece[i].length;
+//        }
+//    }
 }
 
 _Bool saveMelody(char* filename) {
