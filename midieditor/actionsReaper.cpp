@@ -21,8 +21,6 @@ void stop() {
 //void message(const char* format, ...);
 //extern double __declspec(selectany) itemStart;
 //extern double __declspec(selectany) itemStart;
-// TODO: setting of whether channel 1 is master channel or regular channel
-// TODO: setting of whether pitch bend is 2 semitones or 48 semitones
 
 // TODO: reassign channels if haven't found a free channel but it's possible to find
 enum MidiEventType: u8 {
@@ -41,6 +39,8 @@ void reaperInsert(Note note) {
     static u8 channel =1;
     // TODO: make vertical zoom relative to mouse
     // and horizontal zoom relative to cursor
+
+    //TODO: make a sound when inserting or moving notes
     if(midiMode ==  midi_mode_regular)
         channel = (channel+1)%16;
     else  // MPE

@@ -172,14 +172,21 @@ double freqToYLinear(int height, Point pos, double freq) {
     double myFrac = (freq - freqVMin) / (freqVMax-freqVMin);
     int relativeY = (1-myFrac)*height;
     return relativeY + pos.y;
-}double yToFreq(int height, Point pos, int my) {
-    double verticalScrollMirrored = 1-cfg->value.verticalFrac-cfg->value.verticalScroll;
-    double freqVMin = verticalScrollMirrored * (log(FREQ_MAX)-log(FREQ_MIN)) + log(FREQ_MIN);
-    double freqVMax = (verticalScrollMirrored+cfg->value.verticalFrac) * (log(FREQ_MAX)-log(FREQ_MIN)) +log( FREQ_MIN);
+}
+double yToFreq(int height, Point pos, int my) {
+//    double verticalScrollMirrored = 1-cfg->value.verticalFrac-cfg->value.verticalScroll;
+//    double freqVMin = verticalScrollMirrored * (log(FREQ_MAX)-log(FREQ_MIN)) + log(FREQ_MIN);
+//    double freqVMax = (verticalScrollMirrored+cfg->value.verticalFrac) * (log(FREQ_MAX)-log(FREQ_MIN)) +log( FREQ_MIN);
 
-    int relativeY = my - pos.y;
-    double myFrac = 1 - relativeY * 1.0/ height;
-    return exp(myFrac*((freqVMax)-(freqVMin)) + (freqVMin));
+//    int relativeY = my - pos.y;
+//    return exp(myFrac*((freqVMax)-(freqVMin)) + (freqVMin));
+
+    double myFrac = 1 - (my - pos.y) * 1.0/ height;
+    double range = log(FREQ_MAX)-log(FREQ_MIN);
+    double partOfRangeBelowScreen = 1-cfg->value.verticalFrac-cfg->value.verticalScroll;
+    double partOfRangeBelowMouse = partOfRangeBelowScreen + cfg->value.verticalFrac*myFrac;
+    double rangeBelowMouse = partOfRangeBelowMouse*range;
+    return exp(rangeBelowMouse);
 }
 double freqToY(int height, Point pos, double freq) {
     double verticalScrollMirrored = 1-cfg->value.verticalFrac-cfg->value.verticalScroll;
@@ -360,7 +367,13 @@ void noteArea(Painter* p, Size size) {
         DEBUG_PRINT(e.y, "%d");
         SDL_Keymod km = SDL_GetModState();
         if(km & KMOD_CTRL) {
-            cfg->value.verticalFrac /= pow(1.5, e.y);// e.direction == SDL_MOUSEWHEEL_
+            double myFrac = 1 - (e.mouseY - pos.y) * 1.0/ size.h;
+            double partOfRangeBelowScreen = 1-cfg->value.verticalFrac-cfg->value.verticalScroll;
+            double partOfRangeBelowMouse = partOfRangeBelowScreen + cfg->value.verticalFrac*myFrac;
+            cfg->value.verticalFrac /= pow(1.5, e.y);
+            double newPartOfRangeBelowScreen = partOfRangeBelowMouse - cfg->value.verticalFrac*myFrac;
+            cfg->value.verticalScroll = 1 - cfg->value.verticalFrac - newPartOfRangeBelowScreen;
+
         } else {
             cfg->value.horizontalFrac /= pow(1.5, e.y);// e.direction == SDL_MOUSEWHEEL_
         }
