@@ -375,7 +375,10 @@ void noteArea(Painter* p, Size size) {
             cfg->value.verticalScroll = 1 - cfg->value.verticalFrac - newPartOfRangeBelowScreen;
 
         } else {
-            cfg->value.horizontalFrac /= pow(1.5, e.y);// e.direction == SDL_MOUSEWHEEL_
+            cfg->value.horizontalFrac /= pow(1.5, e.y);
+            double playhead = samplesToTime(currentPositionInSamples);
+            cfg->value.horizontalScroll = (playhead - 1.0/2*end*cfg->value.horizontalFrac)/end;
+            cfg->value.horizontalScroll = MAX(0, cfg->value.horizontalScroll);
         }
         /*if(e.y >  0)*/
     }

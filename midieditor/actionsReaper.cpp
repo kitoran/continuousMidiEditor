@@ -37,9 +37,6 @@ void reaperInsert(Note note) {
     double endppqpos = MIDI_GetPPQPosFromProjTime(take,
                                                     note.start+note.length+itemStart);
     static u8 channel =1;
-    // TODO: make vertical zoom relative to mouse
-    // and horizontal zoom relative to cursor
-
     //TODO: make a sound when inserting or moving notes
     if(midiMode ==  midi_mode_regular)
         channel = (channel+1)%16;
