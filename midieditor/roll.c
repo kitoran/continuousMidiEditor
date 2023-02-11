@@ -1,9 +1,11 @@
 #include "roll.h"
 #include "misc.h"
 #include "gridlayout.h"
+#include "editorinstance.h"
 #include "gui.h"
 #include "extmath.h"
 #include "playback.h"
+//#include <thread.h>
 #include "stb_ds.h"
 #include "melody.h"
 #include <math.h>
@@ -49,98 +51,161 @@ Point dragStart = {-1,-1};
 int base = -1;
 int dragged = -1;
 Note editedNote = {-1, -1, -1};
-double horizontalScale = 20;
+//double horizontalScale = 20;
 typedef struct {
     double freq;
     double time;
 } coord;
-static double horizontalScroll = 0;
+//static double horizontalScroll = 0;
+//static double verticalFrac = 0.1;
+//static double verticalScroll = 0.9;
 
 // So there are two ways to do scrolling - rendere everything into a surface/texture and then copy the relevant part of the textuew
 // or just render the relevant part of the widget and clip the parts that stick out with SDL_RenderSetClipRect
 // i'm doing the worst of both worlds - rendering all the rectangles and clipping themwith this function, but thecode issimpler
 
-void rollCl(Painter* p, int y);
+//void rollCl(Painter* p, int y);
+void navigationBar(Painter* p, Size size);
+void noteArea(Painter* p, Size size);
+#define NAVIGATION_THICKNESS 30
+static CONTINUOUSMIDIEDITOR_Config* cfg;
 void roll(Painter* p, int y) {
 //    DEBUG_PRINT(y, "in \'roll\'%d");
-    STATIC(Grid, grid, allocateGrid(2,2,0));
+    cfg = hmgetp(config, currentGuid); //TODO: i don't know how expensive it is to do this every frame
+    // i could store the pointer to current config instead of current guid
+    STATIC(Grid, grid, allocateGrid(2,3,0));
+    if(event.type  == SDL_WINDOWEVENT && (event.window.event == SDL_WINDOWEVENT_RESIZED
+                                          ||event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED )) {
+        for(int i = 0; i < grid.gridWidthsLen; i++)
+            grid.gridWidths[i] = 0;
+        for(int i = 0; i < grid.gridHeightsLen; i++)
+            grid.gridHeights[i] = 0;
+    }
     pushLayout(&grid);
-    grid.gridStart = (Point){ 0, y };
+    grid.gridStart = (Point){0, y };
     setCurrentGridPos(0, 0);
-    rollCl(p, y);
+    Size windowSize = guiGetRect().size;
+    Size navigationSize = {windowSize.w - SCROLLBAR_THICKNESS, NAVIGATION_THICKNESS};
+    navigationBar(p, navigationSize);
     gridNextRow();
-    Size windowSize = guiGetSize();
-    guiScrollBar(p,windowSize.w-SCROLLBAR_THICKNESS, &horizontalScroll, 0.1);
-    popLayout();
-}
-double xToTime(int mx) {
-    return mx/horizontalScale+end*horizontalScroll;
-}
-int timeToX(double time) {
-    return (time-end*horizontalScroll)*horizontalScale;
-}
-
-void navigationBar(Painter* p);
-void noteArea(Painter* p);
-void rollCl(Painter* p, int y) {
-    STATIC(Grid, grid, allocateGrid(2,2,0));
-    pushLayout(&grid);
-
-    grid.gridStart = (Point){0, y};
-    setCurrentGridPos(0, 0);
-    navigationBar(p);
+    Size noteAreaSize = {windowSize.w - SCROLLBAR_THICKNESS, windowSize.h-y-NAVIGATION_THICKNESS
+                        - SCROLLBAR_THICKNESS};
+    noteArea(p, noteAreaSize);
     gridNextRow();
-    noteArea(p);
-
+    guiScrollBar(p,windowSize.w-SCROLLBAR_THICKNESS, &cfg->value.horizontalScroll, cfg->value.horizontalFrac, true);
+    setCurrentGridPos(1, 1);
+    guiScrollBar(p,noteAreaSize.h, &cfg->value.verticalScroll, cfg->value.verticalFrac, false);
     Size size = getGridSize(&grid);
     popLayout();
-    feedbackSize(size);
+    //feedbackSize(size); // in principle i should probavly call feedbackSize() here but maybe not
+    // if i do then i need to properly define the top level layout uin pmainprogram
+}
+double xToTime(int width, int mx) {
+//    0 -> end*cfg->value.horizontalScroll
+//    width -> end*(cfg->value.horizontalScroll+cfg->value.horizontalFrac)
+    return mx*1.0/width*end*cfg->value.horizontalFrac + end*cfg->value.horizontalScroll;// horizontalScale+end*cfg->value.horizontalScroll;
+}
+int timeToX(int width, double time) {
+
+    return (time - end*cfg->value.horizontalScroll)*width/end/cfg->value.horizontalFrac;
+            //(time-end*cfg->value.horizontalScroll)*horizontalScale;
 }
 
-#define NAVIGATION_THICKNESS 30
-void navigationBar(Painter* p) {
+//void rollCl(Painter* p, int y) {
+//    STATIC(Grid, grid, allocateGrid(2,2,0));
+//    pushLayout(&grid);
+
+//    grid.gridStart = (Point){0, y};
+//    setCurrentGridPos(0, 0);
+//    gridNextRow();
+//    noteArea(p);
+//    gridNextColumn();
+
+//    Size size = getGridSize(&grid);
+//    popLayout();
+//    feedbackSize(size);
+//}
+
+void navigationBar(Painter* p, Size size) {
     Point pos = getPos();
-    Size size = {guiGetSize().w, NAVIGATION_THICKNESS};
-    Rect rect = {pos.x, pos.y, size.w, size.h};
+    Rect rect = {pos, size};
     _Bool update = event.type == SDL_MOUSEBUTTONDOWN;
     guiSetForeground(p, gray(20));
-    guiFillRectangle(p, pos.x, pos.y, size.w, size.h);
+    guiFillRectangle(p, rect);
     if(event.type == SDL_MOUSEMOTION) {
         update = event.motion.state != 0;
     }
     if(update)  {
         Point mp = {GET_X(event), GET_Y(event)};
         if(pointInRect(mp, rect)) {
-            currentPositionInSamples = timeToSamples(xToTime(mp.x));
+            currentPositionInSamples = timeToSamples(xToTime(size.w, mp.x));
+            cursorPosition = xToTime(size.w, mp.x);
 #if REAPER
-            reaperSetPosition(xToTime(mp.x));
+            reaperSetPosition(xToTime(size.w, mp.x));
 #endif
         }
     }
 
+    FOR_STB_ARRAY(TempoMarker*, t, tempoMarkers)  {
+        guiSetForeground(p, gray(0x33));
+        int c = timeToX(size.w, t->when-itemStart);
+        guiDrawLine(p, c, pos.y, c, pos.y+size.h/2);
+    }
     feedbackSize(size);
 }
-double yToFreq(int height, Point pos, int my) {
-    return ((double)(-(((int)(my))-pos.y-height/2)+500));
+#define FREQ_MIN 20
+#define FREQ_MAX 20000
+double yToFreqLinear(int height, Point pos, int my) {
+    double verticalScrollMirrored = 1-cfg->value.verticalFrac-cfg->value.verticalScroll;
+    double freqVMin = verticalScrollMirrored * (FREQ_MAX-FREQ_MIN) + FREQ_MIN;
+    double freqVMax = (verticalScrollMirrored+cfg->value.verticalFrac) * (FREQ_MAX-FREQ_MIN) + FREQ_MIN;
+
+    int relativeY = my - pos.y;
+    double myFrac = 1 - relativeY * 1.0/ height;
+    return myFrac*(freqVMax-freqVMin) + freqVMin;
+}
+double freqToYLinear(int height, Point pos, double freq) {
+    double verticalScrollMirrored = 1-cfg->value.verticalFrac-cfg->value.verticalScroll;
+    double freqVMin = verticalScrollMirrored * (FREQ_MAX-FREQ_MIN) + FREQ_MIN;
+    double freqVMax = (verticalScrollMirrored+cfg->value.verticalFrac) * (FREQ_MAX-FREQ_MIN) + FREQ_MIN;
+
+    double myFrac = (freq - freqVMin) / (freqVMax-freqVMin);
+    int relativeY = (1-myFrac)*height;
+    return relativeY + pos.y;
+}double yToFreq(int height, Point pos, int my) {
+    double verticalScrollMirrored = 1-cfg->value.verticalFrac-cfg->value.verticalScroll;
+    double freqVMin = verticalScrollMirrored * (log(FREQ_MAX)-log(FREQ_MIN)) + log(FREQ_MIN);
+    double freqVMax = (verticalScrollMirrored+cfg->value.verticalFrac) * (log(FREQ_MAX)-log(FREQ_MIN)) +log( FREQ_MIN);
+
+    int relativeY = my - pos.y;
+    double myFrac = 1 - relativeY * 1.0/ height;
+    return exp(myFrac*((freqVMax)-(freqVMin)) + (freqVMin));
 }
 double freqToY(int height, Point pos, double freq) {
-    return ((int)(pos.y + height/2-(((double)(freq))-500)));
+    double verticalScrollMirrored = 1-cfg->value.verticalFrac-cfg->value.verticalScroll;
+    double freqVMin = verticalScrollMirrored * (log(FREQ_MAX)-log(FREQ_MIN)) + log(FREQ_MIN);
+    double freqVMax = (verticalScrollMirrored+cfg->value.verticalFrac) * (log(FREQ_MAX)-log(FREQ_MIN)) +log( FREQ_MIN);
+
+    double myFrac = (log(freq) - (freqVMin)) / ((freqVMax)-(freqVMin));
+    int relativeY = (1-myFrac)*height;
+    return relativeY + pos.y;
 }
-Rect noteToRect(int height, Point pos, Note n) { // TODO use sdl renderer drawing range or whatsitcalled
-    Point s = { timeToX(n.start), freqToY(height, pos, n.freq) };
-    int right = timeToX(n.start + n.length);
+Rect noteToRect(Size size, Point pos, Note n) { // TODO use sdl renderer drawing range or whatsitcalled
+    Point s = { timeToX(size.w, n.start), freqToY(size.h, pos, n.freq) };
+    int right = timeToX(size.w, n.start + n.length);
     return (Rect) { s.x, s.y - 5, right - s.x, 10 };
 }
-double closestTime(int x) {
-    double tr = xToTime(x);
-    double closest = round(tr / BEAT) * BEAT;
-    double le = xToTime(x - 5);
-    double mo = xToTime(x + 5);
-    if (le < closest &&
-        mo > closest) {
-        tr = closest;
-    }
-    return tr;
+double closestTime(int width, int x) { // TODO: this function
+//    double tr = xToTime(width, x);
+//    double closest = round(tr / BEAT) * BEAT;
+//    double le = xToTime(width, x - 5);
+//    double mo = xToTime(width, x + 5);
+//    if (le < closest &&
+//        mo > closest) {
+//        tr = closest;
+//    }
+//    return tr;
+    return xToTime(width, x);
 }
 double closestFreq(int height, Point pos, int y) {
     if (base < 0) return yToFreq(height, pos, y);
@@ -153,51 +218,83 @@ double closestFreq(int height, Point pos, int y) {
         return toDouble(frac) * piece[base].freq;
     }
     else return yToFreq(height, pos, y);
-}void noteArea(Painter* p) {
+}
+inline double beatTime(TempoMarker* tm) {
+    return 60.0/tm->qpm*4/tm->denom;
+}
+void noteArea(Painter* p, Size size) {
     Point pos = getPos();
-    Size windowSize = guiGetSize();
-    int height = windowSize.h-pos.y - SCROLLBAR_THICKNESS*10;
-    Rect rect = {0, pos.y, windowSize.w, height};
+    Rect rect = {0, pos.y, size.w, size.h};
     guiSetClipRect(p, rect);
-//    guiSetForeground(p,0);
-//    guiFillRectangle(p, rect.x,rect.y, rect.width, rect.height);
-//    if(redraw) {
-
-
-//    }
-    //    ry + height
-
-
-
-
-
-
-    int cur = timeToX(samplesToTime(currentPositionInSamples));
-    guiSetForeground(p, 0xff333333);
-    guiDrawLine(p, cur, pos.y, cur, pos.y+height);
     STATIC(int, digSize, guiTextExtents("3/5", 3).h);
-    double lastVisibleTime = xToTime(windowSize.w);
-    guiSetForeground(p, gray(0x11));
-    for(double s = 0; s < lastVisibleTime; s+= BEAT) {
-        int c = timeToX(s);
-        guiDrawLine(p, c, pos.y, c, pos.y+height);
+    double lastVisibleTime = xToTime(size.w, size.w);
+//    double a = itemStart/BEAT;
+//    double a = itemStart/BEAT;
+
+    TempoMarker last = projectSignature; int next = 0; //double lastFraction = 0;
+//TODO: watch for added/deleted tempo markers
+    int numOfBeat = 0; // TODO: maybe use TimeMap_GetTimeSigAtTime
+    for(double projectTime = 0; projectTime < lastVisibleTime+itemStart; projectTime += beatTime(&last)) {
+        while(next < arrlen(tempoMarkers) && projectTime >= tempoMarkers[next].when) { // TODO: does work with multiple markers in one beat?
+            ASSERT(tempoMarkers[next].num != 0, "time signature is 0????");
+            if(tempoMarkers[next].num > 0) {
+                numOfBeat = 0;
+                projectTime = tempoMarkers[next].when;
+                last = tempoMarkers[next];
+            } else {
+                double partOfTheBeatBeforeMarker = (tempoMarkers[next].when - (projectTime-beatTime(&last)))/beatTime(&last);
+                last.when = tempoMarkers[next].when;
+                last.qpm = tempoMarkers[next].qpm;
+                projectTime = tempoMarkers[next].when + (1-partOfTheBeatBeforeMarker)*(beatTime(&last));
+            }
+            next++;
+        }
+        if(numOfBeat == 0) {
+            guiSetForeground(p, gray(0x44));
+        } else {
+            guiSetForeground(p, gray(0x11));
+        }
+        int c = timeToX(size.w, projectTime-itemStart);
+        guiDrawLine(p, c, pos.y, c, pos.y+size.h);
+        numOfBeat = (numOfBeat+1)%last.num;
     }
+    int cur;
+    if(playing) {
+        cur = timeToX(size.w, samplesToTime(currentPositionInSamples));
+        guiSetForeground(p,  0xff555533);
+        guiDrawLine(p, cur, pos.y, cur, pos.y+size.h);
+    }
+    cur = timeToX(size.w, cursorPosition);
+    guiSetForeground(p,0xff335566);
+    guiDrawLine(p, cur, pos.y, cur, pos.y+size.h);
+    for(double freq = 440.0/32; freq < 20000; freq *= 2) {
+        char ferf[30]; snprintf(ferf,30,"%5lf", freq);
+        guiDrawTextZT(p, ferf, (Point) { 10, freqToY(size.h,
+                                        pos,
+                                        freq)- digSize / 2 }, 0xffffffff);
+    }
+//    guiDrawTextZT(p, "880", (Point) { 10, freqToY(size.h,
+//                                    pos,
+//                                    880)- digSize / 2 }, 0xffffffff);
+//    guiDrawTextZT(p, "1760", (Point) { 10, freqToY(size.h,
+//                                    pos,
+//                                    1760)- digSize / 2 }, 0xffffffff);
 
     if(base >= 0) {
         FOR_STATIC_ARRAY(fraction*, frac, fractions) {
 
             guiSetForeground(p, gray((MAX_DEN+1-frac->den) *255 / (MAX_DEN+1)));
 //            for(int i = 0; i < 3; i++) {
-            int r = freqToY(height, pos, piece[base].freq * frac->num/frac->den);
+            int r = freqToY(size.h, pos, piece[base].freq * frac->num/frac->den);
             char str[30];
-            if(r >= pos.y && r < pos.y+height) {
-                guiDrawLine(p, 0, r, windowSize.w, r);
+            if(r >= pos.y && r < pos.y+size.h) {
+                guiDrawLine(p, 0, r, size.w, r);
                 sprintf(str, "%d/%d", frac->num, frac->den);
                 guiDrawTextZT(p, str, (Point) { 10, r - digSize / 2 }, 0xffffffff);
             }
-            r = freqToY(height, pos, piece[base].freq / frac->num*frac->den);
-            if(r >= pos.y && r < pos.y+height) {
-                guiDrawLine(p, 0, r, windowSize.w, r);
+            r = freqToY(size.h, pos, piece[base].freq / frac->num*frac->den);
+            if(r >= pos.y && r < pos.y+size.h) {
+                guiDrawLine(p, 0, r, size.w, r);
                 sprintf(str, "%d/%d", frac->den, frac->num);
                 guiDrawTextZT(p, str, (Point) { 10, r - digSize / 2 }, 0xffffffff);
             }
@@ -205,28 +302,28 @@ double closestFreq(int height, Point pos, int y) {
 
     }
     FOR_NOTES(anote, piece) {
-        Rect r = noteToRect(height, pos, *anote);
+        Rect r = noteToRect(size, pos, *anote);
         if(anote == piece + base) {
             guiSetForeground(p, 0xffffffff);
         } else {
             guiSetForeground(p, 0xffff00ff);
         }
         guiFillRectangle(p,
-                         r.x, r.y, r.width, r.height);
+                         r);
     }
     if(editedNote.freq >= 0) {
-        Rect r = noteToRect(height, pos, editedNote);
+        Rect r = noteToRect(size, pos, editedNote);
         guiSetForeground(p, 0xffff77ff);
         guiFillRectangle(p,
-                         r.x, r.y, r.width, r.height);
+                         r);
     }
     if(event.type == ButtonRelease) {
         SDL_MouseButtonEvent e =
                 event.button;
         dragged = -1;
-        double releaseTime = closestTime(e.x);
+        double releaseTime = closestTime(size.w, e.x);
         if(editedNote.freq >= 0) {
-            double pressTime = closestTime(dragStart.x);
+            double pressTime = closestTime(size.w, dragStart.x);
             double start = MIN(releaseTime, pressTime);
             double end = MAX(releaseTime, pressTime);
 //
@@ -253,8 +350,13 @@ double closestFreq(int height, Point pos, int y) {
 
         DEBUG_PRINT(e.x, "%d");
         DEBUG_PRINT(e.y, "%d");
-
-        /*if(e.y >  0)*/ horizontalScale *= pow(1.5, e.y);// e.direction == SDL_MOUSEWHEEL_
+        SDL_Keymod km = SDL_GetModState();
+        if(km & KMOD_CTRL) {
+            cfg->value.verticalFrac /= pow(1.5, e.y);// e.direction == SDL_MOUSEWHEEL_
+        } else {
+            cfg->value.horizontalFrac /= pow(1.5, e.y);// e.direction == SDL_MOUSEWHEEL_
+        }
+        /*if(e.y >  0)*/
     }
     if(event.type == ButtonPress) {
         SDL_MouseButtonEvent e =
@@ -264,7 +366,7 @@ double closestFreq(int height, Point pos, int y) {
         Note* select = NULL;
         FOR_NOTES(anote, piece) {
             if (pointInRect((Point) { e.x, e.y },
-                           noteToRect(height, pos, *anote))) {
+                           noteToRect(size, pos, *anote))) {
                 select = anote;//-piece;
 //                DEBUG_PRINT(anote->start, "%lf");
             }
@@ -275,13 +377,13 @@ double closestFreq(int height, Point pos, int y) {
             if(e.button == 1) dragged  = select-piece;
         }
 
-        coord c = {yToFreq(height, pos, e.y), xToTime(e.x)};
-        double time = closestTime(e.x);
+        coord c = {yToFreq(size.h, pos, e.y), xToTime(size.w, e.x)};
+        double time = closestTime(size.w, e.x);
 //        DEBUG_PRINT(select, "%ld");
 
         if(base >= 0 && select == NULL && e.button == 1) {
 
-            double freq = closestFreq(height, pos, e.y);
+            double freq = closestFreq(size.h, pos, e.y);
             editedNote = (Note){ freq, time, 0.5};
         }
         if(base < 0 && select == NULL && e.button == 1) {
@@ -293,21 +395,21 @@ double closestFreq(int height, Point pos, int y) {
         SDL_MouseMotionEvent e =
                 event.motion;
         if(e.y < pos.y) goto fuckThisEvent;
-        coord c = {closestFreq(height, pos, e.y), closestTime(e.x)};
+        coord c = {closestFreq(size.h, pos, e.y), closestTime(size.w, e.x)};
 //        DEBUG_PRINT(editedNote.freq, "%lf")
 
         if(editedNote.freq >= 0) {
             guiSetForeground(p,0xff000000);
-            Rect r = noteToRect(height, pos, editedNote);
-            guiFillRectangle(p, r.x, r.y, r.width, r.height);
+            Rect r = noteToRect(size, pos, editedNote);
+            guiFillRectangle(p, r);
             SDL_RenderPresent(p->gc);
-            coord s = {yToFreq(height, pos, dragStart.y), closestTime(dragStart.x)};
+            coord s = {yToFreq(size.h, pos, dragStart.y), closestTime(size.w, dragStart.x)};
             double start = MIN(s.time, c.time);
             double end = MAX(s.time, c.time);
             editedNote = (Note){ /*s.freq,*/ editedNote.freq, start, end-start};
-            r = noteToRect(height, pos, editedNote);
+            r = noteToRect(size, pos, editedNote);
             guiSetForeground(p,0xffff77ff);
-            guiFillRectangle(p, r.x, r.y, r.width, r.height);
+            guiFillRectangle(p, r);
         } else if(dragged >= 0) {
             Note draggedNote = piece[dragged];
             draggedNote.freq = c.freq;
@@ -322,6 +424,6 @@ double closestFreq(int height, Point pos, int y) {
 
     fuckThisEvent:
     guiUnsetClipRect(p);
-    feedbackSize((Size){ windowSize.w, height});
+    feedbackSize(size);
 
 }

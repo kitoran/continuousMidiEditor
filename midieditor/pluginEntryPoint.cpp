@@ -28,6 +28,9 @@
 #include "gui.h"
 #include "melody.h"
 #include "actions.h"
+#include "stb_ds.h"
+//#include "stb_ds.h"
+#include "playback.h"
 #include "actionsReaper.h"
 #include "editorinstance.h"
 
@@ -48,6 +51,75 @@ extern "C" {
 //extern double __declspec(selectany) itemStart;
 
 UINT command;
+// TODO: not thread safe access to variables
+static bool ProcessExtensionLine(const char *line, ProjectStateContext *ctx, bool isUndo, struct project_config_extension_t *reg)
+{
+    char* copy = strdup(line);
+    char* saveptr = NULL;
+    char* token = SDL_strtokr(copy, " \n", &saveptr);
+    if(strcmp(token, "<CONTINUOUSMIDIEDITOR")) {
+        return false;
+    }
+    token = SDL_strtokr(NULL, " \n", &saveptr); ASSERT(token == NULL, "fail to read lconfig");
+    free(copy);
+    saveptr = NULL;
+    while(true) {
+        char oneline[4096];
+        char guid[/*38*/64];
+
+        ctx->GetLine(oneline, sizeof(oneline));
+        token = SDL_strtokr(oneline, " \n", &saveptr);
+        if(!strcmp(token, ">")) {
+            break;
+        }
+
+        ASSERT(!strcmp(token, "<ITEM"), "fail to read lconfig");
+        token = SDL_strtokr(NULL, " \n", &saveptr); ASSERT(token == NULL, "fail to read lconfig");
+        CONTINUOUSMIDIEDITOR_Config cnfg;
+        ctx->GetLine(oneline, sizeof(oneline));
+        int res = sscanf(oneline, " GUID %38s", guid); ASSERT(res == 1,  "fail to read lconfig");
+        stringToGuid(guid, &cnfg.key);
+        ctx->GetLine(oneline, sizeof(oneline));
+        res = sscanf(oneline, " WNDRECT " RECT_FORMAT, RECT_ARGS(&cnfg.value.windowGeometry)); ASSERT(res == 4, "fail to read lconfig");
+        ctx->GetLine(oneline, sizeof(oneline));
+        res = sscanf(oneline, " INNERRECT %lf %lf %lf %lf ", &cnfg.value.horizontalScroll,
+                     &cnfg.value.verticalScroll,
+                     &cnfg.value.horizontalFrac,
+                     &cnfg.value.verticalFrac
+                     ); ASSERT(res == 4, "fail to read lconfig");
+        hmputs(config, cnfg);
+        ctx->GetLine(oneline, sizeof(oneline));
+        token = oneline; while((*token != 0) && isspace(*token)) token++;
+        int end = 0; while((*token != 0) && (!isspace(token[end]))) end++;
+        token[end] = 0;
+        if(strcmp(token, ">")) {
+            ABORT("failed to read config");
+        }
+    }
+    return true;
+}
+static void SaveExtensionConfig(ProjectStateContext *ctx, bool isUndo, struct project_config_extension_t *reg) {
+    if(hmlen(config) == 0) {
+        return;
+    }
+
+    ctx->AddLine("<CONTINUOUSMIDIEDITOR");
+    FOR_STB_MAP(CONTINUOUSMIDIEDITOR_Config*, cnfg, config) {
+        ctx->AddLine("<ITEM");
+
+        char guid[/*38*/64]; guidToString((GUID*)&cnfg->key, guid);
+        ctx->AddLine("GUID %s", guid);
+        ctx->AddLine("WNDRECT " RECT_FORMAT, RECT_ARGS(cnfg->value.windowGeometry));
+        ctx->AddLine("INNERRECT %lf %lf %lf %lf", cnfg->value.horizontalScroll,
+                     cnfg->value.verticalScroll,
+                     cnfg->value.horizontalFrac,
+                     cnfg->value.verticalFrac);
+        ctx->AddLine(">");
+    }
+    ctx->AddLine(">");
+}
+
+
 //UINT play = 1007;
 //// This function creates the extension menu (flag==0) and handles checking menu items (flag==1).
 //// Reaper automatically checks menu items of customized menus using toggleActionHook above,
@@ -102,7 +174,23 @@ void timer_function() {
     actionChannel.action = actionChannel.none;
     lk.unlock();
     actionChannel.cv.notify_one();
-//    ShowConsoleMsg("unlockedandnotified");
+    currentPositionInSamples =  (GetPlayPosition()-itemStart)*44100; // TODO: ask sample rate from reaper or someone
+    cursorPosition = GetCursorPosition()-itemStart;
+    static int previousPlaying = false;
+    playing = GetPlayState() & 1;
+    if(previousPlaying < 10) {
+        currentPositionInSamples = cursorPosition*44100;
+    }//TODO: yellow line appears in the wrong place when starting playing
+    //TODO: when moving notes they dont update in reaper
+    //todo: add horizontally moving notes
+    //todo: make sound when placing or moving note
+    //todo: add resize notes
+    previousPlaying = playing*(previousPlaying + playing);
+    if(playing) {
+        SDL_UserEvent userevent = {PlaybackEvent, 0, 0, 0, 0, 0};
+        SDL_Event event; event.user = userevent;
+        SDL_PushEvent(&event);
+    }
 }
 const DWORD MS_VC_EXCEPTION = 0x406D1388;
 #pragma pack(push,8)
@@ -130,52 +218,87 @@ extern "C" void SetThreadName(DWORD dwThreadID, const char* threadName) {
 #pragma warning(pop)
 }
 //std::thread th;
-std::mutex mutex_;
-bool data_ready = false;
-bool timeToLeave = false;
-std::condition_variable condVar;
+extern "C" SDL_mutex* mutex_; // I use SDL_mutex because MSVC doesn't provide thread.h
+//extern "C" SDL_cond* condVar;
+//bool data_ready = false;
+extern "C" bool timeToLeave = false;
+extern "C" bool timeToShow = false;
+// extern "C" bool timeToHide  ?; // TODO: maybe remove Close
+//std::condition_variable ;
 //std::atomic<MediaItem*> item = NULL;
 void sdlThread() {
 
     SetThreadName ((DWORD)-1, "contMidiEditorThread");
     reaperMainThread = false;
 
-    while(true) {
-        std::unique_lock lk(mutex_);
-        condVar.wait(lk, [](){return data_ready;});
-        if(timeToLeave) {
-            lk.unlock();
-            break;
-        }
+//    while(true) {
+//        std::unique_lock lk(mutex_);
+//        condVar.wait(lk, [](){return data_ready;});
+//        if(timeToLeave) {
+
+//            lk.unlock();
+//            break;
+//        }
         pianorollgui();
-        data_ready = false;
-    }
+//        data_ready = false;
+//    }
 }
-void closeSDLWindowAndLockMutex() {
-    if(!mutex_.try_lock()) {
+void closeSDLWindow() {
+//    if(!mutex_.try_lock()) {
         SDL_WindowEvent windowevent = {
             SDL_WINDOWEVENT, SDL_GetTicks(), SDL_GetWindowID(rootWindow),
             SDL_WINDOWEVENT_CLOSE};
         SDL_Event event; event.window = windowevent;
         SDL_PushEvent(&event);
-        while(!mutex_.try_lock()) {
-            timer_function();
-        }
-    }
+//        while(!mutex_.try_lock()) {
+//            timer_function();
+//        }
+//    }
+//   TODO: wait for sdl window to be closed (for pianorollgui() to return)
 }
+//void showSDLWindow() {
+////    if(!mutex_.try_lock()) {
+//        SDL_WindowEvent windowevent = {
+//            SDL_WINDOWEVENT, SDL_GetTicks(), SDL_GetWindowID(rootWindow),
+//            SDL_WINDOWEVENT_S};
+//        SDL_Event event; event.window = windowevent;
+//        SDL_PushEvent(&event);
+////        while(!mutex_.try_lock()) {
+////            timer_function();
+////        }
+////    }
+////   TODO: wait for sdl window to be closed (for pianorollgui() to return)
+//}
+// FreeLibrary(GetModuleHandleA("reaper_midieditor.dll"));
 std::thread th;
+bool sdlThreadStarted;
 bool hookCommandProc(int iCmd, int flag)
 {
     char msg[100];
     snprintf(msg, 100, "hookCommandProc! %d\n", iCmd);
     ShowConsoleMsg(msg);
     if(iCmd == command) {
-        STATIC(bool, init, (th=std::thread(sdlThread), true)) //TODO: check if this
+
+
+
+
+
+        if(!sdlThreadStarted) {
+            th=std::thread(sdlThread);
+            mutex_ = SDL_CreateMutex();
+                    sdlThreadStarted = true;
+         } //TODO: check if this
                 // use-case of STATIC warrants its own macro
-        closeSDLWindowAndLockMutex();
+//        closeSDLWindow();
+        SDL_LockMutex(mutex_);
+        clearPiece();
 //            std::lock_guard lg(mutex_);
         MediaItem* item = GetSelectedMediaItem(NULL, 0);
         take = GetActiveTake(item);
+        GetSetMediaItemTakeInfo_String(take, "GUID", msg, false);
+        message("take name is %s\nguid is %s", GetTakeName(take), msg);
+
+        stringToGuid(msg, &currentGuid);
         bool res = true; //MIDI_GetAllEvts(take, events, &size);
         double ppqpos;
         int vel;
@@ -233,12 +356,35 @@ bool hookCommandProc(int iCmd, int flag)
                            .length = pos-channelNoteStarts[channel] }, false);
             }
         }
-        double bpiOut;
-//                double* bpmOut, double* bpiOut
-        GetProjectTimeSignature2(NULL, &bpm, &bpiOut);
-        data_ready = true;
-        mutex_.unlock();
-        condVar.notify_one();
+        // GetProjectTimeSignature2 actually returns beats, not quarters, per minute.
+        // It also doesn't return the denominator of the time signature, so it's not very useful
+//        GetProjectTimeSignature2(NULL, &qpm, &bpiOut);
+        // TimeMap_GetTimeSigAtTime's docs say that it returns something called "tempo" in the third argument,
+        // experiments show it actually returns quarters per minute
+        TimeMap_GetTimeSigAtTime(NULL, 0, &projectSignature.num,
+                                 &projectSignature.denom, &projectSignature.qpm);
+        arrsetlen(tempoMarkers, 0);
+
+        // Okay, hot take: time signature denominators are CRINGE. They may add some interpretive context
+        // to musicians but it's actually not needed; in midi editors we don't specify when a certain note is D#
+        // or Eb, and noone misses that, and the function of the note is clear from context and you can't
+        // fully specify it with these alteration marks anyway. In the same way the denominator of the time signature
+        // doesn't add enough rhytmical information to justify its usage.
+
+        int numberOfTempoMarkers = CountTempoTimeSigMarkers(NULL);
+        for(int i = 0; i < numberOfTempoMarkers; i ++) {
+            double timepos, beatpos, mbpm;
+            int measurepos, timesig_num, timesig_denom;
+            bool linearTempo;
+            GetTempoTimeSigMarker(NULL, i, &timepos, &measurepos, &beatpos, &mbpm, &timesig_num, &timesig_denom, &linearTempo);
+            arrpush(tempoMarkers, (TempoMarker{ .when = timepos-itemStart, .qpm = mbpm,
+                                                .num = timesig_num, .denom = timesig_denom}));
+        }
+//        data_ready = true;
+        //TODO: free arrays on unloading?..
+        timeToShow = true;
+        SDL_UnlockMutex(mutex_);
+//        condVar.notify_one();
 //        if(th.joinable()) {
 //            SDL_WindowEvent windowevent = {
 //                SDL_WINDOWEVENT, SDL_GetTicks(), SDL_GetWindowID(rootWindow),
@@ -271,20 +417,33 @@ bool hookCommandProc2(KbdSectionInfo* sec, int cmdId, int val, int valhw, int re
 //    ShowConsoleMsg(msg);
 //    return false;
 }
-
+//class CONMIDException {};
 
 extern "C" REAPER_PLUGIN_DLL_EXPORT int REAPER_PLUGIN_ENTRYPOINT(
   REAPER_PLUGIN_HINSTANCE instance, reaper_plugin_info_t *rec)
 {
+
+
+//    throw CONMIDException();
     reaperMainThread = true;
   if(!rec) {
+
     // cleanup code here
-    closeSDLWindowAndLockMutex();
-    timeToLeave = true;
-    data_ready = true;
-    mutex_.unlock();
-    condVar.notify_one();
-    th.join();
+    if( sdlThreadStarted) {
+      closeSDLWindow();
+        SDL_LockMutex(mutex_);
+        timeToLeave = true;
+        SDL_UnlockMutex(mutex_);
+    //    data_ready = true;
+    //    SDL_DestroyMutex(mutex_);
+    //    mutex_.unlock();
+    //    condVar.notify_one();
+//        while(th.joinable()) {
+//            closeSDLWindow();
+//            timer_function();
+//        }
+        th.join();
+    }
     return 0;
   }
 
@@ -472,12 +631,20 @@ extern "C" REAPER_PLUGIN_DLL_EXPORT int REAPER_PLUGIN_ENTRYPOINT(
 //  .if (!rec->Register("hookcustommenu", (void*)swsMenuHook)) {
 //     abort();
 //  }
+  // TODO: remove all aborts, use messageboxes instead
   if (!rec->Register("hookcommand2", (void*)hookCommandProc2))
       abort();
 
   if (!rec->Register("hookcommand", (void*)hookCommandProc))
       abort();
   if (!rec->Register("timer", (void*)timer_function))
+      abort();
+  static project_config_extension_t pce = {
+      ProcessExtensionLine,
+      SaveExtensionConfig,
+      0, 0
+  };
+  if (!rec->Register("projectconfig", &pce))
       abort();
 
   char* name = (char*)malloc(200);

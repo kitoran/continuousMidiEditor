@@ -6,7 +6,12 @@
 #include <stdio.h>
 #include <stdbool.h>
 Note* piece = 0;
-double bpm;
+extern TempoMarker* tempoMarkers = NULL;
+extern TempoMarker projectSignature = {
+    0,0,0,0
+};
+//double qpm;
+//int numeratorOfProjectTimeSig;
 double end = 0;
 int insertNote(Note note, bool propagate) {
 #if REAPER
@@ -119,3 +124,8 @@ u32 timerCallback (u32 interval, void *param) {
 }
 
 
+
+void clearPiece()
+{
+    arrsetlen(piece, 0);
+}

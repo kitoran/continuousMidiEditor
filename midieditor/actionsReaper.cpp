@@ -39,13 +39,19 @@ void reaperInsert(Note note) {
     double endppqpos = MIDI_GetPPQPosFromProjTime(take,
                                                     note.start+note.length+itemStart);
     static u8 channel =1;
-    channel = (channel)%15+1;
+    // TODO: make vertical zoom relative to mouse
+    // and horizontal zoom relative to cursor
+    if(midiMode ==  midi_mode_regular)
+        channel = (channel+1)%16;
+    else  // MPE
+        channel = (channel)%15+1;
     int key = round(log(note.freq)/logSemitone-bias);
     double freqOfTheKey = (440.0 / 32) * pow(2, ((key - 9) / 12.0));
     double difference = note.freq/freqOfTheKey;
 
-    double differenceInTones = 6*log(difference)/log(2);
-    int pitchWheel = round(differenceInTones*0x2000)+0x2000;
+    double differenceInSemitones = 12*log(difference)/log(2);
+    double differenceInPitchRamgeIntervals = differenceInSemitones/pitchRange;
+    int pitchWheel = round(differenceInPitchRamgeIntervals*0x2000)+0x2000;
 
     char pitchEvent[] = {pitch_wheel | channel, pitchWheel&0b1111111, pitchWheel>>7};
     MIDI_InsertEvt(take, false, false, startppqpos-1, pitchEvent, sizeof(pitchEvent));
@@ -85,7 +91,7 @@ extern "C" void message(const char* format, ...) {
 
     va_start(arg_ptr, format);
 
-    if(reaperMainThread) {
+    if(true /*reaperMainThread*/) {
         char msg[100];
         vsnprintf(msg, 100,format, arg_ptr);
         ShowConsoleMsg(msg);

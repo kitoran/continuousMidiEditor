@@ -1,4 +1,12 @@
+#include "editorinstance.h"
+#include "combobox.h"
 #include <gui.h>
+//struct editorInstance
+//{
+//    MediaItem_Take take;
+//    editorInstance();
+//};
+
 #include <persistent.h>
 #include <gridlayout.h>
 #include "save.h"
@@ -21,7 +29,7 @@
 
 
 
-
+#include <gui.h>
 
 SDL_Renderer* renderer;
 
@@ -31,12 +39,21 @@ char* appName = "piano roll continous";
 #else
 #define FILE_DIALOG_PATH "/home/n/exercises/build-FileDialog-Desktop-Debug/FileDialog"
 #endif
+SDL_mutex* mutex_; // I use SDL_mutex because MSVC doesn't provide thread.h
+SDL_cond* condVar;
+extern bool timeToLeave;
+extern bool timeToShow;
 extern void SetThreadName(u32 dwThreadID, const char* threadName);
+extern int PlaybackEvent = 0;
 int pianorollgui(void) {
 //    running = true;
     SDL_SetHint( SDL_HINT_RENDER_SCALE_QUALITY, "2" );
 //    STATIC(bool, inited, guiInit());
-    guiStartDrawing();
+    guiStartDrawingEx(false);
+    mutex_ = SDL_CreateMutex();
+
+    condVar = SDL_CreateCond();
+
     SetThreadName(-1, "midicont");
 #ifndef REAPER
     openAudio();
@@ -44,10 +61,58 @@ int pianorollgui(void) {
     Grid grid = allocateGrid(100, 100, 5);
     grid.gridStart.x = grid.gridStart.y = 0;
     pushLayout(&grid);
-    SDL_ShowWindow(rootWindow);
-    SDL_RaiseWindow(rootWindow);
+
+    SDL_LockMutex(mutex_);
+
+
+    PlaybackEvent = SDL_RegisterEvents(1);
     while(1) {
-        guiNextEvent();
+        SDL_UnlockMutex(mutex_);
+        guiNextEvent(); // let's hope that i don't add any
+        // support for hooks that are to be run inside guiNextEvent
+        // and potentially have access to things that should
+        // be protected with mutex_
+        SDL_LockMutex(mutex_);
+        if(timeToLeave) {
+            break;
+        }
+        if(timeToShow) {
+            int windowSizeIndex  = hmgeti(config, currentGuid);
+            CONTINUOUSMIDIEDITOR_Config cfg;
+            if(windowSizeIndex >= 0) {
+                cfg = config[windowSizeIndex];
+            } else {
+                cfg = (CONTINUOUSMIDIEDITOR_Config){
+                    .key = currentGuid,
+                    .value = {.windowGeometry = { 400, 400, 700, 700 },
+                                .horizontalScroll = 0,
+                        .verticalScroll = 0.5,
+                        .horizontalFrac = 0.1,
+                        .verticalFrac = 0.1 }
+                };
+                hmputs(config, cfg);
+                windowSizeIndex  = hmgeti(config, currentGuid);
+            }
+            Rect rect = config[windowSizeIndex].value.windowGeometry;
+            guiMoveWindow(rootWindow, rect.x, rect.y);
+            SDL_SetWindowSize(rootWindow, rect.w, rect.h);
+            SDL_ShowWindow(rootWindow);
+            SDL_RaiseWindow(rootWindow);
+            timeToShow = false;
+        }
+        if(playing) {
+            static int frames = 0;
+            STATIC(int, time, SDL_GetTicks());
+            int newTime = SDL_GetTicks();
+            frames++;
+            currentPositionInSamples += 44100*(newTime-time)/1000.0; //TODO: 44100
+            if((newTime/1000)*1000 > time) {
+                message("%d frames\n", frames);
+                frames = 0;
+            }
+            time = newTime;
+        }
+
         if(event.type == ButtonRelease) {
             DEBUG_PRINT(event.button.which, "%d");
         }
@@ -99,8 +164,30 @@ int pianorollgui(void) {
             if(event.window.event == SDL_WINDOWEVENT_CLOSE) {
                 message("closing the window"
                         "\n");
-                arrsetlen(piece, 0);
+//                arrsetlen(piece, 0);
+#ifndef REAPER
                 break;
+#else
+                SDL_HideWindow(rootWindow);
+#endif
+            }
+            if(event.window.event == SDL_WINDOWEVENT_MOVED) {
+                int windowSizeIndex  = hmgeti(config, currentGuid);
+                if(windowSizeIndex >= 0) {
+                    config[windowSizeIndex].value.windowGeometry.x = event.window.data1;
+                    config[windowSizeIndex].value.windowGeometry.y = event.window.data2;
+                } else {
+                    abort();
+                }
+            }
+            if(event.window.event == SDL_WINDOWEVENT_RESIZED) {
+                int windowSizeIndex  = hmgeti(config, currentGuid);
+                if(windowSizeIndex >= 0) {
+                    config[windowSizeIndex].value.windowGeometry.w = event.window.data1;
+                    config[windowSizeIndex].value.windowGeometry.h = event.window.data2;
+                } else {
+                    abort();
+                }
             }
         }
         if(guiButton(&rootWindowPainter, "play", 4)) {
@@ -168,10 +255,15 @@ int pianorollgui(void) {
             );
 #endif
         } gridNextColumn();
-        persistentDoubleField(&rootWindowPainter, 6, bpm); gridNextColumn();
+#ifndef REAPER
+        persistentDoubleField(&rootWindowPainter, 6, qpm); gridNextColumn();
+#endif
         guiLabelZT(&rootWindowPainter, "bpm"); gridNextColumn();
-        static int d;
-        guiIntField(&rootWindowPainter, 6, &d); gridNextColumn();
+
+        guiDoubleField(&rootWindowPainter, 6, &pitchRange); gridNextColumn();
+        // TODO: draw tooltips
+//        const char* elements;
+        guiEnumComboBox(&rootWindowPainter, midi_mode_enum, &midiMode);//"use 1st channel", "don't use");
         setCurrentGridPos(3,0);
         roll(&rootWindowPainter, getGridBottom(topLayout()));
 //        SDL_RenderPresent(renderer);

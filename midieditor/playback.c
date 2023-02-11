@@ -10,6 +10,8 @@
 #include <stdio.h>
 
 int currentPositionInSamples = 0;
+double cursorPosition = 0;
+bool playing = false;
 double smoothstep (double edge0, double edge1, double x)
 {
    if (x < edge0)
@@ -23,7 +25,7 @@ double smoothstep (double edge0, double edge1, double x)
 
    return x * x * (3 - 2 * x);
 }
-SDL_AudioSpec  have;
+SDL_AudioSpec  have = {.freq = 44100};
 #define EASE_FRAMES 40
 
 
