@@ -2,10 +2,11 @@
 #include "melody.h"
 #include "misc.h"
 #include "actions.h"
+#include "editorinstance.h"
 #include <math.h>
 #include <stdio.h>
 #include <stdbool.h>
-Note* piece = 0;
+RealNote* piece = 0;
 extern TempoMarker* tempoMarkers = NULL;
 extern TempoMarker projectSignature = {
     0,0,0,0
@@ -13,26 +14,52 @@ extern TempoMarker projectSignature = {
 //double qpm;
 //int numeratorOfProjectTimeSig;
 extern double end = 0;
-int insertNote(Note note, bool propagate) {
-#if REAPER
-    if(propagate)
-        reaperInsert(note);
-#endif
+int insertNote(IdealNote note) {
 
     int pos = 0;
-    while(arrlen(piece) > pos && piece[pos].start < note.start) pos++;
+    bool occupiedChannels[CHANNELS] = {0};
+    while(arrlen(piece) > pos && piece[pos].note.start < note.start) {
+        pos++;
+        if(piece[pos].note.start+piece[pos].note.length >= note.start) {
+            occupiedChannels[piece[pos].midiChannel] = true;
+        }
+    }
+
     int res = pos;
-    Note temp;
+    RealNote realNote = {.note = note, .midiChannel = 1};
+    RealNote temp;
     while(pos < arrlen(piece)) {
+        if(piece[pos].note.start < note.start+note.length) {
+            occupiedChannels[piece[pos].midiChannel] = true;
+        }
         temp = piece[pos];
-        piece[pos] = note;
-        note = temp;
+        piece[pos] = realNote;
+        realNote = temp;
         pos++;
     }
-    arrpush(piece, note);
+    arrpush(piece, temp);
+
+    bool freeChannelFound = false;
+    for(int i = (midiMode==midi_mode_mpe?1:0);i<16;i++) {
+        if(occupiedChannels[i] == false) {
+            piece[res].midiChannel=i;
+            freeChannelFound = true;
+            break;
+        }
+    }
+    if(!freeChannelFound) {
+        MessageBoxInfo("no free channel found", "this note may affect how other notes sound");
+    }
 
     if(note.start + note.length > end) end = note.start + note.length;
+#ifdef REAPER
+    reaperInsert(piece[res]);
+#endif
     return res;
+}
+void appendRealNote(RealNote note) {
+    arrpush(piece, note);
+    if(note.note.start + note.note.length > end) end = note.note.start + note.note.length;
 }
 void removeNote(int ind) {
 //    assert(note - piece < arrlen(piece));
@@ -54,7 +81,7 @@ void removeNote(int ind) {
 _Bool saveMelody(char* filename) {
     FILE* f = fopen(filename, "w");
     FOR_NOTES(note, piece) {
-        fprintf(f, NOTE_FORMAT "\n", NOTE_ARGS((*note)));
+        fprintf(f, REAL_NOTE_FORMAT "\n", REAL_NOTE_ARGS((*note)));
     }
     fclose(f);
     return 0;
@@ -63,10 +90,10 @@ _Bool saveMelody(char* filename) {
 _Bool loadMelody(char* filename) {
     FILE* f = fopen(filename, "r");
     arrsetlen(piece, 0);
-    Note scanned;
+    RealNote scanned;
     // FIXME vot eto ==3 zdes' plohoe
-    while(fscanf_s(f, NOTE_FORMAT "\n", NOTE_ARGS(&scanned)) == 3) {
-        insertNote(scanned, true);
+    while(fscanf_s(f, REAL_NOTE_FORMAT "\n", REAL_NOTE_ARGS(&scanned)) == 3) {
+        appendRealNote(scanned);
     }
 
     fclose(f);

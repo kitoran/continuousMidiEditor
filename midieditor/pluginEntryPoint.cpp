@@ -52,7 +52,7 @@ extern "C" {
 
 UINT command;
 // TODO: not thread safe access to variables
-static bool ProcessExtensionLine(const char *line, ProjectStateContext *ctx, bool isUndo, struct project_config_extension_t *reg)
+static bool ProcessExtensionLine(const char *line, ProjectStateContext *ctx, bool /*isUndo*/, struct project_config_extension_t */*reg*/)
 {
     char* copy = strdup(line);
     char* saveptr = NULL;
@@ -98,7 +98,7 @@ static bool ProcessExtensionLine(const char *line, ProjectStateContext *ctx, boo
     }
     return true;
 }
-static void SaveExtensionConfig(ProjectStateContext *ctx, bool isUndo, struct project_config_extension_t *reg) {
+static void SaveExtensionConfig(ProjectStateContext *ctx, bool /*isUndo*/, struct project_config_extension_t */*reg*/) {
     if(hmlen(config) == 0) {
         return;
     }
@@ -162,32 +162,30 @@ static void SaveExtensionConfig(ProjectStateContext *ctx, bool isUndo, struct pr
 //}
 void timer_function() {
     std::unique_lock lk(actionChannel.mutex);
-    if(actionChannel.action==actionChannel.insertNote) {
-        reaperInsert(actionChannel.note);
+    if(actionChannel.pending) {
+        actionChannel.action();
+        actionChannel.pending = false;
     }
-    if(actionChannel.action==actionChannel.deleteNote) {
-        reaperDelete(actionChannel.intgr);
-    }
-    if(actionChannel.action==actionChannel.consoleMessage) {
-        ShowConsoleMsg(actionChannel.string);
-    }
-    actionChannel.action = actionChannel.none;
+    actionChannel.action = decltype(actionChannel.action)(); //
+    //TODO: i don't know if this assignment frees the closure
     lk.unlock();
     actionChannel.cv.notify_one();
-    currentPositionInSamples =  (GetPlayPosition()-itemStart)*44100; // TODO: ask sample rate from reaper or someone
+    currentPositionInSamples =  (int)round((GetPlayPosition()-itemStart)*44100); // TODO: ask sample rate from reaper or someone
     cursorPosition = GetCursorPosition()-itemStart;
+    double deb1 = GetPlayPosition();
+    double deb2 = GetCursorPosition();
+    sprintf(DebugBuffer, "playp %lf curp %lf", deb1, deb2);
     static int previousPlaying = false;
     playing = GetPlayState() & 1;
-    if(previousPlaying < 10) {
-        currentPositionInSamples = cursorPosition*44100;
-    }//TODO: yellow line appears in the wrong place when starting playing
-    //TODO: when moving notes they dont update in reaper
+//    if(previousPlaying < 10) {
+//        currentPositionInSamples = cursorPosition*44100;
+//    }
     //todo: add horizontally moving notes
     //todo: make sound when placing or moving note
     //todo: add resize notes
     previousPlaying = playing*(previousPlaying + playing);
     if(playing) {
-        SDL_UserEvent userevent = {PlaybackEvent, 0, 0, 0, 0, 0};
+        SDL_UserEvent userevent = {(u32)PlaybackEvent, SDL_GetTicks(), 0, 0, 0, 0};
         SDL_Event event; event.user = userevent;
         SDL_PushEvent(&event);
     }
@@ -272,7 +270,7 @@ void closeSDLWindow() {
 // FreeLibrary(GetModuleHandleA("reaper_midieditor.dll"));
 std::thread th;
 bool sdlThreadStarted;
-bool hookCommandProc(int iCmd, int flag)
+bool hookCommandProc(int iCmd, int /*flag*/)
 {
     char msg[100];
     snprintf(msg, 100, "hookCommandProc! %d\n", iCmd);
@@ -301,7 +299,7 @@ bool hookCommandProc(int iCmd, int flag)
         stringToGuid(msg, &currentGuid);
         bool res = true; //MIDI_GetAllEvts(take, events, &size);
         double ppqpos;
-        int vel;
+//        int vel;
         int i = 0;
         itemStart = GetMediaItemInfo_Value(item, "D_POSITION");
         end = /*itemStart + */GetMediaItemInfo_Value(item, "D_LENGTH");
@@ -347,14 +345,16 @@ bool hookCommandProc(int iCmd, int flag)
             }
             if((msg[0] & MIDI_COMMAND_MASK) == noteOff) {
                 int key = msg[1];
+                int vel = msg[2];
                 double freq = (440.0 / 32) * pow(2, ((key - 9) / 12.0));
                 freq += channelPitches[channel];
                 message("st %lf end %lf pitch %d vel %d\n"
                         "start %lf  freq %lf", pos, channelNoteStarts[channel] , key, vel
                         , start, freq);
-                insertNote({.freq= freq,
-                           .start = channelNoteStarts[channel]  - itemStart,
-                           .length = pos-channelNoteStarts[channel] }, false);
+                appendRealNote({.note = {.freq = freq,
+                                         .start = channelNoteStarts[channel]  - itemStart,
+                                         .length = pos-channelNoteStarts[channel]},
+                                .midiChannel = channel});
             }
         }
         // GetProjectTimeSignature2 actually returns beats, not quarters, per minute.
@@ -410,7 +410,7 @@ bool hookCommandProc(int iCmd, int flag)
     return false;
 }
 
-bool hookCommandProc2(KbdSectionInfo* sec, int cmdId, int val, int valhw, int relmode, HWND hwnd)
+bool hookCommandProc2(KbdSectionInfo* /*sec*/, int cmdId, int /*val*/, int /*valhw*/, int /*relmode*/, HWND /*hwnd*/)
 {
     return hookCommandProc(cmdId, 0);
 //    char msg[100];
@@ -421,7 +421,7 @@ bool hookCommandProc2(KbdSectionInfo* sec, int cmdId, int val, int valhw, int re
 //class CONMIDException {};
 
 extern "C" REAPER_PLUGIN_DLL_EXPORT int REAPER_PLUGIN_ENTRYPOINT(
-  REAPER_PLUGIN_HINSTANCE instance, reaper_plugin_info_t *rec)
+  REAPER_PLUGIN_HINSTANCE /*instance*/, reaper_plugin_info_t *rec)
 {
 
 

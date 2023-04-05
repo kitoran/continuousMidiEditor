@@ -5,6 +5,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+extern char DebugBuffer[1000];
 extern int currentPositionInSamples;
 extern double cursorPosition;
 extern bool playing;

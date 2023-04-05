@@ -7,4 +7,6 @@ GUID currentGuid/*[16]*/ = {0};
 midi_mode_enum midiMode = midi_mode_mpe;
 double pitchRange = 48;
 }
+#ifdef REAPER
 MediaItem_Take* take = 0;
+#endif

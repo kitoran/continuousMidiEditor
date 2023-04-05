@@ -1,30 +1,23 @@
 #ifndef ACTIONS_H
 #define ACTIONS_H
+#include "melody.h"
 #ifdef __cplusplus
-extern "C"
+extern "C" {
 #endif
 void play();
-#ifdef __cplusplus
-extern "C"
-#endif
 void stop();
 
-#ifdef __cplusplus
-extern "C"
-#endif
-void reaperInsert(Note note);
-#ifdef __cplusplus
-extern "C"
-#endif
+void reaperInsert(RealNote note);
 void reaperDelete(int note);
 
-#ifdef __cplusplus
-extern "C"
-#endif
 void reaperSetPosition(double d);
 
-#ifdef __cplusplus
-extern "C"
-#endif
 void reaperOnCommand(u32 command);
+void startPlayingNote(double freq);
+void stopPlayingNote();
+void MessageBoxInfo(char*title, char *message);
+void message(const char* format, ...);
+#ifdef __cplusplus
+}
+#endif
 #endif // ACTIONS_H

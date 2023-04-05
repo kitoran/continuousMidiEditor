@@ -2,22 +2,31 @@
 #define MELODY_H
 #include <stdbool.h>
 #define CHANNELS 16
-typedef struct Note {
+typedef struct IdealNote {
     double freq;
     double start;
     double length;
-} Note;
-#define NOTE_FORMAT "freq = %lf, start = %lf, length = %lf"
+    bool muted;
+    int velocity;
+} IdealNote;
+
+typedef struct RealNote {
+    IdealNote note;
+    int midiChannel;
+} RealNote;
+
+#define REAL_NOTE_FORMAT "freq = %lf, start = %lf, length = %lf channel = %d"
 // unhygienic macro
-#define NOTE_ARGS(a) a.freq, a.start, a.length
-#define FOR_NOTES(a, b) FOR_STB_ARRAY(Note*, a, b)
-extern Note* piece;
+#define REAL_NOTE_ARGS(a) a.note.freq, a.note.start, a.note.length, a.midiChannel
+#define FOR_NOTES(a, b) FOR_STB_ARRAY(RealNote*, a, b)
+extern RealNote* piece;
 #ifdef __cplusplus
 extern "C" {
 #else
 extern
 #endif
-int insertNote(Note note, bool propagate);
+int insertNote(IdealNote note);
+void appendRealNote(RealNote note);
 void removeNote(int ind);
 void clearPiece();
 typedef struct {

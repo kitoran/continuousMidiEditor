@@ -17,13 +17,13 @@ windows {
     INCLUDEPATH += C:\src\SDL2-devel-2.26.1-VC\SDL2-2.26.1\include C:\src\SDL2-devel-2.26.1-VC\SDL2_ttf-2.20.1\include
     CONFIG -= console
     LIBS += /lKernel32
+    QMAKE_CXXFLAGS += /Zc:preprocessor /wd4838
 #    -lSDL2main -lShell32
-QMAKE_LFLAGS += user32.lib
-QMAKE_CXXFLAGS += /Zc:preprocessor
-QMAKE_CFLAGS += /std:c11
-SDL2.dll.path = C:\src\SDL2-devel-2.26.1-VC\SDL2-2.26.1\
-    INSTALLS += SDL2.dll
-#    QMAKE_CXXFLAGS += /D__cplusplus #wtf why was this not defined in the first place
+    QMAKE_LFLAGS += user32.lib
+    QMAKE_CFLAGS += /std:c11 /we4013 /wd4838
+    SDL2.dll.path = C:\src\SDL2-devel-2.26.1-VC\SDL2-2.26.1\
+        INSTALLS += SDL2.dll
+    #    QMAKE_CXXFLAGS += /D__cplusplus #wtf why was this not defined in the first place
 }
 include(../../library/stb/stb_ds.pri)
 #include(../../library/gui-SDL/gui.pri)

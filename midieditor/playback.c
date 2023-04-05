@@ -12,6 +12,7 @@
 int currentPositionInSamples = 0;
 double cursorPosition = 0;
 bool playing = false;
+char DebugBuffer[1000];
 double smoothstep (double edge0, double edge1, double x)
 {
    if (x < edge0)
@@ -30,7 +31,7 @@ SDL_AudioSpec  have = {.freq = 44100};
 
 
 int countSamples(double time) {
-    return time * have.freq;
+    return (int)round(time * have.freq);
 }
 SDL_AudioDeviceID audioDevice;
 //int binaryFind(int samples) {
@@ -55,16 +56,16 @@ void buffer(void* userdata,
         int filledPositions = 0;
         int freqs[CHANNELS] = {0};
         for(int i = 0; i < arrlen(piece) && filledPositions < CHANNELS; i++) {
-            if(piece[i].start <= currentPositionInSamples*1.0/have.freq &&
-                    piece[i].start + piece[i].length > currentPositionInSamples*1.0/have.freq) {
-                freqs[filledPositions] = piece[i].freq;
+            if(piece[i].note.start <= currentPositionInSamples*1.0/have.freq &&
+                    piece[i].note.start + piece[i].note.length > currentPositionInSamples*1.0/have.freq) {
+                freqs[filledPositions] = (int)piece[i].note.freq;
                 filledPositions++;
-                int remSam = countSamples(piece[i].start + piece[i].length) - currentPositionInSamples;
+                int remSam = countSamples(piece[i].note.start + piece[i].note.length) - currentPositionInSamples;
                 remSam = MAX(remSam, 1);
                 if(remSam<samplesToFillNow) samplesToFillNow = remSam;
             }
-            if(countSamples(piece[i].start) > currentPositionInSamples) {
-                int remSam = countSamples(piece[i].start) - currentPositionInSamples;
+            if(countSamples(piece[i].note.start) > currentPositionInSamples) {
+                int remSam = countSamples(piece[i].note.start) - currentPositionInSamples;
                 remSam = MAX(remSam, 1);
                 if(remSam<samplesToFillNow) samplesToFillNow = remSam;
                 break;
@@ -76,9 +77,9 @@ void buffer(void* userdata,
         for(int i = 0; i < samplesToFillNow; i++) {
             stream[i] = 0;
             FOR(j, CHANNELS) {
-                stream[i] += (sin(phase[j]/4.0*tau/(SDL_MAX_UINT32/4))*1000);
+                stream[i] += (i16)round(sin(phase[j]/4.0*tau/(SDL_MAX_UINT32/4))*1000);
 //                if(state.framesLeftLastFreq[j] == 0) {
-                    phase[j] += (SDL_MAX_UINT32/((double)have.freq)*(freqs[j]));
+                    phase[j] += (u32)round(SDL_MAX_UINT32/((double)have.freq)*(freqs[j]));
 //                } else {
 //                    phase[j] +=
 //                             ((SDL_MAX_UINT32/((double)have.freq)*(state.lastFreq[j])))*
@@ -93,7 +94,7 @@ void buffer(void* userdata,
         stream += samplesToFillNow;
         trueLen -= samplesToFillNow;
     }
-    SDL_UserEvent userevent = {PlaybackEvent, 0, 0, 0, 0, 0};
+    SDL_UserEvent userevent = {PlaybackEvent, SDL_GetTicks(), 0, 0, 0, 0};
     SDL_Event event; event.user = userevent;
     SDL_PushEvent(&event);
 }
@@ -129,5 +130,5 @@ double samplesToTime(int samples)
 
 int timeToSamples(double time)
 {
-    return round(time*have.freq);
+    return (int)round(time*have.freq);
 }
