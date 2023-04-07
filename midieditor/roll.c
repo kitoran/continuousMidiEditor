@@ -190,6 +190,21 @@ double freqToYLinear(int height, Point pos, double freq) {
     int relativeY = (int)round((1-myFrac)*height);
     return relativeY + pos.y;
 }
+//double yToFreq(int height, Point pos, int my) {
+////    double verticalScrollMirrored = 1-cfg->value.verticalFrac-cfg->value.verticalScroll;
+////    double freqVMin = verticalScrollMirrored * (log(FREQ_MAX)-log(FREQ_MIN)) + log(FREQ_MIN);
+////    double freqVMax = (verticalScrollMirrored+cfg->value.verticalFrac) * (log(FREQ_MAX)-log(FREQ_MIN)) +log( FREQ_MIN);
+
+////    int relativeY = my - pos.y;
+////    return exp(myFrac*((freqVMax)-(freqVMin)) + (freqVMin));
+
+//    double myFrac = 1 - (my - pos.y) * 1.0/ height;
+//    double range = log(FREQ_MAX)-log(FREQ_MIN);
+//    double partOfRangeBelowScreen = 1-cfg->value.verticalFrac-cfg->value.verticalScroll;
+//    double partOfRangeBelowMouse = partOfRangeBelowScreen + cfg->value.verticalFrac*myFrac;
+//    double rangeBelowMouse = partOfRangeBelowMouse*range;
+//    return exp(rangeBelowMouse);
+//}
 double yToFreq(int height, Point pos, int my) {
 //    double verticalScrollMirrored = 1-cfg->value.verticalFrac-cfg->value.verticalScroll;
 //    double freqVMin = verticalScrollMirrored * (log(FREQ_MAX)-log(FREQ_MIN)) + log(FREQ_MIN);
