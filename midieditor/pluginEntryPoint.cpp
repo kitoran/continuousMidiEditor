@@ -219,11 +219,12 @@ extern "C" void SetThreadName(DWORD dwThreadID, const char* threadName) {
 extern "C" SDL_mutex* mutex_; // I use SDL_mutex because MSVC doesn't provide thread.h
 //extern "C" SDL_cond* condVar;
 //bool data_ready = false;
-extern "C" bool timeToLeave = false;
-extern "C" bool timeToShow = false;
+extern "C" extern bool timeToLeave;
+extern "C" bool timeToShow;
 // extern "C" bool timeToHide  ?; // TODO: maybe remove Close
 //std::condition_variable ;
 //std::atomic<MediaItem*> item = NULL;
+//TODO: save data in settings.c every 5 seconds
 void sdlThread() {
 
     SetThreadName ((DWORD)-1, "contMidiEditorThread");

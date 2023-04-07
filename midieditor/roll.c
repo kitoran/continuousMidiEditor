@@ -266,7 +266,7 @@ void noteArea(Painter* p, Size size) {
     Point pos = getPos();
     Rect rect = {0, pos.y, size.w, size.h};
     guiSetClipRect(p, rect);
-    guiSetForeground(p,0x464646);
+    guiSetForeground(p,0x4d4d4d);
     guiFillRectangle(p, rect);
     STATIC(int, digSize, guiTextExtents("3/5", 3).h);
     double lastVisibleTime = xToTime(size.w, size.w);
@@ -293,22 +293,22 @@ void noteArea(Painter* p, Size size) {
             next++;
         }
         if(numOfBeat == 0) {
-            guiSetForeground(p, gray(0x44));
+            guiSetForeground(p, 0x626262);
         } else {
-            guiSetForeground(p, gray(0x11));
+            guiSetForeground(p, 0x434343);
         }
         int c = timeToX(size.w, projectTime-itemStart);
         guiDrawLine(p, c, pos.y, c, pos.y+size.h);
         numOfBeat = last.num?(numOfBeat+1)%last.num:0;
     }
-    if(end < lastVisibleTime) {
-        int endX = timeToX(size.w, end);
-        Rect r = { endX, pos.y, pos.x+size.w-endX, size.h};
-        SDL_SetRenderDrawBlendMode(p->gc, SDL_BLENDMODE_BLEND);
-        guiSetForeground(p, 0x66333343);
-        guiFillRectangle(p, r);
-        SDL_SetRenderDrawBlendMode(p->gc, SDL_BLENDMODE_NONE);
-    }
+//    if(end < lastVisibleTime) {
+//        int endX = timeToX(size.w, end);
+//        Rect r = { endX, pos.y, pos.x+size.w-endX, size.h};
+//        SDL_SetRenderDrawBlendMode(p->gc, SDL_BLENDMODE_BLEND);
+//        guiSetForeground(p, 0x66333343);
+//        guiFillRectangle(p, r);
+//        SDL_SetRenderDrawBlendMode(p->gc, SDL_BLENDMODE_NONE);
+//    }
     int playback;
     int cursor = timeToX(size.w, cursorPosition);
     if(playing) {
