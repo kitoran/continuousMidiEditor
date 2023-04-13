@@ -21,31 +21,26 @@ extern "C" {
 INTROSPECT_ENUM_VISIBLE_NAMES(midi_mode_enum,
                 midi_mode_regular, "Regular MIDI",
                 midi_mode_mpe, "MPE")
-extern midi_mode_enum midiMode;
+
+extern bool showRationalIntervals;
+extern bool showScale;
+
 extern double itemStart;
-extern double pitchRange;
 typedef struct CONTINUOUSMIDIEDITOR_Config {
-//    union {
-//        char guid[16];
-//        char key[16];
-//    };
     GUID key;
-//    union {
-//        struct {
-//            Rect windowGeometry;
-//            Rect innerGeometry;//horizontalscroll, verticalScroll, horizontallScrollFraction, veritcalScrollFraction
-//        };
         struct {
             Rect windowGeometry;
             double horizontalScroll;
             double horizontalFrac;
             double verticalScroll;
             double verticalFrac;
+            midi_mode_enum midiMode;
+            double pitchRange;
         } value;
-//    };
 } CONTINUOUSMIDIEDITOR_Config;
 extern CONTINUOUSMIDIEDITOR_Config* config;
-extern GUID currentGuid/*[16]*/;
+//extern GUID currentGuid/*[16]*/;
+extern CONTINUOUSMIDIEDITOR_Config* currentItemConfig;
 #ifdef __cplusplus
 }
 #endif

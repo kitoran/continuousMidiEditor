@@ -51,9 +51,21 @@ extern "C" {
 //extern double __declspec(selectany) itemStart;
 
 UINT command;
+
+//void get_line(ProjectStateContext *ctx, char* format...) {
+//    char oneline[4096];
+//    ctx->GetLine(oneline, sizeof(oneline));
+//    va_list arg_ptr;
+//    va_start(arg_ptr, format);
+//    res = vsscanf(oneline, format, va_args);
+//    va_end(arg_ptr);
+//}
+//todo: why did i use sdl_strtokr instead of strtok_r
 // TODO: not thread safe access to variables
+//TODO: rewrite using GetSetMediaItemTakeInfo_String?
 static bool ProcessExtensionLine(const char *line, ProjectStateContext *ctx, bool /*isUndo*/, struct project_config_extension_t */*reg*/)
 {
+
     char* copy = strdup(line);
     char* saveptr = NULL;
     char* token = SDL_strtokr(copy, " \n", &saveptr);
@@ -65,36 +77,54 @@ static bool ProcessExtensionLine(const char *line, ProjectStateContext *ctx, boo
     saveptr = NULL;
     while(true) {
         char oneline[4096];
-        char guid[/*38*/64];
-
-        ctx->GetLine(oneline, sizeof(oneline));
+        int getLineRes = ctx->GetLine(oneline, sizeof(oneline));
         token = SDL_strtokr(oneline, " \n", &saveptr);
         if(!strcmp(token, ">")) {
             break;
         }
-
         ASSERT(!strcmp(token, "<ITEM"), "fail to read lconfig");
-        token = SDL_strtokr(NULL, " \n", &saveptr); ASSERT(token == NULL, "fail to read lconfig");
-        CONTINUOUSMIDIEDITOR_Config cnfg;
-        ctx->GetLine(oneline, sizeof(oneline));
-        int res = sscanf(oneline, " GUID %38s", guid); ASSERT(res == 1,  "fail to read lconfig");
-        stringToGuid(guid, &cnfg.key);
-        ctx->GetLine(oneline, sizeof(oneline));
-        res = sscanf(oneline, " WNDRECT " RECT_FORMAT, RECT_ARGS(&cnfg.value.windowGeometry)); ASSERT(res == 4, "fail to read lconfig");
-        ctx->GetLine(oneline, sizeof(oneline));
-        res = sscanf(oneline, " INNERRECT %lf %lf %lf %lf ", &cnfg.value.horizontalScroll,
-                     &cnfg.value.verticalScroll,
-                     &cnfg.value.horizontalFrac,
-                     &cnfg.value.verticalFrac
-                     ); ASSERT(res == 4, "fail to read lconfig");
-        hmputs(config, cnfg);
-        ctx->GetLine(oneline, sizeof(oneline));
-        token = oneline; while((*token != 0) && isspace(*token)) token++;
-        int end = 0; while((*token != 0) && (!isspace(token[end]))) end++;
-        token[end] = 0;
-        if(strcmp(token, ">")) {
-            ABORT("failed to read config");
+        CONTINUOUSMIDIEDITOR_Config cnfg = {
+            {0},
+            {
+                {100, 100, 500, 500},
+                0, 1,
+                0.2, 0.6,
+                midi_mode_mpe,
+                48
+            }
+        };
+        while(true){
+            char stringParam[/*38*/64];
+            int getLineRes = ctx->GetLine(oneline, sizeof(oneline));
+//            token = SDL_strtokr(oneline, " \n", &saveptr);
+            if( sscanf(oneline, " %1[>]", stringParam) == 1 || getLineRes == -1) {
+                break;
+            } else if( sscanf(oneline, " GUID %38s", stringParam) == 1 ){
+                stringToGuid(stringParam, &cnfg.key);
+                continue;
+            } else if ( sscanf(oneline, " WNDRECT " RECT_FORMAT, RECT_ARGS(&cnfg.value.windowGeometry)) == 4 ){
+                continue;
+            } else if ( sscanf(oneline, " INNERRECT %lf %lf %lf %lf ", &cnfg.value.horizontalScroll,
+                               &cnfg.value.verticalScroll,
+                               &cnfg.value.horizontalFrac,
+                               &cnfg.value.verticalFrac
+                               ) == 4 ){
+                continue;
+            } else if ( sscanf(oneline, " FORMAT %29s", stringParam) == 1 ){
+                bool succ;
+                cnfg.value.midiMode = VALUE_FROM_NAME(midi_mode_enum, stringParam, &succ);
+                ASSERT(succ, "fail to read config");
+                continue;
+            } else if ( sscanf(oneline, " PITCH_RANGE %lf", &cnfg.value.pitchRange) == 1 ){
+                continue;
+            } else {
+                continue;
+            }
         }
+        ASSERT(cnfg.key != GUID_NULL, "cant parse project file");
+
+
+        hmputs(config, cnfg);
     }
     return true;
 }
@@ -114,6 +144,9 @@ static void SaveExtensionConfig(ProjectStateContext *ctx, bool /*isUndo*/, struc
                      cnfg->value.verticalScroll,
                      cnfg->value.horizontalFrac,
                      cnfg->value.verticalFrac);
+        ctx->AddLine("FORMAT %s", NAME_FROM_VALUE(midi_mode_enum, cnfg->value.midiMode));
+        ctx->AddLine("PITCH_RANGE %lf", cnfg->value.pitchRange);
+
         ctx->AddLine(">");
     }
     ctx->AddLine(">");
@@ -297,7 +330,27 @@ bool hookCommandProc(int iCmd, int /*flag*/)
         GetSetMediaItemTakeInfo_String(take, "GUID", msg, false);
         message("take name is %s\nguid is %s", GetTakeName(take), msg);
 
+        GUID currentGuid;
         stringToGuid(msg, &currentGuid);
+        currentItemConfig = hmgetp_null(config, currentGuid);
+//            cfg;
+        if(currentItemConfig  == NULL) {
+            CONTINUOUSMIDIEDITOR_Config  cfg = {
+                .key = currentGuid,
+                .value = {.windowGeometry = { 400, 400, 700, 700 },
+                            .horizontalScroll = 0,
+                          .horizontalFrac = 0.1,
+                    .verticalScroll = 0.5,
+                    .verticalFrac = 0.1,
+                    .midiMode = midi_mode_mpe,
+                    .pitchRange = 48,
+                    }
+            };
+            hmputs(config, cfg);
+            currentItemConfig  = hmgetp_null(config, currentGuid);
+            ASSERT(currentItemConfig , "");
+        }
+
         bool res = true; //MIDI_GetAllEvts(take, events, &size);
         double ppqpos;
 //        int vel;
@@ -328,12 +381,12 @@ bool hookCommandProc(int iCmd, int /*flag*/)
                i16 pitchWheel =
                        (msg[2] << 7) |
                        (msg[1]&MIDI_7HB_MASK);
-               // TODO: setting of whether pitch bend is 2 semitones or 48 semitones
                double differenceInTones =
-                       double(pitchWheel-0x2000)/0x2000;
-               double differenceInHz = pow(2, differenceInTones/6);
-               channelPitches[channel] = differenceInHz;
+                       double(pitchWheel-0x2000)/0x2000 * currentItemConfig->value.pitchRange / 2.0;
+               double ratio = pow(2, differenceInTones/6);
+               channelPitches[channel] = ratio;
             }
+            //TODO: delete selected notes on "delete"
             //TODO: store velocity value too
 //          res = MIDI_GetNote(take, i++, 0, 0, , &endppqpos, 0, &pitch, &vel);
 
@@ -348,7 +401,7 @@ bool hookCommandProc(int iCmd, int /*flag*/)
                 int key = msg[1];
                 int vel = msg[2];
                 double freq = (440.0 / 32) * pow(2, ((key - 9) / 12.0));
-                freq += channelPitches[channel];
+                freq *= channelPitches[channel];
                 message("st %lf end %lf pitch %d vel %d\n"
                         "start %lf  freq %lf", pos, channelNoteStarts[channel] , key, vel
                         , start, freq);
@@ -436,6 +489,7 @@ extern "C" REAPER_PLUGIN_DLL_EXPORT int REAPER_PLUGIN_ENTRYPOINT(
         SDL_LockMutex(mutex_);
         timeToLeave = true;
         SDL_UnlockMutex(mutex_);
+        timer_function();
     //    data_ready = true;
     //    SDL_DestroyMutex(mutex_);
     //    mutex_.unlock();

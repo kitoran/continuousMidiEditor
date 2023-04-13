@@ -19,12 +19,12 @@ typedef struct RealNote {
 // unhygienic macro
 #define REAL_NOTE_ARGS(a) a.note.freq, a.note.start, a.note.length, a.midiChannel
 #define FOR_NOTES(a, b) FOR_STB_ARRAY(RealNote*, a, b)
-extern RealNote* piece;
 #ifdef __cplusplus
 extern "C" {
-#else
-extern
 #endif
+
+extern RealNote* piece;
+void moveNotes(RealNote **movedNotes, double timeChange, double freqChange, int* dragged);
 int insertNote(IdealNote note);
 void appendRealNote(RealNote note);
 void removeNote(int ind);

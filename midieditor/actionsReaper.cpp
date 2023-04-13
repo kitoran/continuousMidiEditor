@@ -6,7 +6,7 @@
 #include "reaper_plugin_functions.h"
 #include "melody.h"
 #include "actions.h"
-
+#include "stb_ds.h"
 thread_local bool reaperMainThread;
 
 void play() {
@@ -62,6 +62,7 @@ MidiPitch getMidiPitch(double freq, double pitchRangeInterval) {
 
 void reaperInsert(RealNote note) {
     if(!reaperMainThread) {
+        ASSERT(note.note.freq>1,"")
         actionChannel.name = __func__;
         actionChannel.runInMainThread(&reaperInsert, note);
         return;
@@ -75,7 +76,7 @@ void reaperInsert(RealNote note) {
 //        channel = (channel+1)%16;
 //    else  // MPE
 //        channel = (channel)%15+1;
-    MidiPitch mp = getMidiPitch(note.note.freq, pitchRange);
+    MidiPitch mp = getMidiPitch(note.note.freq, currentItemConfig->value.pitchRange);
     char pitchEvent[] = {pitch_wheel | note.midiChannel, mp.wheel&0b1111111, mp.wheel>>7};
     MIDI_InsertEvt(take, false, false, startppqpos-1, pitchEvent, sizeof(pitchEvent));
     bool res = MIDI_InsertNote(take, false, false,
@@ -83,7 +84,7 @@ void reaperInsert(RealNote note) {
                     note.midiChannel, mp.key,
                     100,
                     NULL);
-    message("inserting note %lf - %lf\n", startppqpos, endppqpos);
+//    message("inserting note %lf - %lf\n", startppqpos, endppqpos);
     if(!res) ShowConsoleMsg("note insertion failed");
 
 }
@@ -114,6 +115,23 @@ void reaperDelete(int note) {
     bool res = MIDI_DeleteNote(take, note);
     message("deleting note %d", note);
     if(!res) ShowConsoleMsg("note deletion failed");
+}
+void reaperMoveNotes(RealNote** selectedNotes, double time, double freq) {
+    if(!reaperMainThread) {
+        ASSERT((**selectedNotes).note.freq > 1, "");
+        actionChannel.name = __func__;
+        actionChannel.runInMainThread(&reaperMoveNotes, selectedNotes, time, freq);
+        return;
+    }
+    MIDI_DisableSort(take);
+    for(int i = arrlen(selectedNotes)-1; i >= 0; i--) {
+        bool res = MIDI_DeleteNote(take, selectedNotes[i]-piece);
+        if(!res) ShowConsoleMsg("note deletion (while moving) failed");
+        selectedNotes[i]->note.freq+=freq;
+        selectedNotes[i]->note.start+=time;
+        reaperInsert(*(selectedNotes[i]));
+    }
+    MIDI_Sort(take);
 }
 //void doReaperAction(action theAction, ActionArgs* largs) {
 //    std::unique_lock lk(actionMutex);
@@ -172,7 +190,7 @@ void startPlayingNote(double freq) {
         actionChannel.runInMainThread(&startPlayingNote, freq);
         return;
     }
-    double pitchInterval = midiMode ==  midi_mode_regular?pitchRange:2;
+    double pitchInterval = currentItemConfig->value.pitchRange;
     MidiPitch mp = getMidiPitch(freq, pitchInterval);
     int channel = 0;
     char pitchEvent[] = {pitch_wheel | channel, mp.wheel&0b1111111, mp.wheel>>7};

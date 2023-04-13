@@ -13,6 +13,7 @@
 #include <math.h>
 #include <stdio.h>
 bool showChannels = false;
+bool showScale = false;
 
 typedef struct {
     int num;
@@ -22,6 +23,21 @@ fraction fractions[] = {{1, 11}, {11, 8}, {1,9}, {1,8}, {1, 7}, {1, 6}, {1, 5}, 
                         {1, 3}, {3,8}, {2, 5}, {3, 7}, {4,9}, {1, 2}, {5,9}, {4, 7},
                         {3, 5}, {5,8}, {2, 3}, {5, 7}, {3, 4}, {7, 9}, {4, 5},
                         {5, 6}, {6, 7}, {7,8}, {8,9}, {1, 1}};
+typedef struct Step {
+    double ratio;
+    char const* desc;
+    u32 color;
+} Step;
+Step scale[] = {{1, "first"},
+                {(3.0/2)*(3.0/4), "alternative mediant"},
+                {1.2, "harmonic mean"},
+                {1.224744871392, "geometric mean"},
+                {1.25, "arithmetic mean"},
+                {1.27475, "quadratic mean"},
+                {1.3, "contraharmonic mean"},
+                {(4.0/3), "mediant"},
+                {3.0/2, "perfect fifth"}
+               };
 //todo: make a sound when positioning
 // todo: add control for a looping region
 //todo: show combination tones?
@@ -40,7 +56,7 @@ fraction fractions[] = {{1, 11}, {11, 8}, {1,9}, {1,8}, {1, 7}, {1, 6}, {1, 5}, 
 double toDouble(fraction f) {
    return f.num*1.0/f.den;
 }
-
+#define SCALE_CENTER 261.625565301
 fraction searchFraction(double test) {
     if(test > 1) {
         fraction inv = searchFraction(1/test);
@@ -60,7 +76,21 @@ fraction searchFraction(double test) {
         return fractions[il];
     } else return fractions[ih];
 }
-
+Step searchStep(double test) {
+    int il = 0, ih = ELEMS(scale)-1;
+    while(ih-il>1) {
+        Step interm = scale[(ih+il)/2];
+        if(test == interm.ratio) return interm;
+        if(test > interm.ratio) {
+            il = (ih+il)/2;
+        } else {
+            ih = (ih+il)/2;
+        }
+    }
+    if(fabs(scale[ih].ratio - test) > fabs(scale[il].ratio - test)) {
+        return scale[il];
+    } else return scale[ih];
+}
 //double fractions[] = {/*0.0/1,*/ 1.0/7, 1.0/6, 1.0/5, 1.0/4, 2.0/7,
 //                    1.0/3, 2.0/5, 3.0/7, 1.0/2, 4.0/7, 3.0/5,
 //                    2.0/3, 5.0/7, 3.0/4, 4.0/5, 5.0/6, 6.0/7, 1.0/1};
@@ -86,11 +116,8 @@ typedef struct {
 void navigationBar(Painter* p, Size size);
 void noteArea(Painter* p, Size size);
 #define NAVIGATION_THICKNESS 30
-static CONTINUOUSMIDIEDITOR_Config* cfg;
 void roll(Painter* p, int y) {
 //    DEBUG_PRINT(y, "in \'roll\'%d");
-    cfg = hmgetp(config, currentGuid); //TODO: i don't know how expensive it is to do this every frame
-    // i could store the pointer to current config instead of current guid
     STATIC(Grid, grid, allocateGrid(2,3,0));
     if(event.type  == SDL_WINDOWEVENT && (event.window.event == SDL_WINDOWEVENT_RESIZED
                                           ||event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED )) {
@@ -110,22 +137,22 @@ void roll(Painter* p, int y) {
                         - SCROLLBAR_THICKNESS};
     noteArea(p, noteAreaSize);
     gridNextRow();
-    guiScrollBar(p,windowSize.w-SCROLLBAR_THICKNESS, &cfg->value.horizontalScroll, cfg->value.horizontalFrac, true);
+    guiScrollBar(p,windowSize.w-SCROLLBAR_THICKNESS, &currentItemConfig->value.horizontalScroll, currentItemConfig->value.horizontalFrac, true);
     setCurrentGridPos(1, 1);
-    guiScrollBar(p,noteAreaSize.h, &cfg->value.verticalScroll, cfg->value.verticalFrac, false);
+    guiScrollBar(p,noteAreaSize.h, &currentItemConfig->value.verticalScroll, currentItemConfig->value.verticalFrac, false);
     popLayout();
 //    Size size = getGridSize(&grid);
     //feedbackSize(size); // in principle i should probavly call feedbackSize() here but maybe not
     // if i do then i need to properly define the top level layout uin pmainprogram
 }
 double xToTime(int width, int mx) {
-//    0 -> end*cfg->value.horizontalScroll
-//    width -> end*(cfg->value.horizontalScroll+cfg->value.horizontalFrac)
-    return mx*1.0/width*end*cfg->value.horizontalFrac + end*cfg->value.horizontalScroll;// horizontalScale+end*cfg->value.horizontalScroll;
+//    0 -> end*currentItemConfig->value.horizontalScroll
+//    width -> end*(currentItemConfig->value.horizontalScroll+currentItemConfig->value.horizontalFrac)
+    return mx*1.0/width*end*currentItemConfig->value.horizontalFrac + end*currentItemConfig->value.horizontalScroll;// horizontalScale+end*currentItemConfig->value.horizontalScroll;
 }
 int timeToX(int width, double time) {
-    return (int)round((time - end*cfg->value.horizontalScroll)*width/end/cfg->value.horizontalFrac);
-            //(time-end*cfg->value.horizontalScroll)*horizontalScale;
+    return (int)round((time - end*currentItemConfig->value.horizontalScroll)*width/end/currentItemConfig->value.horizontalFrac);
+            //(time-end*currentItemConfig->value.horizontalScroll)*horizontalScale;
 }
 
 //void rollCl(Painter* p, int y) {
@@ -173,57 +200,57 @@ void navigationBar(Painter* p, Size size) {
 #define FREQ_MIN 20
 #define FREQ_MAX 20000
 double yToFreqLinear(int height, Point pos, int my) {
-    double verticalScrollMirrored = 1-cfg->value.verticalFrac-cfg->value.verticalScroll;
+    double verticalScrollMirrored = 1-currentItemConfig->value.verticalFrac-currentItemConfig->value.verticalScroll;
     double freqVMin = verticalScrollMirrored * (FREQ_MAX-FREQ_MIN) + FREQ_MIN;
-    double freqVMax = (verticalScrollMirrored+cfg->value.verticalFrac) * (FREQ_MAX-FREQ_MIN) + FREQ_MIN;
+    double freqVMax = (verticalScrollMirrored+currentItemConfig->value.verticalFrac) * (FREQ_MAX-FREQ_MIN) + FREQ_MIN;
 
     int relativeY = my - pos.y;
     double myFrac = 1 - relativeY * 1.0/ height;
     return myFrac*(freqVMax-freqVMin) + freqVMin;
 }
 double freqToYLinear(int height, Point pos, double freq) {
-    double verticalScrollMirrored = 1-cfg->value.verticalFrac-cfg->value.verticalScroll;
+    double verticalScrollMirrored = 1-currentItemConfig->value.verticalFrac-currentItemConfig->value.verticalScroll;
     double freqVMin = verticalScrollMirrored * (FREQ_MAX-FREQ_MIN) + FREQ_MIN;
-    double freqVMax = (verticalScrollMirrored+cfg->value.verticalFrac) * (FREQ_MAX-FREQ_MIN) + FREQ_MIN;
+    double freqVMax = (verticalScrollMirrored+currentItemConfig->value.verticalFrac) * (FREQ_MAX-FREQ_MIN) + FREQ_MIN;
 
     double myFrac = (freq - freqVMin) / (freqVMax-freqVMin);
     int relativeY = (int)round((1-myFrac)*height);
     return relativeY + pos.y;
 }
 //double yToFreq(int height, Point pos, int my) {
-////    double verticalScrollMirrored = 1-cfg->value.verticalFrac-cfg->value.verticalScroll;
+////    double verticalScrollMirrored = 1-currentItemConfig->value.verticalFrac-currentItemConfig->value.verticalScroll;
 ////    double freqVMin = verticalScrollMirrored * (log(FREQ_MAX)-log(FREQ_MIN)) + log(FREQ_MIN);
-////    double freqVMax = (verticalScrollMirrored+cfg->value.verticalFrac) * (log(FREQ_MAX)-log(FREQ_MIN)) +log( FREQ_MIN);
+////    double freqVMax = (verticalScrollMirrored+currentItemConfig->value.verticalFrac) * (log(FREQ_MAX)-log(FREQ_MIN)) +log( FREQ_MIN);
 
 ////    int relativeY = my - pos.y;
 ////    return exp(myFrac*((freqVMax)-(freqVMin)) + (freqVMin));
 
 //    double myFrac = 1 - (my - pos.y) * 1.0/ height;
 //    double range = log(FREQ_MAX)-log(FREQ_MIN);
-//    double partOfRangeBelowScreen = 1-cfg->value.verticalFrac-cfg->value.verticalScroll;
-//    double partOfRangeBelowMouse = partOfRangeBelowScreen + cfg->value.verticalFrac*myFrac;
+//    double partOfRangeBelowScreen = 1-currentItemConfig->value.verticalFrac-currentItemConfig->value.verticalScroll;
+//    double partOfRangeBelowMouse = partOfRangeBelowScreen + currentItemConfig->value.verticalFrac*myFrac;
 //    double rangeBelowMouse = partOfRangeBelowMouse*range;
 //    return exp(rangeBelowMouse);
 //}
 double yToFreq(int height, Point pos, int my) {
-//    double verticalScrollMirrored = 1-cfg->value.verticalFrac-cfg->value.verticalScroll;
+//    double verticalScrollMirrored = 1-currentItemConfig->value.verticalFrac-currentItemConfig->value.verticalScroll;
 //    double freqVMin = verticalScrollMirrored * (log(FREQ_MAX)-log(FREQ_MIN)) + log(FREQ_MIN);
-//    double freqVMax = (verticalScrollMirrored+cfg->value.verticalFrac) * (log(FREQ_MAX)-log(FREQ_MIN)) +log( FREQ_MIN);
+//    double freqVMax = (verticalScrollMirrored+currentItemConfig->value.verticalFrac) * (log(FREQ_MAX)-log(FREQ_MIN)) +log( FREQ_MIN);
 
 //    int relativeY = my - pos.y;
 //    return exp(myFrac*((freqVMax)-(freqVMin)) + (freqVMin));
 
     double myFrac = 1 - (my - pos.y) * 1.0/ height;
     double range = log(FREQ_MAX)-log(FREQ_MIN);
-    double partOfRangeBelowScreen = 1-cfg->value.verticalFrac-cfg->value.verticalScroll;
-    double partOfRangeBelowMouse = partOfRangeBelowScreen + cfg->value.verticalFrac*myFrac;
+    double partOfRangeBelowScreen = 1-currentItemConfig->value.verticalFrac-currentItemConfig->value.verticalScroll;
+    double partOfRangeBelowMouse = partOfRangeBelowScreen + currentItemConfig->value.verticalFrac*myFrac;
     double rangeBelowMouse = partOfRangeBelowMouse*range;
     return exp(rangeBelowMouse+(log(FREQ_MIN)));
 }
 int freqToY(int height, Point pos, double freq) {
-    double verticalScrollMirrored = 1-cfg->value.verticalFrac-cfg->value.verticalScroll;
+    double verticalScrollMirrored = 1-currentItemConfig->value.verticalFrac-currentItemConfig->value.verticalScroll;
     double freqVMin = verticalScrollMirrored * (log(FREQ_MAX)-log(FREQ_MIN)) + log(FREQ_MIN);
-    double freqVMax = (verticalScrollMirrored+cfg->value.verticalFrac) * (log(FREQ_MAX)-log(FREQ_MIN)) +log( FREQ_MIN);
+    double freqVMax = (verticalScrollMirrored+currentItemConfig->value.verticalFrac) * (log(FREQ_MAX)-log(FREQ_MIN)) +log( FREQ_MIN);
 
     double myFrac = (log(freq) - (freqVMin)) / ((freqVMax)-(freqVMin));
     int relativeY = (int)round((1-myFrac)*height);
@@ -248,19 +275,21 @@ double closestTime(int width, int x) { // TODO: this function
 }
 double closestFreq(int height, Point pos, int y) { // TODO: this function
     if (base < 0) return yToFreq(height, pos, y);
-    fraction frac = searchFraction(yToFreq(height, pos, y) / piece[base].note.freq);
+    Step step = searchStep(yToFreq(height, pos, y) / piece[base].note.freq);
     double le = yToFreq(height, pos, y + 5);
     double mo = yToFreq(height, pos, y - 5);
-    if (le / piece[base].note.freq < toDouble(frac) &&
-        mo / piece[base].note.freq > toDouble(frac)
+    if (le / piece[base].note.freq < step.ratio &&
+        mo / piece[base].note.freq > step.ratio
         ) {
-        return toDouble(frac) * piece[base].note.freq;
+        return step.ratio * piece[base].note.freq;
     }
     else return yToFreq(height, pos, y);
 }
 inline double beatTime(TempoMarker* tm) {
     return 60.0/tm->qpm*4/tm->denom;
 }
+static bool selectingARange = false;
+RealNote** selectionSA = NULL;
 const char* channelnames[]={"1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16"};
 void noteArea(Painter* p, Size size) {
     Point pos = getPos();
@@ -301,14 +330,14 @@ void noteArea(Painter* p, Size size) {
         guiDrawLine(p, c, pos.y, c, pos.y+size.h);
         numOfBeat = last.num?(numOfBeat+1)%last.num:0;
     }
-//    if(end < lastVisibleTime) {
-//        int endX = timeToX(size.w, end);
-//        Rect r = { endX, pos.y, pos.x+size.w-endX, size.h};
-//        SDL_SetRenderDrawBlendMode(p->gc, SDL_BLENDMODE_BLEND);
-//        guiSetForeground(p, 0x66333343);
-//        guiFillRectangle(p, r);
-//        SDL_SetRenderDrawBlendMode(p->gc, SDL_BLENDMODE_NONE);
-//    }
+    if(end < lastVisibleTime) {
+        int endX = timeToX(size.w, end);
+        Rect r = { endX, pos.y, pos.x+size.w-endX, size.h};
+        SDL_SetRenderDrawBlendMode(p->gc, SDL_BLENDMODE_BLEND);
+        guiSetForeground(p, 0x33333343);
+        guiFillRectangle(p, r);
+        SDL_SetRenderDrawBlendMode(p->gc, SDL_BLENDMODE_NONE);
+    }
     int playback;
     int cursor = timeToX(size.w, cursorPosition);
     if(playing) {
@@ -335,25 +364,62 @@ void noteArea(Painter* p, Size size) {
 //                                    1760)- digSize / 2 }, 0xffffffff);
 
     if(base >= 0) {
-        FOR_STATIC_ARRAY(fraction*, frac, fractions) {
+//        FOR_STATIC_ARRAY(fraction*, frac, fractions) {
 
-            guiSetForeground(p, gray((MAX_DEN+1-frac->den) *255 / (MAX_DEN+1)));
+//            guiSetForeground(p, gray((MAX_DEN+1-frac->den) *255 / (MAX_DEN+1)));
+////            for(int i = 0; i < 3; i++) {
+//            int r = freqToY(size.h, pos, piece[base].note.freq * frac->num/frac->den);
+//            char str[30];
+//            if(r >= pos.y && r < (int)(pos.y+size.h)) {
+//                guiDrawLine(p, 0, r, size.w, r);
+//                sprintf(str, "%d/%d", frac->num, frac->den);
+//                guiDrawTextZT(p, str, (Point) { 10, r - digSize / 2 }, 0xffffffff);
+//            }
+//            r = freqToY(size.h, pos, piece[base].note.freq / frac->num*frac->den);
+//            if(r >= pos.y && r < (int)(pos.y+size.h)) {
+//                guiDrawLine(p, 0, r, size.w, r);
+//                sprintf(str, "%d/%d", frac->den, frac->num);
+//                guiDrawTextZT(p, str, (Point) { 10, r - digSize / 2 }, 0xffffffff);
+//            }
+//        }
+        FOR_STATIC_ARRAY(Step*, frac, scale) {
+
+            guiSetForeground(p, frac->color);
 //            for(int i = 0; i < 3; i++) {
-            int r = freqToY(size.h, pos, piece[base].note.freq * frac->num/frac->den);
+            int r = freqToY(size.h, pos, piece[base].note.freq * frac->ratio);
             char str[30];
             if(r >= pos.y && r < (int)(pos.y+size.h)) {
                 guiDrawLine(p, 0, r, size.w, r);
-                sprintf(str, "%d/%d", frac->num, frac->den);
+                sprintf(str, "%s", frac->desc);
                 guiDrawTextZT(p, str, (Point) { 10, r - digSize / 2 }, 0xffffffff);
             }
-            r = freqToY(size.h, pos, piece[base].note.freq / frac->num*frac->den);
+            r = freqToY(size.h, pos, piece[base].note.freq / frac->ratio);
             if(r >= pos.y && r < (int)(pos.y+size.h)) {
                 guiDrawLine(p, 0, r, size.w, r);
-                sprintf(str, "%d/%d", frac->den, frac->num);
+                sprintf(str, "%s", frac->desc);
                 guiDrawTextZT(p, str, (Point) { 10, r - digSize / 2 }, 0xffffffff);
             }
         }
-
+    }
+    if(showScale) {
+        double multiplier = pow(2, 1.0/16);
+        for(double freq = SCALE_CENTER/8; freq < FREQ_MAX; freq *=multiplier) {
+            guiSetForeground(p, 0x555555);
+            int r = freqToY(size.h, pos, freq);
+            if(r >= pos.y && r < (int)(pos.y+size.h)) {
+                guiDrawLine(p, 0, r, size.w, r);
+            }
+        }
+    }
+    if(showScale) {
+        double multiplier = pow(2, 1.0/16);
+        for(double freq = SCALE_CENTER/8; freq < FREQ_MAX; freq *=multiplier) {
+            guiSetForeground(p, 0x555555);
+            int r = freqToY(size.h, pos, freq);
+            if(r >= pos.y && r < (int)(pos.y+size.h)) {
+                guiDrawLine(p, 0, r, size.w, r);
+            }
+        }
     }
     FOR_NOTES(anote, piece) {
         Rect r = noteToRect(size, pos, anote->note);
@@ -375,15 +441,53 @@ void noteArea(Painter* p, Size size) {
             guiDrawTextZT(p, channelnames[anote->midiChannel], r.pos, 0xffffffff);
         }
     }
+    FOR_STB_ARRAY(RealNote**, anote, selectionSA) {
+        Rect r = noteToRect(size, pos, (*anote)->note);
+        if((*anote) == piece + base) {
+            guiSetForeground(p, 0xffffffff);
+        } else if((*anote)->note.muted) {
+            guiSetForeground(p, 0xff1b1b1b);
+        } else {
+            if(showChannels) {
+                double hue = 360/16*(*anote)->midiChannel;
+                guiSetForeground(p, hsvd2bgr(hue,0.3,1));
+            } else {
+                guiSetForeground(p, 0xffe0ece4);
+            }
+        }
+        guiFillRectangle(p,
+                         r);
+        if(showChannels) {
+            guiDrawTextZT(p, channelnames[(*anote)->midiChannel], r.pos, 0xffffffff);
+        }
+    }
     if(editedNote.freq >= 0) {
         Rect r = noteToRect(size, pos, editedNote);
         guiSetForeground(p, 0xffff77ff);
         guiFillRectangle(p,
                          r);
     }
+    if(selectingARange) {
+        Point mouse; SDL_GetMouseState(&mouse.x, &mouse.y);
+//        mouse.x -= pos.x; mouse.y -= pos.y;
+        Rect r = { .pos = dragStart, .size = {mouse.x-dragStart.x, mouse.y-dragStart.y} };
+        SDL_SetRenderDrawBlendMode(p->gc, SDL_BLENDMODE_BLEND);
+        guiSetForeground(p, 0x33333343);
+        guiFillRectangle(p, r);
+        SDL_SetRenderDrawBlendMode(p->gc, SDL_BLENDMODE_NONE);
+        guiSetForeground(p, 0xdddddd);
+        guiDrawRectangle(p, r);
+    }
+
     if(event.type == ButtonRelease) {
         SDL_MouseButtonEvent e =
                 event.button;
+        if(dragged >= 0) {
+            IdealNote draggedNote = piece[dragged].note;
+            moveNotes(selectionSA, draggedNote.start-piece[dragged].note.start,
+                      draggedNote.freq - piece[dragged].note.freq, &dragged);
+
+        }
         dragged = -1;
         double releaseTime = closestTime(size.w, e.x);
         if(editedNote.freq >= 0) {
@@ -402,8 +506,26 @@ void noteArea(Painter* p, Size size) {
                 base++;
             }
         }
+        if(selectingARange) {
+            arrsetlen(selectionSA, 0);
+            Rect selectionRect = { .x = MIN(dragStart.x, e.x),
+                                   .y = MIN(dragStart.y, e.y),
+                                   .w = abs(e.x-dragStart.x),
+                                   .h = abs(e.y-dragStart.y) };
+            FOR_NOTES(anote, piece) {
+                Rect noteRect = noteToRect( size, pos, anote->note);
+                bool horizontalOverlap = MIN(noteRect.x+noteRect.w, selectionRect.x+selectionRect.w)
+                                > MAX(noteRect.x, selectionRect.x);
+                bool verticalOverlap = MIN(noteRect.y+noteRect.h, selectionRect.y+selectionRect.h)
+                                > MAX(noteRect.y, selectionRect.y);
+                if(horizontalOverlap && verticalOverlap) {
+                    arrpush(selectionSA, anote);
+                }
+            }
+        }
         dragStart = (Point){ -1, -1 };
         editedNote = (IdealNote){ -1,-1,-1 };
+        selectingARange = false;
         stopPlayingNote();
     }
     if(event.type == MouseWheel) {
@@ -414,17 +536,17 @@ void noteArea(Painter* p, Size size) {
         SDL_Keymod km = SDL_GetModState();
         if(km & KMOD_CTRL) {
             double myFrac = 1 - (e.mouseY - pos.y) * 1.0/ size.h;
-            double partOfRangeBelowScreen = 1-cfg->value.verticalFrac-cfg->value.verticalScroll;
-            double partOfRangeBelowMouse = partOfRangeBelowScreen + cfg->value.verticalFrac*myFrac;
-            cfg->value.verticalFrac /= pow(1.5, e.y);
-            double newPartOfRangeBelowScreen = partOfRangeBelowMouse - cfg->value.verticalFrac*myFrac;
-            cfg->value.verticalScroll = 1 - cfg->value.verticalFrac - newPartOfRangeBelowScreen;
+            double partOfRangeBelowScreen = 1-currentItemConfig->value.verticalFrac-currentItemConfig->value.verticalScroll;
+            double partOfRangeBelowMouse = partOfRangeBelowScreen + currentItemConfig->value.verticalFrac*myFrac;
+            currentItemConfig->value.verticalFrac /= pow(1.5, e.y);
+            double newPartOfRangeBelowScreen = partOfRangeBelowMouse - currentItemConfig->value.verticalFrac*myFrac;
+            currentItemConfig->value.verticalScroll = 1 - currentItemConfig->value.verticalFrac - newPartOfRangeBelowScreen;
 
         } else {
-            cfg->value.horizontalFrac /= pow(1.5, e.y);
+            currentItemConfig->value.horizontalFrac /= pow(1.5, e.y);
             double playhead = samplesToTime(currentPositionInSamples);
-            cfg->value.horizontalScroll = (playhead - 1.0/2*end*cfg->value.horizontalFrac)/end;
-            cfg->value.horizontalScroll = MAX(0, cfg->value.horizontalScroll);
+            currentItemConfig->value.horizontalScroll = (playhead - 1.0/2*end*currentItemConfig->value.horizontalFrac)/end;
+            currentItemConfig->value.horizontalScroll = MAX(0, currentItemConfig->value.horizontalScroll);
         }
         /*if(e.y >  0)*/
     }
@@ -442,7 +564,18 @@ void noteArea(Painter* p, Size size) {
 //                DEBUG_PRINT(anote->start, "%lf");
             }
         }
-        double freq;
+        bool selected = false;
+        for(int i = 0; i < arrlen(selectionSA); i++) {
+            if(select == selectionSA[i]) {
+                selected = true;
+                break;
+            }
+        }
+        if(!selected) {
+            arrsetlen(selectionSA, 0);
+            if(select) arrpush(selectionSA, select);
+        }
+        double freq = 0;
         if(select) {
             if(e.button == 2) base = (int)(select-piece);
             if(e.button == 1) dragged  = (int)(select-piece);
@@ -456,7 +589,7 @@ void noteArea(Painter* p, Size size) {
 
         if(base >= 0 && select == NULL && e.button == 1) {
 
-             freq = closestFreq(size.h, pos, e.y);
+            freq = closestFreq(size.h, pos, e.y);
             editedNote = (IdealNote){ freq, time, 0.5};
         }
         if(base < 0 && select == NULL && e.button == 1) {
@@ -464,7 +597,10 @@ void noteArea(Painter* p, Size size) {
             editedNote = (IdealNote){ c.freq, time, 0.5};
             freq = c.freq;
         }
-        startPlayingNote(freq);
+        if(select == NULL && e.button == 3) {
+            selectingARange = true;
+        }
+        if(freq) startPlayingNote(freq);
     }
     if(event.type == MotionEvent) {
         SDL_MouseMotionEvent e =
@@ -486,6 +622,7 @@ void noteArea(Painter* p, Size size) {
             guiSetForeground(p,0xffff77ff);
             guiFillRectangle(p, r);
         } else if(dragged >= 0) {
+//            for(
             IdealNote draggedNote = piece[dragged].note;
             if(abs(e.y - dragStart.y) > 5) {
                 draggedNote.freq = c.freq;
@@ -499,8 +636,20 @@ void noteArea(Painter* p, Size size) {
             } else {
                 draggedNote.start = draggedNoteInitialPos.start;
             }
-            removeNote(dragged);
-            dragged = insertNote(draggedNote);
+            volatile int lll = arrlen(selectionSA);
+            int lastDragged = dragged;
+
+            for(int i = 0; i < arrlen(selectionSA); i++) {
+                (*(selectionSA[i])).note.start += draggedNote.start-piece[dragged].note.start;
+                (selectionSA[i])->note.freq += draggedNote.start-piece[dragged].note.freq;
+
+            }
+
+            //            removeNote(dragged);
+                        //            dragged = insertNote(draggedNote);
+//            if(dragged != lastDragged) {
+//                volatile int  wer = 2;
+//            }
             stopPlayingNote();
             startPlayingNote(draggedNote.freq);
         }

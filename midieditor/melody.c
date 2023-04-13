@@ -26,21 +26,21 @@ int insertNote(IdealNote note) {
     }
 
     int res = pos;
-    RealNote realNote = {.note = note, .midiChannel = 1};
+    RealNote runningNote = {.note = note, .midiChannel = 1};
     RealNote temp;
     while(pos < arrlen(piece)) {
         if(piece[pos].note.start < note.start+note.length) {
             occupiedChannels[piece[pos].midiChannel] = true;
         }
         temp = piece[pos];
-        piece[pos] = realNote;
-        realNote = temp;
+        piece[pos] = runningNote;
+        runningNote = temp;
         pos++;
     }
-    arrpush(piece, temp);
+    arrpush(piece, runningNote);
 
     bool freeChannelFound = false;
-    for(int i = (midiMode==midi_mode_mpe?1:0);i<16;i++) {
+    for(int i = (currentItemConfig->value.midiMode==midi_mode_mpe?1:0);i<16;i++) {
         if(occupiedChannels[i] == false) {
             piece[res].midiChannel=i;
             freeChannelFound = true;
@@ -155,4 +155,33 @@ u32 timerCallback (u32 interval, void *param) {
 void clearPiece()
 {
     arrsetlen(piece, 0);
+}
+
+
+int cmpStarts(void const* n1, void const*n2) {
+    return (((RealNote*)n1)->note.start > ((RealNote*)n2)->note.start)?1:
+           (((RealNote*)n1)->note.start < ((RealNote*)n2)->note.start)?-1:
+                                                                       0;
+}
+
+void moveNotes(RealNote **movedNotes,  double timeChange, double freqChange, int *dragged)
+{
+    volatile int lll = arrlen(movedNotes);
+
+    ASSERT(arrlen(movedNotes) > 0, "trying to move 0 notes :(");
+//    ASSERT(movedNotes[0]->note.start + timeChange > 0, "trying to move notes to the time before the start :(");
+    if(movedNotes[0]->note.start + timeChange < 0) {
+        timeChange = -movedNotes[0]->note.start;
+    }
+#ifdef REAPER
+    reaperMoveNotes(movedNotes, timeChange, freqChange);
+    RealNote a = piece[*dragged];
+    qsort(piece, arrlen(piece), sizeof(*piece), cmpStarts);
+#else
+    ABORT("");
+#endif
+    RealNote* new = bsearch(&a, piece, arrlen(piece), sizeof(*piece), cmpStarts);
+
+    ASSERT(new, "");
+    *dragged = new-piece;
 }

@@ -9,12 +9,14 @@
 
 #include <persistent.h>
 #include <gridlayout.h>
+#include <toolbuttongroup.h>
 #include "save.h"
 #include "actions.h"
 #include <stdbool.h>
 #include <stdio.h>
 #include "stb_ds.h"
 #include "melody.h"
+#include <SDL_syswm.h>
 #include "playback.h"
 #include "actions.h"
 #include "extmath.h"
@@ -56,6 +58,9 @@ extern int pianorollgui(void) {
     SDL_SetHint( SDL_HINT_RENDER_SCALE_QUALITY, "2" );
 //    STATIC(bool, inited, guiInit());
     guiStartDrawingEx(false);
+    makeMenu();
+    SDL_EventState(SDL_SYSWMEVENT, SDL_ENABLE);
+
     mutex_ = SDL_CreateMutex();
 
     condVar = SDL_CreateCond();
@@ -83,41 +88,13 @@ extern int pianorollgui(void) {
             break;
         }
         if(timeToShow) {
-            int windowSizeIndex  = (int)hmgeti(config, currentGuid);
-            CONTINUOUSMIDIEDITOR_Config cfg;
-            if(windowSizeIndex >= 0) {
-                cfg = config[windowSizeIndex];
-            } else {
-                cfg = (CONTINUOUSMIDIEDITOR_Config){
-                    .key = currentGuid,
-                    .value = {.windowGeometry = { 400, 400, 700, 700 },
-                                .horizontalScroll = 0,
-                        .verticalScroll = 0.5,
-                        .horizontalFrac = 0.1,
-                        .verticalFrac = 0.1 }
-                };
-                hmputs(config, cfg);
-                windowSizeIndex  = (int)hmgeti(config, currentGuid);
-            }
-            Rect rect = config[windowSizeIndex].value.windowGeometry;
+            Rect rect = currentItemConfig->value.windowGeometry;
             guiMoveWindow(rootWindow, rect.x, rect.y);
             SDL_SetWindowSize(rootWindow, rect.w, rect.h);
             SDL_ShowWindow(rootWindow);
             SDL_RaiseWindow(rootWindow);
             timeToShow = false;
         }
-//        if(playing) {
-//            static int frames = 0;
-//            STATIC(int, time, SDL_GetTicks());
-//            int newTime = SDL_GetTicks();
-//            frames++;
-//            currentPositionInSamples += 44100*(newTime-time)/1000.0; //TODO: 44100
-//            if((newTime/1000)*1000 > time) {
-//                message("%d frames\n", frames);
-//                frames = 0;
-//            }
-//            time = newTime;
-//        }
 
         if(event.type == ButtonRelease) {
             DEBUG_PRINT(event.button.which, "%d");
@@ -179,24 +156,29 @@ extern int pianorollgui(void) {
                 break;
 #else
                 SDL_HideWindow(rootWindow);
+//                currentItemConfig = NULL;
+                //TODO: probably wise to wait here on timeToShow
 #endif
             }
             if(event.window.event == SDL_WINDOWEVENT_MOVED) {
-                int windowSizeIndex  = (int)hmgeti(config, currentGuid);
-                if(windowSizeIndex >= 0) {
-                    config[windowSizeIndex].value.windowGeometry.x = event.window.data1;
-                    config[windowSizeIndex].value.windowGeometry.y = event.window.data2;
-                } else {
-                    abort();
-                }
+                ASSERT(currentItemConfig != 0, "")
+                currentItemConfig->value.windowGeometry.x = event.window.data1;
+                currentItemConfig->value.windowGeometry.y = event.window.data2;
             }
             if(event.window.event == SDL_WINDOWEVENT_RESIZED) {
-                int windowSizeIndex  = (int)hmgeti(config, currentGuid);
-                if(windowSizeIndex >= 0) {
-                    config[windowSizeIndex].value.windowGeometry.w = event.window.data1;
-                    config[windowSizeIndex].value.windowGeometry.h = event.window.data2;
-                } else {
-                    abort();
+                ASSERT(currentItemConfig != 0, "")
+                    currentItemConfig->value.windowGeometry.w = event.window.data1;
+                    currentItemConfig->value.windowGeometry.h = event.window.data2;
+            }
+        }
+        if(event.type == SDL_SYSWMEVENT) {
+
+            if (event.syswm.msg->msg.win.msg == WM_COMMAND)
+            {
+            message("SDL_COMMAND %d!!!", event.syswm.msg->msg.win.wParam);
+                if (event.syswm.msg->msg.win.wParam == 0x453434)
+                {
+                    message("Encoding!!!");
                 }
             }
         }
@@ -270,14 +252,18 @@ extern int pianorollgui(void) {
 #endif
         guiLabelZT(&rootWindowPainter, "bpm"); gridNextColumn();
 
-        guiDoubleField(&rootWindowPainter, 6, &pitchRange); gridNextColumn();
+        if(guiDoubleField(&rootWindowPainter, 6, &(currentItemConfig->value.pitchRange))); gridNextColumn();
         // TODO: draw tooltips
 //        const char* elements;
-        guiEnumComboBox(&rootWindowPainter, midi_mode_enum, (int*)&midiMode);//"use 1st channel", "don't use");
+        guiEnumComboBox(&rootWindowPainter, midi_mode_enum, (int*)&(currentItemConfig->value.midiMode));//"use 1st channel", "don't use");
         gridNextColumn();
-        guiCheckBox(&rootWindowPainter, &showChannels);
-        gridNextColumn();
-guiLabelZT(&rootWindowPainter, "show channels");
+        guiCheckBox(&rootWindowPainter, &showChannels);        gridNextColumn();
+        guiLabelZT(&rootWindowPainter, "show channels");        gridNextColumn();
+//TODO: save all fields to midi take properties
+// TODO: add combination tones (difference tones, sum tones, means??)
+        guiCheckBox(&rootWindowPainter, &showScale);        gridNextColumn();
+        guiLabelZT(&rootWindowPainter, "show 16edo scale");        gridNextColumn();
+
         setCurrentGridPos(3,0);
         roll(&rootWindowPainter, getGridBottom(topLayout()));
 //        SDL_RenderPresent(renderer);
@@ -286,6 +272,8 @@ guiLabelZT(&rootWindowPainter, "show channels");
             continue;
         }
     }
+
+    SDL_UnlockMutex(mutex_);
     message("broke out of loop"
             "\n");
 
