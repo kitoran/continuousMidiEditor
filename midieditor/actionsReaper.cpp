@@ -38,8 +38,8 @@ enum MidiEventType: u8 {
     note_on = 0b1001 << 4,
     pitch_wheel = 0b1110 << 4,
 };
-const double logSemitone = log(2)/12;
-const double bias =  log(440)/logSemitone-69;
+const double LOG_SEMITONE = log(2)/12;
+const double BIAS =  log(440)/LOG_SEMITONE-69;
 struct MidiPitch {
     int key;
     int wheel;
@@ -47,7 +47,7 @@ struct MidiPitch {
 
 MidiPitch getMidiPitch(double freq, double pitchRangeInterval) {
 
-    int key = (int)round(log(freq)/logSemitone-bias);
+    int key = (int)round(log(freq)/LOG_SEMITONE-BIAS);
     CLAMP(key, 0, 127);
     double freqOfTheKey = (440.0 / 32) * pow(2, ((key - 9) / 12.0));
     double difference = freq/freqOfTheKey;
