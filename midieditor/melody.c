@@ -13,16 +13,16 @@ extern TempoMarker projectSignature = {
 };
 //double qpm;
 //int numeratorOfProjectTimeSig;
-extern double end = 0;
+double pieceLength = 0;
 int insertNote(IdealNote note) {
 
     int pos = 0;
     bool occupiedChannels[CHANNELS] = {0};
     while(arrlen(piece) > pos && piece[pos].note.start < note.start) {
-        pos++;
         if(piece[pos].note.start+piece[pos].note.length >= note.start) {
             occupiedChannels[piece[pos].midiChannel] = true;
         }
+        pos++;
     }
 
     int res = pos;
@@ -51,7 +51,7 @@ int insertNote(IdealNote note) {
         MessageBoxInfo("no free channel found", "this note may affect how other notes sound");
     }
 
-    if(note.start + note.length > end) end = note.start + note.length;
+//    if(note.start + note.length > end) end = note.start + note.length;
 #ifdef REAPER
     reaperInsert(piece[res]);
 #endif
@@ -59,23 +59,29 @@ int insertNote(IdealNote note) {
 }
 void appendRealNote(RealNote note) {
     arrpush(piece, note);
-    if(note.note.start + note.note.length > end) end = note.note.start + note.note.length;
+//    if(note.note.start + note.note.length > end) end = note.note.start + note.note.length;
 }
-void removeNote(int ind) {
+void removeNotes(int* base) {
 //    assert(note - piece < arrlen(piece));
 #if REAPER
-    reaperDelete(ind);
+    reaperDeleteSelected();
 #endif
-    for(; ind < arrlen(piece)-1; ind++) {
-        piece[ind]=piece[ind+1];//*note = *(note+1);
+    int writingIndex = 0;
+    int readingIndex = 0;
+    for(; readingIndex < arrlen(piece); readingIndex++) {
+        if(piece[readingIndex].selected) {
+            if(*base == readingIndex) {
+                *base = -1;
+            }
+        } else {
+            if(*base == readingIndex) {
+                *base = writingIndex;
+            }
+            piece[writingIndex] = piece[readingIndex];
+            writingIndex++;
+        }
     }
-    arrsetlen(piece, ind);
-//    end = 0;
-//    FOR_STB_ARRAY_I(i, piece) {
-//        if(piece[i].start+piece[i].length > end) {
-//            end = piece[i].start+piece[i].length;
-//        }
-//    }
+    arrsetlen(piece, writingIndex);
 }
 
 _Bool saveMelody(char* filename) {
@@ -164,24 +170,33 @@ int cmpStarts(void const* n1, void const*n2) {
                                                                        0;
 }
 
-void moveNotes(RealNote **movedNotes,  double timeChange, double freqChange, int *dragged)
+void moveNotes(double timeChange, double freqChange, int *dragged, int* base)
 {
-    volatile int lll = arrlen(movedNotes);
+//    volatile int lll = arrlen(movedNotes);
 
-    ASSERT(arrlen(movedNotes) > 0, "trying to move 0 notes :(");
+//    ASSERT(arrlen(movedNotes) > 0, "trying to move 0 notes :(");
 //    ASSERT(movedNotes[0]->note.start + timeChange > 0, "trying to move notes to the time before the start :(");
-    if(movedNotes[0]->note.start + timeChange < 0) {
-        timeChange = -movedNotes[0]->note.start;
+    FOR_NOTES(anote, piece) {
+        if(! (anote->selected)) continue;
+        if(anote->note.start + timeChange < 0) {
+            timeChange = -anote->note.start;
+        }
     }
 #ifdef REAPER
-    reaperMoveNotes(movedNotes, timeChange, freqChange);
-    RealNote a = piece[*dragged];
+    reaperMoveNotes(timeChange, freqChange);
+    RealNote draggedNote = piece[*dragged];
+    RealNote baseNote = {0}; if(*base>=0)baseNote=piece[*base]; // I'm sorry i'm doing it this way, i really should just sort with my own code or reload piece from reaper
     qsort(piece, arrlen(piece), sizeof(*piece), cmpStarts);
 #else
     ABORT("");
 #endif
-    RealNote* new = bsearch(&a, piece, arrlen(piece), sizeof(*piece), cmpStarts);
+    RealNote* newDragged = bsearch(&draggedNote, piece, arrlen(piece), sizeof(*piece), cmpStarts);
+    ASSERT(newDragged, "");
+    *dragged = newDragged-piece;
+    if(*base>=0) {
+        RealNote* newBase = bsearch(&baseNote, piece, arrlen(piece), sizeof(*piece), cmpStarts);
+        *base = newBase-piece;
+    }
 
-    ASSERT(new, "");
-    *dragged = new-piece;
 }
+

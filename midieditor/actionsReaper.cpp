@@ -32,7 +32,7 @@ void stop() {
 //extern double __declspec(selectany) itemStart;
 //extern double __declspec(selectany) itemStart;
 
-// TODO: reassign channels if haven't found a free channel but it's possible to find
+// TODO: reassign channels if haven't found a free channel but it's possible to find or just let user readdign them
 enum MidiEventType: u8 {
     note_off = 0b1000 << 4,
     note_on = 0b1001 << 4,
@@ -84,11 +84,13 @@ void reaperInsert(RealNote note) {
                     note.midiChannel, mp.key,
                     100,
                     NULL);
+
+    MediaItem* item = GetMediaItemTake_Item(take);
+    pieceLength = /*itemStart + */GetMediaItemInfo_Value(item, "D_LENGTH");
 //    message("inserting note %lf - %lf\n", startppqpos, endppqpos);
     if(!res) ShowConsoleMsg("note insertion failed");
 
 }
-//TODO: fix the stuff where "end" is not always the same as the midi item/take length
 void reaperSetPosition(double d) {
     if(!reaperMainThread) {
         actionChannel.name = __func__;
@@ -106,30 +108,35 @@ void reaperOnCommand(u32 command) {
     }
     Main_OnCommand(command, 0);
 }
-void reaperDelete(int note) {
+void reaperDeleteSelected() {
     if(!reaperMainThread) {
         actionChannel.name = __func__;
-        actionChannel.runInMainThread(&reaperDelete, note);
-        return;
-    }
-    bool res = MIDI_DeleteNote(take, note);
-    message("deleting note %d", note);
-    if(!res) ShowConsoleMsg("note deletion failed");
-}
-void reaperMoveNotes(RealNote** selectedNotes, double time, double freq) {
-    if(!reaperMainThread) {
-        ASSERT((**selectedNotes).note.freq > 1, "");
-        actionChannel.name = __func__;
-        actionChannel.runInMainThread(&reaperMoveNotes, selectedNotes, time, freq);
+        actionChannel.runInMainThread(&reaperDeleteSelected);
         return;
     }
     MIDI_DisableSort(take);
-    for(int i = arrlen(selectedNotes)-1; i >= 0; i--) {
-        bool res = MIDI_DeleteNote(take, selectedNotes[i]-piece);
+    for(RealNote* anote = piece + arrlen(piece) - 1; anote >= piece; anote--) {
+        if(!anote->selected) continue;
+        bool res = MIDI_DeleteNote(take, anote-piece);
+        if(!res) ShowConsoleMsg("note deletion failed");
+    }
+    MIDI_Sort(take);
+}
+void reaperMoveNotes(double time, double freq) {
+    if(!reaperMainThread) {
+//        ASSERT((**selectedNotes).note.freq > 1, "");
+        actionChannel.name = __func__;
+        actionChannel.runInMainThread(&reaperMoveNotes, time, freq);
+        return;
+    }
+    MIDI_DisableSort(take);
+    for(RealNote* anote = piece + arrlen(piece) - 1; anote >= piece; anote--) {
+        if(!anote->selected) continue;
+        bool res = MIDI_DeleteNote(take, anote-piece);
         if(!res) ShowConsoleMsg("note deletion (while moving) failed");
-        selectedNotes[i]->note.freq+=freq;
-        selectedNotes[i]->note.start+=time;
-        reaperInsert(*(selectedNotes[i]));
+//        anote->freq+=freq;
+//        anote->start+=time;
+        reaperInsert(*anote);
     }
     MIDI_Sort(take);
 }

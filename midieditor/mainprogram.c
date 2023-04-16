@@ -91,6 +91,7 @@ extern int pianorollgui(void) {
             Rect rect = currentItemConfig->value.windowGeometry;
             guiMoveWindow(rootWindow, rect.x, rect.y);
             SDL_SetWindowSize(rootWindow, rect.w, rect.h);
+            SDL_SetWindowTitle(rootWindow, "7 triads");
             SDL_ShowWindow(rootWindow);
             SDL_RaiseWindow(rootWindow);
             timeToShow = false;
@@ -122,12 +123,6 @@ extern int pianorollgui(void) {
             );
             SDL_free(dropped_filedir);    // Free dropped_filedir memory
         }
-        guiSetForeground(&rootWindowPainter,0);
-//        if(event.type != MotionEvent) {
-            guiClearWindow(rootWindow);
-//            DEBUG_PRINT(event.type, "%x");
-//        }
-        setCurrentGridPos(0,0);
         int keyPressed = -1;
         if(event.type==KeyPress) {
             keyPressed = GET_KEYSYM(event);
@@ -170,18 +165,23 @@ extern int pianorollgui(void) {
                     currentItemConfig->value.windowGeometry.w = event.window.data1;
                     currentItemConfig->value.windowGeometry.h = event.window.data2;
             }
+//            continue;
         }
         if(event.type == SDL_SYSWMEVENT) {
 
             if (event.syswm.msg->msg.win.msg == WM_COMMAND)
             {
-            message("SDL_COMMAND %d!!!", event.syswm.msg->msg.win.wParam);
+                message("SDL_COMMAND %d!!!", event.syswm.msg->msg.win.wParam);
                 if (event.syswm.msg->msg.win.wParam == 0x453434)
                 {
                     message("Encoding!!!");
                 }
             }
+            continue;
         }
+        guiSetForeground(&rootWindowPainter,0);
+        guiClearWindow(rootWindow);
+        setCurrentGridPos(0,0);
         if(guiButton(&rootWindowPainter, "play", 4)) {
 //            SDL_PauseAudioDevice(audioDevice, 0);
             play();
@@ -249,8 +249,8 @@ extern int pianorollgui(void) {
         } gridNextColumn();
 #ifndef REAPER
         persistentDoubleField(&rootWindowPainter, 6, projectSignature.qpm); gridNextColumn();
-#endif
         guiLabelZT(&rootWindowPainter, "bpm"); gridNextColumn();
+#endif
 
         if(guiDoubleField(&rootWindowPainter, 6, &(currentItemConfig->value.pitchRange))); gridNextColumn();
         // TODO: draw tooltips

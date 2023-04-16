@@ -28,16 +28,7 @@ typedef struct Step {
     char const* desc;
     u32 color;
 } Step;
-Step scale[] = {{1, "first"},
-                {(3.0/2)*(3.0/4), "alternative mediant"},
-                {1.2, "harmonic mean"},
-                {1.224744871392, "geometric mean"},
-                {1.25, "arithmetic mean"},
-                {1.27475, "quadratic mean"},
-                {1.3, "contraharmonic mean"},
-                {(4.0/3), "mediant"},
-                {3.0/2, "perfect fifth"}
-               };
+Step* scale = NULL;
 //todo: make a sound when positioning
 // todo: add control for a looping region
 //todo: show combination tones?
@@ -117,6 +108,16 @@ void navigationBar(Painter* p, Size size);
 void noteArea(Painter* p, Size size);
 #define NAVIGATION_THICKNESS 30
 void roll(Painter* p, int y) {
+
+    if(scale == 0) {
+        FOR_STATIC_ARRAY(fraction*, f, fractions) {
+            char* desc = malloc(30);
+            snprintf(desc, 30, "%d/%d", f->num, f->den);
+            Step s = {f->num*1.0/f->den, desc, 0xffffffff};
+            arrpush(scale, s);
+        }
+    }
+
 //    DEBUG_PRINT(y, "in \'roll\'%d");
     STATIC(Grid, grid, allocateGrid(2,3,0));
     if(event.type  == SDL_WINDOWEVENT && (event.window.event == SDL_WINDOWEVENT_RESIZED
@@ -146,13 +147,13 @@ void roll(Painter* p, int y) {
     // if i do then i need to properly define the top level layout uin pmainprogram
 }
 double xToTime(int width, int mx) {
-//    0 -> end*currentItemConfig->value.horizontalScroll
-//    width -> end*(currentItemConfig->value.horizontalScroll+currentItemConfig->value.horizontalFrac)
-    return mx*1.0/width*end*currentItemConfig->value.horizontalFrac + end*currentItemConfig->value.horizontalScroll;// horizontalScale+end*currentItemConfig->value.horizontalScroll;
+//    0 -> pieceLength*currentItemConfig->value.horizontalScroll
+//    width -> pieceLength*(currentItemConfig->value.horizontalScroll+currentItemConfig->value.horizontalFrac)
+    return mx*1.0/width*pieceLength*currentItemConfig->value.horizontalFrac + pieceLength*currentItemConfig->value.horizontalScroll;// horizontalScale+pieceLength*currentItemConfig->value.horizontalScroll;
 }
 int timeToX(int width, double time) {
-    return (int)round((time - end*currentItemConfig->value.horizontalScroll)*width/end/currentItemConfig->value.horizontalFrac);
-            //(time-end*currentItemConfig->value.horizontalScroll)*horizontalScale;
+    return (int)round((time - pieceLength*currentItemConfig->value.horizontalScroll)*width/pieceLength/currentItemConfig->value.horizontalFrac);
+            //(time-pieceLength*currentItemConfig->value.horizontalScroll)*horizontalScale;
 }
 
 //void rollCl(Painter* p, int y) {
@@ -273,6 +274,7 @@ double closestTime(int width, int x) { // TODO: this function
 //    return tr;
     return xToTime(width, x);
 }
+
 double closestFreq(int height, Point pos, int y) { // TODO: this function
     if (base < 0) return yToFreq(height, pos, y);
     Step step = searchStep(yToFreq(height, pos, y) / piece[base].note.freq);
@@ -289,7 +291,7 @@ inline double beatTime(TempoMarker* tm) {
     return 60.0/tm->qpm*4/tm->denom;
 }
 static bool selectingARange = false;
-RealNote** selectionSA = NULL;
+//RealNote** selectionSA = NULL;
 const char* channelnames[]={"1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16"};
 void noteArea(Painter* p, Size size) {
     Point pos = getPos();
@@ -304,6 +306,7 @@ void noteArea(Painter* p, Size size) {
 // TODO:режим обозначения каналов
   //  TODO: horizontal scaling doesnt work rightc
     TempoMarker last = projectSignature; int next = 0; //double lastFraction = 0;
+    int lastpixel = -10;
 //TODO: watch for added/deleted tempo markers
     int numOfBeat = 0; // TODO: maybe use TimeMap_GetTimeSigAtTime
     for(double projectTime = 0; projectTime < lastVisibleTime+itemStart; projectTime += beatTime(&last)) {
@@ -326,12 +329,13 @@ void noteArea(Painter* p, Size size) {
         } else {
             guiSetForeground(p, 0x434343);
         }
-        int c = timeToX(size.w, projectTime-itemStart);
+        int c = timeToX(size.w, projectTime-itemStart); if(c == lastpixel) break;
+        lastpixel = c;
         guiDrawLine(p, c, pos.y, c, pos.y+size.h);
         numOfBeat = last.num?(numOfBeat+1)%last.num:0;
     }
-    if(end < lastVisibleTime) {
-        int endX = timeToX(size.w, end);
+    if(pieceLength < lastVisibleTime) {
+        int endX = timeToX(size.w, pieceLength);
         Rect r = { endX, pos.y, pos.x+size.w-endX, size.h};
         SDL_SetRenderDrawBlendMode(p->gc, SDL_BLENDMODE_BLEND);
         guiSetForeground(p, 0x33333343);
@@ -350,12 +354,12 @@ void noteArea(Painter* p, Size size) {
     }
     guiSetForeground(p,0xff335566);
     guiDrawLine(p, cursor , pos.y, cursor , pos.y+size.h);
-    for(double freq = 440.0/32; freq < 20000; freq *= 2) {
-        char ferf[30]; snprintf(ferf,30,"%5lf", freq);
-        guiDrawTextZT(p, ferf, (Point) { 10, freqToY(size.h,
-                                        pos,
-                                        (int)round(freq))- digSize / 2 }, 0xffffffff);
-    }
+//    for(double freq = 440.0/32; freq < 20000; freq *= 2) {
+//        char ferf[30]; snprintf(ferf,30,"%5lf", freq);
+//        guiDrawTextZT(p, ferf, (Point) { 10, freqToY(size.h,
+//                                        pos,
+//                                        (int)round(freq))- digSize / 2 }, 0xffffffff);
+//    }
 //    guiDrawTextZT(p, "880", (Point) { 10, freqToY(size.h,
 //                                    pos,
 //                                    880)- digSize / 2 }, 0xffffffff);
@@ -385,27 +389,8 @@ void noteArea(Painter* p, Size size) {
         FOR_STATIC_ARRAY(Step*, frac, scale) {
 
             guiSetForeground(p, frac->color);
-//            for(int i = 0; i < 3; i++) {
             int r = freqToY(size.h, pos, piece[base].note.freq * frac->ratio);
             char str[30];
-            if(r >= pos.y && r < (int)(pos.y+size.h)) {
-                guiDrawLine(p, 0, r, size.w, r);
-                sprintf(str, "%s", frac->desc);
-                guiDrawTextZT(p, str, (Point) { 10, r - digSize / 2 }, 0xffffffff);
-            }
-            r = freqToY(size.h, pos, piece[base].note.freq / frac->ratio);
-            if(r >= pos.y && r < (int)(pos.y+size.h)) {
-                guiDrawLine(p, 0, r, size.w, r);
-                sprintf(str, "%s", frac->desc);
-                guiDrawTextZT(p, str, (Point) { 10, r - digSize / 2 }, 0xffffffff);
-            }
-        }
-    }
-    if(showScale) {
-        double multiplier = pow(2, 1.0/16);
-        for(double freq = SCALE_CENTER/8; freq < FREQ_MAX; freq *=multiplier) {
-            guiSetForeground(p, 0x555555);
-            int r = freqToY(size.h, pos, freq);
             if(r >= pos.y && r < (int)(pos.y+size.h)) {
                 guiDrawLine(p, 0, r, size.w, r);
             }
@@ -430,35 +415,27 @@ void noteArea(Painter* p, Size size) {
         } else {
             if(showChannels) {
                 double hue = 360/16*anote->midiChannel;
-                guiSetForeground(p, hsvd2bgr(hue,1,1));
+                guiSetForeground(p, hsvd2bgr(hue,anote->selected?0.3:1,1));
             } else {
-                guiSetForeground(p, 0xffd0bc04);
+                guiSetForeground(p, anote->selected?0xffe0ece4:0xffd0bc04);
             }
         }
         guiFillRectangle(p,
                          r);
         if(showChannels) {
-            guiDrawTextZT(p, channelnames[anote->midiChannel], r.pos, 0xffffffff);
+            guiDrawTextZT(p, channelnames[anote->midiChannel], r.pos,
+                    anote->selected||anote == piece + base?0:0xffffffff);
         }
     }
-    FOR_STB_ARRAY(RealNote**, anote, selectionSA) {
-        Rect r = noteToRect(size, pos, (*anote)->note);
-        if((*anote) == piece + base) {
-            guiSetForeground(p, 0xffffffff);
-        } else if((*anote)->note.muted) {
-            guiSetForeground(p, 0xff1b1b1b);
-        } else {
-            if(showChannels) {
-                double hue = 360/16*(*anote)->midiChannel;
-                guiSetForeground(p, hsvd2bgr(hue,0.3,1));
-            } else {
-                guiSetForeground(p, 0xffe0ece4);
+    if(base >= 0) {
+        FOR_STATIC_ARRAY(Step*, frac, scale) {
+            guiSetForeground(p, frac->color);
+            int r = freqToY(size.h, pos, piece[base].note.freq * frac->ratio);
+            char str[30];
+            if(r >= pos.y && r < (int)(pos.y+size.h)) {
+                sprintf(str, "%s", frac->desc);
+                guiDrawTextZT(p, str, (Point) { 10, r - digSize / 2 }, 0xff000000);
             }
-        }
-        guiFillRectangle(p,
-                         r);
-        if(showChannels) {
-            guiDrawTextZT(p, channelnames[(*anote)->midiChannel], r.pos, 0xffffffff);
         }
     }
     if(editedNote.freq >= 0) {
@@ -484,30 +461,31 @@ void noteArea(Painter* p, Size size) {
                 event.button;
         if(dragged >= 0) {
             IdealNote draggedNote = piece[dragged].note;
-            moveNotes(selectionSA, draggedNote.start-piece[dragged].note.start,
-                      draggedNote.freq - piece[dragged].note.freq, &dragged);
-
+            moveNotes(draggedNote.start - draggedNoteInitialPos.start,
+                       draggedNote.freq - draggedNoteInitialPos.freq,
+                       &dragged, &base);
         }
         dragged = -1;
         double releaseTime = closestTime(size.w, e.x);
         if(editedNote.freq >= 0) {
-            double pressTime = closestTime(size.w, dragStart.x);
-            double start = MIN(releaseTime, pressTime);
-            double end = MAX(releaseTime, pressTime);
+            if(pointInRect((Point){e.x, e.y}, rect)) {
+                double pressTime = closestTime(size.w, dragStart.x);
+                double start = MIN(releaseTime, pressTime);
+                double end = MAX(releaseTime, pressTime);
 
-            u8* keys = SDL_GetKeyboardState(NULL);
-            bool muted = false;
-            if(keys[SDL_SCANCODE_M]) {
-                muted = true;
-            }
-            editedNote = (IdealNote){ editedNote.freq, start, end - start, muted, 100};
+                u8* keys = SDL_GetKeyboardState(NULL);
+                bool muted = false;
+                if(keys[SDL_SCANCODE_M]) {
+                    muted = true;
+                }
+                editedNote = (IdealNote){ editedNote.freq, start, end - start, muted, 100};
 
-            if(base >= insertNote(editedNote)) {
-                base++;
+                if(base >= insertNote(editedNote)) {
+                    base++;
+                }
             }
         }
         if(selectingARange) {
-            arrsetlen(selectionSA, 0);
             Rect selectionRect = { .x = MIN(dragStart.x, e.x),
                                    .y = MIN(dragStart.y, e.y),
                                    .w = abs(e.x-dragStart.x),
@@ -518,9 +496,7 @@ void noteArea(Painter* p, Size size) {
                                 > MAX(noteRect.x, selectionRect.x);
                 bool verticalOverlap = MIN(noteRect.y+noteRect.h, selectionRect.y+selectionRect.h)
                                 > MAX(noteRect.y, selectionRect.y);
-                if(horizontalOverlap && verticalOverlap) {
-                    arrpush(selectionSA, anote);
-                }
+                anote->selected = horizontalOverlap && verticalOverlap;
             }
         }
         dragStart = (Point){ -1, -1 };
@@ -545,7 +521,7 @@ void noteArea(Painter* p, Size size) {
         } else {
             currentItemConfig->value.horizontalFrac /= pow(1.5, e.y);
             double playhead = samplesToTime(currentPositionInSamples);
-            currentItemConfig->value.horizontalScroll = (playhead - 1.0/2*end*currentItemConfig->value.horizontalFrac)/end;
+            currentItemConfig->value.horizontalScroll = (playhead - 1.0/2*pieceLength*currentItemConfig->value.horizontalFrac)/pieceLength;
             currentItemConfig->value.horizontalScroll = MAX(0, currentItemConfig->value.horizontalScroll);
         }
         /*if(e.y >  0)*/
@@ -564,16 +540,11 @@ void noteArea(Painter* p, Size size) {
 //                DEBUG_PRINT(anote->start, "%lf");
             }
         }
-        bool selected = false;
-        for(int i = 0; i < arrlen(selectionSA); i++) {
-            if(select == selectionSA[i]) {
-                selected = true;
-                break;
+        if(select && !select->selected) {
+            FOR_NOTES(anote, piece) {
+                anote->selected = false;
             }
-        }
-        if(!selected) {
-            arrsetlen(selectionSA, 0);
-            if(select) arrpush(selectionSA, select);
+            select->selected = true;
         }
         double freq = 0;
         if(select) {
@@ -636,13 +607,16 @@ void noteArea(Painter* p, Size size) {
             } else {
                 draggedNote.start = draggedNoteInitialPos.start;
             }
-            volatile int lll = arrlen(selectionSA);
-            int lastDragged = dragged;
+//            volatile int lll = arrlen(selectionSA);
+//            int lastDragged = dragged;
+            double chs = draggedNote.start-piece[dragged].note.start,
+                   chf = draggedNote.freq-piece[dragged].note.freq;
 
-            for(int i = 0; i < arrlen(selectionSA); i++) {
-                (*(selectionSA[i])).note.start += draggedNote.start-piece[dragged].note.start;
-                (selectionSA[i])->note.freq += draggedNote.start-piece[dragged].note.freq;
-
+            FOR_NOTES(anote, piece) {
+                if(anote->selected) {
+                    anote->note.start += chs;
+                    anote->note.freq += chf;
+                }
             }
 
             //            removeNote(dragged);
@@ -654,9 +628,8 @@ void noteArea(Painter* p, Size size) {
             startPlayingNote(draggedNote.freq);
         }
     }
-    if(event.type == KeyPress && (GET_KEYSYM(event) == '\x7f' || GET_KEYSYM(event) == backspace) && base >= 0) {
-        removeNote(base);
-        base = -1;
+    if(event.type == KeyPress && (GET_KEYSYM(event) == '\x7f' || GET_KEYSYM(event) == backspace)) {
+        removeNotes(&base);
     }
 
     fuckThisEvent:

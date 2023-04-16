@@ -356,12 +356,12 @@ bool hookCommandProc(int iCmd, int /*flag*/)
 //        int vel;
         int i = 0;
         itemStart = GetMediaItemInfo_Value(item, "D_POSITION");
-        end = /*itemStart + */GetMediaItemInfo_Value(item, "D_LENGTH");
+        pieceLength = /*itemStart + */GetMediaItemInfo_Value(item, "D_LENGTH");
         double channelPitches[16];// don't care about channel 0 because in MPE it's different
         // but allocate it anyway just 'cause
         double channelNoteStarts[16];
         for(int i = 0; i < 16; i++) {
-            channelPitches[i] = 0;
+            channelPitches[i] = 1;
             channelNoteStarts[i]=-1;
         }
         while(true) {

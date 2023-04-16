@@ -13,6 +13,7 @@ typedef struct IdealNote {
 typedef struct RealNote {
     IdealNote note;
     int midiChannel;
+    bool selected;
 } RealNote;
 
 #define REAL_NOTE_FORMAT "freq = %lf, start = %lf, length = %lf channel = %d"
@@ -24,10 +25,10 @@ extern "C" {
 #endif
 
 extern RealNote* piece;
-void moveNotes(RealNote **movedNotes, double timeChange, double freqChange, int* dragged);
+void moveNotes(double timeChange, double freqChange, int* dragged, int *base);
 int insertNote(IdealNote note);
 void appendRealNote(RealNote note);
-void removeNote(int ind);
+void removeNotes(int* base);
 void clearPiece();
 typedef struct {
     double when;
@@ -40,7 +41,7 @@ typedef struct {
 } TempoMarker;
 extern TempoMarker* tempoMarkers;
 extern TempoMarker projectSignature;
-extern double end;
+extern double pieceLength;
 
 #ifdef __cplusplus
 }

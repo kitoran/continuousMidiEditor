@@ -8,7 +8,7 @@ void play();
 void stop();
 
 void reaperInsert(RealNote note);
-void reaperDelete(int note);
+void reaperDeleteSelected();
 
 void reaperSetPosition(double d);
 
@@ -18,7 +18,7 @@ void stopPlayingNote();
 void MessageBoxInfo(char*title, char *message);
 void message(const char* format, ...);
 
-void reaperMoveNotes(RealNote** selectedNotes, double time, double freq);
+void reaperMoveNotes(double time, double freq);
 
 void reload();
 #ifdef __cplusplus
