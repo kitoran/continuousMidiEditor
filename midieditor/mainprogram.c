@@ -91,7 +91,7 @@ extern int pianorollgui(void) {
             Rect rect = currentItemConfig->value.windowGeometry;
             guiMoveWindow(rootWindow, rect.x, rect.y);
             SDL_SetWindowSize(rootWindow, rect.w, rect.h);
-            SDL_SetWindowTitle(rootWindow, "7 triads");
+            SDL_SetWindowTitle(rootWindow, appName);
             SDL_ShowWindow(rootWindow);
             SDL_RaiseWindow(rootWindow);
             timeToShow = false;

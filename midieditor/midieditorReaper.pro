@@ -16,10 +16,10 @@ windows {
     DEFINES += _CRT_SECURE_NO_WARNINGS
     INCLUDEPATH += C:\src\SDL2-devel-2.26.1-VC\SDL2-2.26.1\include C:\src\SDL2-devel-2.26.1-VC\SDL2_ttf-2.20.1\include
     CONFIG -= console
-    LIBS += /lKernel32
+#    LIBS += /lKernel32
     QMAKE_CXXFLAGS += /Zc:preprocessor /wd4838
 #    -lSDL2main -lShell32
-    QMAKE_LFLAGS += user32.lib
+    QMAKE_LFLAGS += user32.lib SDL2.lib SDL2_ttf.lib
     QMAKE_CFLAGS += /std:c11 /we4013 /wd4838
     SDL2.dll.path = C:\src\SDL2-devel-2.26.1-VC\SDL2-2.26.1\
         INSTALLS += SDL2.dll
@@ -41,7 +41,7 @@ SOURCES += \
     save.c \
     sortediterable.c
 #main.c \
-LIBS += -lSDL2 -lSDL2_ttf
+#LIBS += -lSDL2 -lSDL2_ttf
 linux {
    LIBS += -lsmf -lrtmidi
 }

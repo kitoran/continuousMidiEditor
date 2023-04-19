@@ -19,7 +19,7 @@ void MessageBoxInfo(char*title, char *message);
 void message(const char* format, ...);
 
 void reaperMoveNotes(double time, double freq);
-
+void reaperCopyNotes();
 void reload();
 #ifdef __cplusplus
 }

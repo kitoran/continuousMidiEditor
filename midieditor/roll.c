@@ -107,15 +107,64 @@ typedef struct {
 void navigationBar(Painter* p, Size size);
 void noteArea(Painter* p, Size size);
 #define NAVIGATION_THICKNESS 30
+
+// Optimized function to print Farey sequence of order n
+void makeFareyScale(int n)
+{
+    // We know first two terms are 0/1 and 1/n
+    double x1 = 0, y1 = 1, x2 = 1, y2 = n;
+
+    printf("%.0f/%.0f %.0f/%.0f", x1, y1, x2, y2);
+
+//#define SIZE_OF_DESC_AREA 300
+//    char* desc = malloc(SIZE_OF_DESC_AREA);
+//    char* area = desc;
+    double x, y = 0; // For next terms to be evaluated
+    while (y != 1.0) {
+        // Using recurrence relation to find the next term
+        x = floor((y1 + n) / y2) * x2 - x1;
+        y = floor((y1 + n) / y2) * y2 - y1;
+
+        char* desc = malloc(30);
+//        int chars;
+        int written = snprintf(desc, 30,
+                /*SIZE_OF_DESC_AREA - (desc-area), */
+                               "%d/%d", (int)x, (int)y);
+//        ASSERT(written == chars, "allocate more");
+        Step s = {
+            .ratio = x/y,
+            .desc = desc,
+            .color = gray(255/y)
+        };
+//        desc += written + 1;
+        arrpush(scale, s);
+
+        desc = malloc(30);
+        written = snprintf(desc, 30,
+                               "%d/%d", (int)y, (int)x);
+        s=(Step){    .ratio = y/x,
+            .desc = desc,
+            .color = gray(255/x)
+        };
+        arrpush(scale, s);
+        // Print next term
+        printf(" %.0f/%.0f", x, y);
+
+        // Update x1, y1, x2 and y2 for next iteration
+        x1 = x2, x2 = x, y1 = y2, y2 = y;
+    }
+}
+
 void roll(Painter* p, int y) {
 
     if(scale == 0) {
-        FOR_STATIC_ARRAY(fraction*, f, fractions) {
-            char* desc = malloc(30);
-            snprintf(desc, 30, "%d/%d", f->num, f->den);
-            Step s = {f->num*1.0/f->den, desc, 0xffffffff};
-            arrpush(scale, s);
-        }
+//        FOR(i, 20) {
+//            arrpush(scale, s);
+//
+//            Step s = {f->num*1.0/f->den, desc, 0xffffffff};
+//        }]
+        makeFareyScale(12);
+
     }
 
 //    DEBUG_PRINT(y, "in \'roll\'%d");
@@ -276,7 +325,7 @@ double closestTime(int width, int x) { // TODO: this function
 }
 
 double closestFreq(int height, Point pos, int y) { // TODO: this function
-    if (base < 0) return yToFreq(height, pos, y);
+    if (base < 0 || ELEMS(scale) == 0) return yToFreq(height, pos, y);
     Step step = searchStep(yToFreq(height, pos, y) / piece[base].note.freq);
     double le = yToFreq(height, pos, y + 5);
     double mo = yToFreq(height, pos, y - 5);
@@ -291,6 +340,7 @@ inline double beatTime(TempoMarker* tm) {
     return 60.0/tm->qpm*4/tm->denom;
 }
 static bool selectingARange = false;
+static bool copying = false;
 //RealNote** selectionSA = NULL;
 const char* channelnames[]={"1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16"};
 void noteArea(Painter* p, Size size) {
@@ -329,9 +379,15 @@ void noteArea(Painter* p, Size size) {
         } else {
             guiSetForeground(p, 0x434343);
         }
-        int c = timeToX(size.w, projectTime-itemStart); if(c == lastpixel) break;
+        int c = timeToX(size.w, projectTime-itemStart);
+        if(c >= rect.w) {
+            break;
+        }
         lastpixel = c;
-        guiDrawLine(p, c, pos.y, c, pos.y+size.h);
+        if(c >= 0) {
+            fprintf(stderr, "%d -----------------%d\n", c, c>=0);
+            guiDrawLine(p, c, pos.y, c, pos.y+size.h);
+        }
         numOfBeat = last.num?(numOfBeat+1)%last.num:0;
     }
     if(pieceLength < lastVisibleTime) {
@@ -354,12 +410,12 @@ void noteArea(Painter* p, Size size) {
     }
     guiSetForeground(p,0xff335566);
     guiDrawLine(p, cursor , pos.y, cursor , pos.y+size.h);
-//    for(double freq = 440.0/32; freq < 20000; freq *= 2) {
-//        char ferf[30]; snprintf(ferf,30,"%5lf", freq);
-//        guiDrawTextZT(p, ferf, (Point) { 10, freqToY(size.h,
-//                                        pos,
-//                                        (int)round(freq))- digSize / 2 }, 0xffffffff);
-//    }
+    for(double freq = 440.0/32; freq < 20000; freq *= 2) {
+        char ferf[30]; snprintf(ferf,30,"%5lf", freq);
+        guiDrawTextZT(p, ferf, (Point) { 10, freqToY(size.h,
+                                        pos,
+                                        (int)round(freq))- digSize / 2 }, 0xffffffff);
+    }
 //    guiDrawTextZT(p, "880", (Point) { 10, freqToY(size.h,
 //                                    pos,
 //                                    880)- digSize / 2 }, 0xffffffff);
@@ -386,7 +442,7 @@ void noteArea(Painter* p, Size size) {
 //                guiDrawTextZT(p, str, (Point) { 10, r - digSize / 2 }, 0xffffffff);
 //            }
 //        }
-        FOR_STATIC_ARRAY(Step*, frac, scale) {
+        FOR_STB_ARRAY(Step*, frac, scale) {
 
             guiSetForeground(p, frac->color);
             int r = freqToY(size.h, pos, piece[base].note.freq * frac->ratio);
@@ -428,7 +484,7 @@ void noteArea(Painter* p, Size size) {
         }
     }
     if(base >= 0) {
-        FOR_STATIC_ARRAY(Step*, frac, scale) {
+        FOR_STB_ARRAY(Step*, frac, scale) {
             guiSetForeground(p, frac->color);
             int r = freqToY(size.h, pos, piece[base].note.freq * frac->ratio);
             char str[30];
@@ -461,9 +517,13 @@ void noteArea(Painter* p, Size size) {
                 event.button;
         if(dragged >= 0) {
             IdealNote draggedNote = piece[dragged].note;
-            moveNotes(draggedNote.start - draggedNoteInitialPos.start,
-                       draggedNote.freq - draggedNoteInitialPos.freq,
-                       &dragged, &base);
+            if(copying) {
+                copyNotes( &dragged, &base);
+            } else {
+                moveNotes(draggedNote.start - draggedNoteInitialPos.start,
+                           draggedNote.freq - draggedNoteInitialPos.freq,
+                           &dragged, &base);
+            }
         }
         dragged = -1;
         double releaseTime = closestTime(size.w, e.x);
@@ -502,6 +562,7 @@ void noteArea(Painter* p, Size size) {
         dragStart = (Point){ -1, -1 };
         editedNote = (IdealNote){ -1,-1,-1 };
         selectingARange = false;
+        copying = false;
         stopPlayingNote();
     }
     if(event.type == MouseWheel) {
@@ -577,10 +638,10 @@ void noteArea(Painter* p, Size size) {
         SDL_MouseMotionEvent e =
                 event.motion;
         if(e.y < pos.y) goto fuckThisEvent;
-        coord c = {closestFreq(size.h, pos, e.y), closestTime(size.w, e.x)};
 //        DEBUG_PRINT(editedNote.freq, "%lf")
 
         if(editedNote.freq >= 0) {
+            coord c = {closestFreq(size.h, pos, e.y), closestTime(size.w, e.x)};
             guiSetForeground(p,0xff000000);
             Rect r = noteToRect(size, pos, editedNote);
             guiFillRectangle(p, r);
@@ -593,7 +654,25 @@ void noteArea(Painter* p, Size size) {
             guiSetForeground(p,0xffff77ff);
             guiFillRectangle(p, r);
         } else if(dragged >= 0) {
-//            for(
+            ASSERT(piece[dragged].selected, "dragging unselected note?..");
+            SDL_Keymod km = SDL_GetModState();
+            if((km & KMOD_CTRL) && !copying) {
+                copying = true;
+
+                int initialSize = arrlen(piece);
+                FOR(i, initialSize) { // we change the array so we can't iterate with pointer
+                    if(piece[i].selected) {
+                        RealNote newNote = piece[i];
+                        newNote.selected = true;
+                        piece[i].selected = false;
+                        arrpush(piece, newNote);
+                        if(dragged == i) {
+                            dragged = arrlen(piece)-1;
+                        }
+                    }
+                }
+            }
+            coord c = {closestFreq(size.h, pos, e.y), closestTime(size.w, e.x)};
             IdealNote draggedNote = piece[dragged].note;
             if(abs(e.y - dragStart.y) > 5) {
                 draggedNote.freq = c.freq;

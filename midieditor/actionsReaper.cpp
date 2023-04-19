@@ -45,7 +45,7 @@ struct MidiPitch {
     int wheel;
 };
 
-MidiPitch getMidiPitch(double freq, double pitchRangeInterval) {
+MidiPitch  getMidiPitch(double freq, double pitchRangeInterval) {
 
     int key = (int)round(log(freq)/LOG_SEMITONE-BIAS);
     CLAMP(key, 0, 127);
@@ -123,6 +123,7 @@ void reaperDeleteSelected() {
     MIDI_Sort(take);
 }
 void reaperMoveNotes(double time, double freq) {
+    //TODO: remove the arguments
     if(!reaperMainThread) {
 //        ASSERT((**selectedNotes).note.freq > 1, "");
         actionChannel.name = __func__;
@@ -134,6 +135,24 @@ void reaperMoveNotes(double time, double freq) {
         if(!anote->selected) continue;
         bool res = MIDI_DeleteNote(take, anote-piece);
         if(!res) ShowConsoleMsg("note deletion (while moving) failed");
+//        anote->freq+=freq;
+//        anote->start+=time;
+        reaperInsert(*anote);
+    }
+    MIDI_Sort(take);
+}
+void reaperCopyNotes() {
+    if(!reaperMainThread) {
+//        ASSERT((**selectedNotes).note.freq > 1, "");
+        actionChannel.name = __func__;
+        actionChannel.runInMainThread(&reaperCopyNotes);
+        return;
+    }
+    MIDI_DisableSort(take);
+    for(RealNote* anote = piece + arrlen(piece) - 1; anote >= piece; anote--) {
+        if(!anote->selected) continue;
+//        bool res = MIDI_DeleteNote(take, anote-piece);
+//        if(!res) ShowConsoleMsg("note deletion (while moving) failed");
 //        anote->freq+=freq;
 //        anote->start+=time;
         reaperInsert(*anote);
