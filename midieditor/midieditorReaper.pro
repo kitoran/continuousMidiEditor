@@ -62,3 +62,6 @@ HEADERS += \
 #CONFIG += link_pkgconfig
 
 #PKGCONFIG += glib-2.0
+
+FORMS += \
+    settingsform.ui

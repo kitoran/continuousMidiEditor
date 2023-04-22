@@ -163,7 +163,7 @@ void roll(Painter* p, int y) {
 //
 //            Step s = {f->num*1.0/f->den, desc, 0xffffffff};
 //        }]
-        makeFareyScale(12);
+        makeFareyScale(15);
 
     }
 
@@ -385,7 +385,7 @@ void noteArea(Painter* p, Size size) {
         }
         lastpixel = c;
         if(c >= 0) {
-            fprintf(stderr, "%d -----------------%d\n", c, c>=0);
+//            fprintf(stderr, "%d -----------------%d\n", c, c>=0);
             guiDrawLine(p, c, pos.y, c, pos.y+size.h);
         }
         numOfBeat = last.num?(numOfBeat+1)%last.num:0;
@@ -689,12 +689,12 @@ void noteArea(Painter* p, Size size) {
 //            volatile int lll = arrlen(selectionSA);
 //            int lastDragged = dragged;
             double chs = draggedNote.start-piece[dragged].note.start,
-                   chf = draggedNote.freq-piece[dragged].note.freq;
+                   chf = draggedNote.freq/piece[dragged].note.freq;
 
             FOR_NOTES(anote, piece) {
                 if(anote->selected) {
                     anote->note.start += chs;
-                    anote->note.freq += chf;
+                    anote->note.freq *= chf;
                 }
             }
 

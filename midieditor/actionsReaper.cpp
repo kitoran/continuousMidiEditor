@@ -8,7 +8,9 @@
 #include "actions.h"
 #include "stb_ds.h"
 thread_local bool reaperMainThread;
-
+extern "C" {
+extern bool timeToLeave;
+}
 void play() {
     if(!reaperMainThread) {
         actionChannel.name = __func__;
@@ -171,29 +173,18 @@ extern "C" void message(const char* format, ...) {
 
     va_start(arg_ptr, format);
 
-
-//    if(reaperMainThread) {
-        char msg[100];
-        vsnprintf(msg, 100,format, arg_ptr);
-        if(!reaperMainThread) {
+    char msg[100];
+    vsnprintf(msg, 100,format, arg_ptr);
+    if(!reaperMainThread) {
+        if(!timeToLeave) {
             actionChannel.name = __func__;
             actionChannel.runInMainThread(ShowConsoleMsg, msg);
-            return;
+        } else {
+            fprintf(stderr, "%s", msg);
         }
-        ShowConsoleMsg(msg);
-//    } else {
-//        std::unique_lock lk(actionChannel.mutex);
-//        vsnprintf(actionChannel.string,
-//                  sizeof(actionChannel.string),
-//                  // TODO: sizeof(..)-1 on msvc??
-//                  format,
-//                  arg_ptr);
-//        actionChannel.action = actionChannel.consoleMessage;
-//        actionChannel.cv.wait(lk, [](){
-//                return actionChannel.action
-//                        == actionChannel.none;});
-
-//    }
+        return;
+    }
+    ShowConsoleMsg(msg);
     va_end(arg_ptr);
 }
 static int playedKey;

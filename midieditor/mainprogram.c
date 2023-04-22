@@ -12,6 +12,7 @@
 #include <toolbuttongroup.h>
 #include "save.h"
 #include "actions.h"
+#include "linelayout.h"
 #include <stdbool.h>
 #include <stdio.h>
 #include "stb_ds.h"
@@ -53,6 +54,77 @@ bool timeToShow = true;
 #endif
 extern void SetThreadName(u32 dwThreadID, const char* threadName);
 extern int PlaybackEvent = 0;
+
+static bool settingsOpen = false;
+
+INTROSPECT_ENUM_VISIBLE_NAMES(scale_type_enum,
+                              rational_intervals, "Rational intervals",
+                              equal_intervals, "equal steps");
+#define NUMBER_OF_PRIMES 15
+typedef struct Scale {
+    scale_type_enum type;
+    bool primes[NUMBER_OF_PRIMES];
+    int maxDenominator;
+} Scale;
+static Scale scale[3] = {0};
+int settingsMode = {0};
+struct {
+    int prime;
+    char text[4];
+} primes[NUMBER_OF_PRIMES];
+extern void settingsGui(void) {
+    static GuiWindow settingsWindow = 0;
+    static Painter painter;
+    if(settingsWindow == 0) {
+        settingsWindow = guiMakeWindow();
+        painter = guiMakePainter(settingsWindow);
+    }
+    LineLayout settingsLayout = makeVerticalLayout(5);
+    guiSetForeground(&painter, 0);
+    guiClearWindow(settingsWindow);
+    pushLayout(&settingsLayout);
+      LineLayout oneLine = makeHorizontalLayout(5);
+      oneLine.pos = getPos(); pushLayout(&oneLine);
+        guiLabelZT(&painter, "Scale type:");
+        guiEnumComboBox(&painter, scale_type_enum, &scale[settingsMode].type);
+      popLayout(); feedbackSize(getLineSize(&oneLine)); oneLine.filled = oneLine.across =0;
+      if(scale[settingsMode].type == rational_intervals) {
+          guiLabelZT(&painter, "multipliers:");
+          STATIC(Grid, primesGrid, allocateGrid(20, 20, 5));
+          primesGrid.gridStart = getPos();
+          pushLayout(&primesGrid);
+            for(int i = 0; i < NUMBER_OF_PRIMES; i++) {
+              setCurrentGridPos(0, i);
+              guiLabelZT(&painter, primes[i].text);
+              setCurrentGridPos(1, i);
+              guiCheckBox(&painter, &(scale[settingsMode].primes[i]));
+            }
+          popLayout();
+          feedbackSize(getGridSize(&primesGrid));
+          oneLine.pos = getPos(); pushLayout(&oneLine);
+            guiLabelZT(&painter, "Max denominator");
+            guiIntField(&painter, 2, &scale[settingsMode].maxDenominator);
+          popLayout(); feedbackSize(getLineSize(&oneLine)); oneLine.filled = oneLine.across =0;
+    } else if(scale[settingsMode].type == equal_intervals) {
+        oneLine.pos = getPos(); pushLayout(&oneLine);
+        double dummy;
+        guiDoubleField(&painter, 3, &dummy);
+        guiLabelZT(&painter, " equal divisions of ");
+        oneLine.spacing = 0;
+        guiDoubleField(&painter, 3, &dummy);
+        guiLabelZT(&painter, " divisions of ");
+        guiDoubleField(&painter, 3, &dummy);
+        guiLabelZT(&painter, "/");
+        guiDoubleField(&painter, 3, &dummy);
+        popLayout(); feedbackSize(getLineSize(&oneLine)); oneLine.filled = oneLine.across =0;
+        oneLine.pos = getPos(); pushLayout(&oneLine);
+        guiLabelZT(&painter, "of");
+        guiDoubleField(&painter, 3, &dummy);  guiLabelZT(&painter, "cents");
+        popLayout(); feedbackSize(getLineSize(&oneLine)); oneLine.filled = oneLine.across =0;
+    }
+//    guiRadioButtonGroup(&painter, scale_relativity_enum, &scale[settingsMode].relative);
+    popLayout();
+}
 extern int pianorollgui(void) {
 //    running = true;
     SDL_SetHint( SDL_HINT_RENDER_SCALE_QUALITY, "2" );
@@ -263,6 +335,15 @@ extern int pianorollgui(void) {
 // TODO: add combination tones (difference tones, sum tones, means??)
         guiCheckBox(&rootWindowPainter, &showScale);        gridNextColumn();
         guiLabelZT(&rootWindowPainter, "show 16edo scale");        gridNextColumn();
+
+        STATIC(IMAGE*, gear, loadImageZT(GUI_RESOURCE_PATH, "settings30x30.png"));
+        Size size = {30,30};
+        if(guiToolButtonEx(&rootWindowPainter, gear, true, &size)) {
+            settingsOpen = true;
+        }   gridNextColumn();
+        if(settingsOpen) {
+            settingsGui();
+        }
 
         setCurrentGridPos(3,0);
         roll(&rootWindowPainter, getGridBottom(topLayout()));
