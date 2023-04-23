@@ -131,24 +131,26 @@ void makeFareyScale(int n)
                 /*SIZE_OF_DESC_AREA - (desc-area), */
                                "%d/%d", (int)x, (int)y);
 //        ASSERT(written == chars, "allocate more");
-        Step s = {
-            .ratio = x/y,
-            .desc = desc,
-            .color = gray(255/y)
-        };
-//        desc += written + 1;
-        arrpush(scale, s);
+        if((int)x %2 != 0 && (int)y %2 != 0) {
+            Step s = {
+                .ratio = x/y,
+                .desc = desc,
+                .color = gray(255/y)
+            };
+    //        desc += written + 1;
+            arrpush(scale, s);
 
-        desc = malloc(30);
-        written = snprintf(desc, 30,
-                               "%d/%d", (int)y, (int)x);
-        s=(Step){    .ratio = y/x,
-            .desc = desc,
-            .color = gray(255/x)
-        };
-        arrpush(scale, s);
-        // Print next term
-        printf(" %.0f/%.0f", x, y);
+            desc = malloc(30);
+            written = snprintf(desc, 30,
+                                   "%d/%d", (int)y, (int)x);
+            s=(Step){    .ratio = y/x,
+                .desc = desc,
+                .color = gray(255/x)
+            };
+            arrpush(scale, s);
+            // Print next term
+            printf(" %.0f/%.0f", x, y);
+        }
 
         // Update x1, y1, x2 and y2 for next iteration
         x1 = x2, x2 = x, y1 = y2, y2 = y;
@@ -163,7 +165,7 @@ void roll(Painter* p, int y) {
 //
 //            Step s = {f->num*1.0/f->den, desc, 0xffffffff};
 //        }]
-        makeFareyScale(15);
+        makeFareyScale(20);
 
     }
 
