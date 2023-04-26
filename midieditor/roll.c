@@ -508,11 +508,22 @@ void noteArea(Painter* p, Size size) {
         Point mouse; SDL_GetMouseState(&mouse.x, &mouse.y);
 //        mouse.x -= pos.x; mouse.y -= pos.y;
         Rect r = { .pos = dragStart, .size = {mouse.x-dragStart.x, mouse.y-dragStart.y} };
-        SDL_SetSurfaceBlendMode(SDL_GetWindowSurface(p->window), SDL_BLENDMODE_BLEND);
-        guiSetForeground(p, 0x33333343);
-        guiFillRectangle(p, r);
-        SDL_SetSurfaceBlendMode(SDL_GetWindowSurface(p->window), SDL_BLENDMODE_NONE);
-        guiSetForeground(p, 0xdddddd);
+//        int succ = SDL_SetSurfaceBlendMode(SDL_GetWindowSurface(p->window), SDL_BLENDMODE_NONE);
+//        ASSERT(succ == 0, "hi^)");
+        STATIC(SDL_Surface*, transparent, SDL_CreateRGBSurfaceWithFormat(0, 300, 300, 32, SDL_PIXELFORMAT_RGBA8888));
+//        guiSetForeground(p, 0x33333343);
+//        guiFillRectangle(p, r);
+        SDL_Rect rr = {0,0,200,200};
+        SDL_FillRect(transparent, NULL, 0x33333343);
+//        SDL_SetAlpha(sfc, SDL_SRCALPHA, alpha);
+        SDL_Rect r1 = { .x= MIN(r.x, r.x+r.w),
+                        .y= MIN(r.y, r.y+r.h),
+                        .w=abs(r.w),
+                        .h=abs(r.h) };
+        SDL_BlitScaled(transparent, 0, SDL_GetWindowSurface(p->window), &r1);
+//        SDL_UpdateWindowSurface(p->window);
+//        SDL_SetSurfaceBlendMode(SDL_GetWindowSurface(p->window), SDL_BLENDMODE_NONE);
+        guiSetForeground(p, 0xffdddddd);
         guiDrawRectangle(p, r);
     }
 
