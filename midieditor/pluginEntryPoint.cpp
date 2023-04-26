@@ -75,6 +75,8 @@ static bool ProcessExtensionLine(const char *line, ProjectStateContext *ctx, boo
     token = SDL_strtokr(NULL, " \n", &saveptr); ASSERT(token == NULL, "fail to read lconfig");
     free(copy);
     saveptr = NULL;
+
+    ReaProject* project = GetCurrentProjectInLoadSave();
     while(true) {
         char oneline[4096];
         int getLineRes = ctx->GetLine(oneline, sizeof(oneline));
@@ -121,6 +123,7 @@ static bool ProcessExtensionLine(const char *line, ProjectStateContext *ctx, boo
                 continue;
             }
         }
+        cnfg.value.project = project;
         ASSERT(cnfg.key != GUID_NULL, "cant parse project file");
 
 
@@ -133,8 +136,12 @@ static void SaveExtensionConfig(ProjectStateContext *ctx, bool /*isUndo*/, struc
         return;
     }
 
+    ReaProject* project = GetCurrentProjectInLoadSave();
     ctx->AddLine("<CONTINUOUSMIDIEDITOR");
     FOR_STB_MAP(CONTINUOUSMIDIEDITOR_Config*, cnfg, config) {
+        if(project != cnfg->value.project) {
+            continue;
+        }
         ctx->AddLine("<ITEM");
 
         char guid[/*38*/64]; guidToString((GUID*)&cnfg->key, guid);
@@ -193,6 +200,127 @@ static void SaveExtensionConfig(ProjectStateContext *ctx, bool /*isUndo*/, struc
 //        InsertMenuItemA(hMenu, 0, TRUE, &mii);
 //    }
 //}
+static char takeHash[16];
+void loadTake()
+{
+    clearPiece();
+    char guid[/*38*/64];
+    GetSetMediaItemTakeInfo_String(take, "GUID", guid, false);
+    message("take name is %s\nguid is %s", GetTakeName(take), guid);
+
+    GUID currentGuid;
+    stringToGuid(guid, &currentGuid);
+    currentItemConfig = hmgetp_null(config, currentGuid);
+//            cfg;
+    MediaItem* item = GetMediaItemTake_Item(take);
+    ReaProject* project = GetItemProjectContext(item);
+    if(currentItemConfig  == NULL) {
+        CONTINUOUSMIDIEDITOR_Config  cfg = {
+            .key = currentGuid,
+            .value = {
+                .windowGeometry = { 400, 400, 700, 700 },
+                .horizontalScroll = 0,
+                .horizontalFrac = 0.1,
+                .verticalScroll = 0.5,
+                .verticalFrac = 0.1,
+                .midiMode = midi_mode_mpe,
+                .pitchRange = 48,
+                .project = project
+            }
+        };
+        hmputs(config, cfg);
+        currentItemConfig  = hmgetp_null(config, currentGuid);
+        ASSERT(currentItemConfig , "");
+    }
+
+    bool res = true; //MIDI_GetAllEvts(take, events, &size);
+    double ppqpos;
+//        int vel;
+    int i = 0;
+    itemStart = GetMediaItemInfo_Value(item, "D_POSITION");
+    pieceLength = /*itemStart + */GetMediaItemInfo_Value(item, "D_LENGTH");
+    double channelPitches[16];// don't care about channel 0 because in MPE it's different
+    // but allocate it anyway just 'cause
+    double channelNoteStarts[16];
+    for(int i = 0; i < 16; i++) {
+        channelPitches[i] = 1;
+        channelNoteStarts[i]=-1;
+    }
+    while(true) {
+        //TODO: use getAllEvents? i don't want to because there's no way to get needed buffer size ahead
+        // of time. Maybe if midi track is more than 4 kb i can just tell the user that tey are too
+        // musical for this extension // there's MIDI_CountEvts
+        bool mutedUnusedForNow;
+#define MAX_MIDI_EVENT_LENGTH 3
+#define PADINCASEIMISSEDSOMELONGEREVENTS 100
+        u8 msg[MAX_MIDI_EVENT_LENGTH+PADINCASEIMISSEDSOMELONGEREVENTS];
+        int size = 3;
+        res = MIDI_GetEvt(take, i++, 0, &mutedUnusedForNow, &ppqpos, (char*)(&msg[0]), &size);
+        if(!res) break;
+        ASSERT(size <= 3, "got midi event longer than 3 bytes, dying\n");
+        int channel = msg[0] & MIDI_CHANNEL_MASK;
+        if((msg[0] & MIDI_COMMAND_MASK) == pitchWheelEvent) {
+           i16 pitchWheel =
+                   (msg[2] << 7) |
+                   (msg[1]&MIDI_7HB_MASK);
+           double differenceInTones =
+                   double(pitchWheel-0x2000)/0x2000 * currentItemConfig->value.pitchRange / 2.0;
+           double ratio = pow(2, differenceInTones/6);
+           channelPitches[channel] = ratio;
+        }
+        //TODO: delete selected notes on "delete"
+        //TODO: store velocity value too
+//          res = MIDI_GetNote(take, i++, 0, 0, , &endppqpos, 0, &pitch, &vel);
+
+        // TODO: indicate when we changed the take
+// we think that all the simultaneous notes are on different channels
+// so to get note's key we only need to read it from onteOff event
+        double pos = MIDI_GetProjTimeFromPPQPos(take, ppqpos);
+        if((msg[0] & MIDI_COMMAND_MASK) == noteOn) {
+            channelNoteStarts[channel] = pos;
+        }
+        if((msg[0] & MIDI_COMMAND_MASK) == noteOff) {
+            int key = msg[1];
+            int vel = msg[2];
+            double freq = (440.0 / 32) * pow(2, ((key - 9) / 12.0));
+            freq *= channelPitches[channel];
+            message("st %lf end %lf pitch %d vel %d\n"
+                    "start %lf  freq %lf", pos, channelNoteStarts[channel] , key, vel
+                    , start, freq);
+            appendRealNote({.note = {.freq = freq,
+                                     .start = channelNoteStarts[channel]  - itemStart,
+                                     .length = pos-channelNoteStarts[channel]},
+                            .midiChannel = channel});
+        }
+    }
+    // GetProjectTimeSignature2 actually returns beats, not quarters, per minute.
+    // It also doesn't return the denominator of the time signature, so it's not very useful
+//        GetProjectTimeSignature2(NULL, &qpm, &bpiOut);
+    // TimeMap_GetTimeSigAtTime's docs say that it returns something called "tempo" in the third argument,
+    // experiments show it actually returns quarters per minute
+    TimeMap_GetTimeSigAtTime(NULL, 0, &projectSignature.num,
+                             &projectSignature.denom, &projectSignature.qpm);
+    arrsetlen(tempoMarkers, 0);
+
+    // Okay, hot take: time signature denominators are CRINGE. They may add some interpretive context
+    // to musicians but it's actually not needed; in midi editors we don't specify when a certain note is D#
+    // or Eb, and noone misses that, and the function of the note is clear from context and you can't
+    // fully specify it with these alteration marks anyway. In the same way the denominator of the time signature
+    // doesn't add enough rhytmical information to justify its usage.
+
+    int numberOfTempoMarkers = CountTempoTimeSigMarkers(NULL);
+    for(int i = 0; i < numberOfTempoMarkers; i ++) {
+        double timepos, beatpos, mbpm;
+        int measurepos, timesig_num, timesig_denom;
+        bool linearTempo;
+        GetTempoTimeSigMarker(NULL, i, &timepos, &measurepos, &beatpos, &mbpm, &timesig_num, &timesig_denom, &linearTempo);
+        arrpush(tempoMarkers, (TempoMarker{ .when = timepos-itemStart, .qpm = mbpm,
+                                            .num = timesig_num, .denom = timesig_denom}));
+    }
+    bool getHashRes = MIDI_GetHash(take, false, takeHash, sizeof(takeHash));
+    ASSERT(getHashRes, "MIDI_GetHash returned false");
+}
+//TODO: No stretch when resizing window
 void timer_function() {
     std::unique_lock lk(actionChannel.mutex);
     if(actionChannel.pending) {
@@ -201,6 +329,16 @@ void timer_function() {
     }
     actionChannel.action = decltype(actionChannel.action)(); //
     //TODO: i don't know if this assignment frees the closure
+    //TODO: correctly handle take deletion
+    if(take != 0) {
+        char hash[sizeof(takeHash)];
+        bool getHashRes = MIDI_GetHash(take, false, hash, sizeof(hash));
+        ASSERT(getHashRes, "MIDI_GetHash returned false ¯\_(ツ)_/¯");
+        if(memcmp(hash, takeHash, sizeof(takeHash))) {
+            loadTake();
+        }
+        guiRedrawFromOtherThread(rootWindow);
+    }
     lk.unlock();
     actionChannel.cv.notify_one();
     currentPositionInSamples =  (int)round((GetPlayPosition()-itemStart)*44100); // TODO: ask sample rate from reaper or someone
@@ -304,6 +442,8 @@ void closeSDLWindow() {
 // FreeLibrary(GetModuleHandleA("reaper_midieditor.dll"));
 std::thread th;
 bool sdlThreadStarted;
+
+
 bool hookCommandProc(int iCmd, int /*flag*/)
 {
     char msg[100];
@@ -323,118 +463,11 @@ bool hookCommandProc(int iCmd, int /*flag*/)
                 // use-case of STATIC warrants its own macro
 //        closeSDLWindow();
         SDL_LockMutex(mutex_);
-        clearPiece();
 //            std::lock_guard lg(mutex_);
         MediaItem* item = GetSelectedMediaItem(NULL, 0);
+        ReaProject* project = GetItemProjectContext(item);
         take = GetActiveTake(item);
-        GetSetMediaItemTakeInfo_String(take, "GUID", msg, false);
-        message("take name is %s\nguid is %s", GetTakeName(take), msg);
-
-        GUID currentGuid;
-        stringToGuid(msg, &currentGuid);
-        currentItemConfig = hmgetp_null(config, currentGuid);
-//            cfg;
-        if(currentItemConfig  == NULL) {
-            CONTINUOUSMIDIEDITOR_Config  cfg = {
-                .key = currentGuid,
-                .value = {.windowGeometry = { 400, 400, 700, 700 },
-                            .horizontalScroll = 0,
-                          .horizontalFrac = 0.1,
-                    .verticalScroll = 0.5,
-                    .verticalFrac = 0.1,
-                    .midiMode = midi_mode_mpe,
-                    .pitchRange = 48,
-                    }
-            };
-            hmputs(config, cfg);
-            currentItemConfig  = hmgetp_null(config, currentGuid);
-            ASSERT(currentItemConfig , "");
-        }
-
-        bool res = true; //MIDI_GetAllEvts(take, events, &size);
-        double ppqpos;
-//        int vel;
-        int i = 0;
-        itemStart = GetMediaItemInfo_Value(item, "D_POSITION");
-        pieceLength = /*itemStart + */GetMediaItemInfo_Value(item, "D_LENGTH");
-        double channelPitches[16];// don't care about channel 0 because in MPE it's different
-        // but allocate it anyway just 'cause
-        double channelNoteStarts[16];
-        for(int i = 0; i < 16; i++) {
-            channelPitches[i] = 1;
-            channelNoteStarts[i]=-1;
-        }
-        while(true) {
-            //TODO: use getAllEvents? i don't want to because there's no way to get needed buffer size ahead
-            // of time. Maybe if midi track is more than 4 kb i can just tell the user that tey are too
-            // musical for this extension // there's MIDI_CountEvts
-            bool mutedUnusedForNow;
-#define MAX_MIDI_EVENT_LENGTH 3
-#define PADINCASEIMISSEDSOMELONGEREVENTS 100
-            u8 msg[MAX_MIDI_EVENT_LENGTH+PADINCASEIMISSEDSOMELONGEREVENTS];
-            int size = 3;
-            res = MIDI_GetEvt(take, i++, 0, &mutedUnusedForNow, &ppqpos, (char*)(&msg[0]), &size);
-            if(!res) break;
-            ASSERT(size <= 3, "got midi event longer than 3 bytes, dying\n");
-            int channel = msg[0] & MIDI_CHANNEL_MASK;
-            if((msg[0] & MIDI_COMMAND_MASK) == pitchWheelEvent) {
-               i16 pitchWheel =
-                       (msg[2] << 7) |
-                       (msg[1]&MIDI_7HB_MASK);
-               double differenceInTones =
-                       double(pitchWheel-0x2000)/0x2000 * currentItemConfig->value.pitchRange / 2.0;
-               double ratio = pow(2, differenceInTones/6);
-               channelPitches[channel] = ratio;
-            }
-            //TODO: delete selected notes on "delete"
-            //TODO: store velocity value too
-//          res = MIDI_GetNote(take, i++, 0, 0, , &endppqpos, 0, &pitch, &vel);
-
-            // TODO: indicate when we changed the take
-    // we think that all the simultaneous notes are on different channels
-    // so to get note's key we only need to read it from onteOff event
-            double pos = MIDI_GetProjTimeFromPPQPos(take, ppqpos);
-            if((msg[0] & MIDI_COMMAND_MASK) == noteOn) {
-                channelNoteStarts[channel] = pos;
-            }
-            if((msg[0] & MIDI_COMMAND_MASK) == noteOff) {
-                int key = msg[1];
-                int vel = msg[2];
-                double freq = (440.0 / 32) * pow(2, ((key - 9) / 12.0));
-                freq *= channelPitches[channel];
-                message("st %lf end %lf pitch %d vel %d\n"
-                        "start %lf  freq %lf", pos, channelNoteStarts[channel] , key, vel
-                        , start, freq);
-                appendRealNote({.note = {.freq = freq,
-                                         .start = channelNoteStarts[channel]  - itemStart,
-                                         .length = pos-channelNoteStarts[channel]},
-                                .midiChannel = channel});
-            }
-        }
-        // GetProjectTimeSignature2 actually returns beats, not quarters, per minute.
-        // It also doesn't return the denominator of the time signature, so it's not very useful
-//        GetProjectTimeSignature2(NULL, &qpm, &bpiOut);
-        // TimeMap_GetTimeSigAtTime's docs say that it returns something called "tempo" in the third argument,
-        // experiments show it actually returns quarters per minute
-        TimeMap_GetTimeSigAtTime(NULL, 0, &projectSignature.num,
-                                 &projectSignature.denom, &projectSignature.qpm);
-        arrsetlen(tempoMarkers, 0);
-
-        // Okay, hot take: time signature denominators are CRINGE. They may add some interpretive context
-        // to musicians but it's actually not needed; in midi editors we don't specify when a certain note is D#
-        // or Eb, and noone misses that, and the function of the note is clear from context and you can't
-        // fully specify it with these alteration marks anyway. In the same way the denominator of the time signature
-        // doesn't add enough rhytmical information to justify its usage.
-
-        int numberOfTempoMarkers = CountTempoTimeSigMarkers(NULL);
-        for(int i = 0; i < numberOfTempoMarkers; i ++) {
-            double timepos, beatpos, mbpm;
-            int measurepos, timesig_num, timesig_denom;
-            bool linearTempo;
-            GetTempoTimeSigMarker(NULL, i, &timepos, &measurepos, &beatpos, &mbpm, &timesig_num, &timesig_denom, &linearTempo);
-            arrpush(tempoMarkers, (TempoMarker{ .when = timepos-itemStart, .qpm = mbpm,
-                                                .num = timesig_num, .denom = timesig_denom}));
-        }
+        loadTake();
 //        data_ready = true;
         //TODO: free arrays on unloading?..
         timeToShow = true;

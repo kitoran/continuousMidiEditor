@@ -14,6 +14,7 @@
 #include <stdio.h>
 bool showChannels = false;
 bool showScale = false;
+bool snap = true;
 
 typedef struct {
     int num;
@@ -181,7 +182,7 @@ void roll(Painter* p, int y) {
     pushLayout(&grid);
     grid.gridStart = (Point){0, y };
     setCurrentGridPos(0, 0);
-    Size windowSize = guiGetRect().size;
+    Size windowSize; SDL_GetWindowSize(rootWindow, &windowSize.w, &windowSize.h);//.size;
     Size navigationSize = {windowSize.w - SCROLLBAR_THICKNESS, NAVIGATION_THICKNESS};
     navigationBar(p, navigationSize);
     gridNextRow();
@@ -361,7 +362,8 @@ void noteArea(Painter* p, Size size) {
     int lastpixel = -10;
 //TODO: watch for added/deleted tempo markers
     int numOfBeat = 0; // TODO: maybe use TimeMap_GetTimeSigAtTime
-    for(double projectTime = 0; projectTime < lastVisibleTime+itemStart; projectTime += beatTime(&last)) {
+    double projectTime = 0;
+    for(; projectTime < lastVisibleTime+itemStart; projectTime += beatTime(&last)) {
         while(next < arrlen(tempoMarkers) && projectTime >= tempoMarkers[next].when) { // TODO: does work with multiple markers in one beat?
             ASSERT(tempoMarkers[next].num != 0, "time signature is 0????");
             if(tempoMarkers[next].num > 0) {
@@ -395,10 +397,10 @@ void noteArea(Painter* p, Size size) {
     if(pieceLength < lastVisibleTime) {
         int endX = timeToX(size.w, pieceLength);
         Rect r = { endX, pos.y, pos.x+size.w-endX, size.h};
-        SDL_SetRenderDrawBlendMode(p->gc, SDL_BLENDMODE_BLEND);
+        SDL_SetSurfaceBlendMode(SDL_GetWindowSurface(p->window), SDL_BLENDMODE_BLEND);
         guiSetForeground(p, 0x33333343);
         guiFillRectangle(p, r);
-        SDL_SetRenderDrawBlendMode(p->gc, SDL_BLENDMODE_NONE);
+        SDL_SetSurfaceBlendMode(SDL_GetWindowSurface(p->window), SDL_BLENDMODE_NONE);
     }
     int playback;
     int cursor = timeToX(size.w, cursorPosition);
@@ -506,10 +508,10 @@ void noteArea(Painter* p, Size size) {
         Point mouse; SDL_GetMouseState(&mouse.x, &mouse.y);
 //        mouse.x -= pos.x; mouse.y -= pos.y;
         Rect r = { .pos = dragStart, .size = {mouse.x-dragStart.x, mouse.y-dragStart.y} };
-        SDL_SetRenderDrawBlendMode(p->gc, SDL_BLENDMODE_BLEND);
+        SDL_SetSurfaceBlendMode(SDL_GetWindowSurface(p->window), SDL_BLENDMODE_BLEND);
         guiSetForeground(p, 0x33333343);
         guiFillRectangle(p, r);
-        SDL_SetRenderDrawBlendMode(p->gc, SDL_BLENDMODE_NONE);
+        SDL_SetSurfaceBlendMode(SDL_GetWindowSurface(p->window), SDL_BLENDMODE_NONE);
         guiSetForeground(p, 0xdddddd);
         guiDrawRectangle(p, r);
     }
@@ -535,7 +537,7 @@ void noteArea(Painter* p, Size size) {
                 double start = MIN(releaseTime, pressTime);
                 double end = MAX(releaseTime, pressTime);
 
-                u8* keys = SDL_GetKeyboardState(NULL);
+                const u8* keys = SDL_GetKeyboardState(NULL);
                 bool muted = false;
                 if(keys[SDL_SCANCODE_M]) {
                     muted = true;
@@ -647,7 +649,7 @@ void noteArea(Painter* p, Size size) {
             guiSetForeground(p,0xff000000);
             Rect r = noteToRect(size, pos, editedNote);
             guiFillRectangle(p, r);
-            SDL_RenderPresent(p->gc);
+//            SDL_RenderPresent(p->gc);
             coord s = {yToFreq(size.h, pos, dragStart.y), closestTime(size.w, dragStart.x)};
             double start = MIN(s.time, c.time);
             double end = MAX(s.time, c.time);

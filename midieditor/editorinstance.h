@@ -15,8 +15,11 @@
 #include <guiddef.h>
 #ifdef __cplusplus
 class MediaItem_Take;
-extern MediaItem_Take* take;
 extern "C" {
+extern MediaItem_Take* take;
+#else
+struct MediaItem_Take;
+extern struct MediaItem_Take* take;
 #endif
 INTROSPECT_ENUM_VISIBLE_NAMES(midi_mode_enum,
                 midi_mode_regular, "Regular MIDI",
@@ -36,6 +39,7 @@ typedef struct CONTINUOUSMIDIEDITOR_Config {
             double verticalFrac;
             midi_mode_enum midiMode;
             double pitchRange;
+            void* project;
         } value;
 } CONTINUOUSMIDIEDITOR_Config;
 extern CONTINUOUSMIDIEDITOR_Config* config;

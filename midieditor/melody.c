@@ -182,6 +182,7 @@ void moveNotes(double timeChange, double freqChange, int *dragged, int* base)
             timeChange = -anote->note.start;
         }
     }
+    //TODO: open editor on startup if it was open when closing reaper last time
 #ifdef REAPER
     reaperMoveNotes(timeChange, freqChange);
     RealNote draggedNote = piece[*dragged];

@@ -73,11 +73,8 @@ void reaperInsert(RealNote note) {
                                                     note.note.start+itemStart);
     double endppqpos = MIDI_GetPPQPosFromProjTime(take,
                                                     note.note.start+note.note.length+itemStart);
-   // static u8 channel =1;
-//    if(midiMode ==  midi_mode_regular)
-//        channel = (channel+1)%16;
-//    else  // MPE
-//        channel = (channel)%15+1;
+    MediaItem* item = GetMediaItemTake_Item(take);
+//    Undo_BeginBlock2(GetItemProjectContext(item));
     MidiPitch mp = getMidiPitch(note.note.freq, currentItemConfig->value.pitchRange);
     char pitchEvent[] = {pitch_wheel | note.midiChannel, mp.wheel&0b1111111, mp.wheel>>7};
     MIDI_InsertEvt(take, false, false, startppqpos-1, pitchEvent, sizeof(pitchEvent));
@@ -87,10 +84,10 @@ void reaperInsert(RealNote note) {
                     100,
                     NULL);
 
-    MediaItem* item = GetMediaItemTake_Item(take);
     pieceLength = /*itemStart + */GetMediaItemInfo_Value(item, "D_LENGTH");
 //    message("inserting note %lf - %lf\n", startppqpos, endppqpos);
     if(!res) ShowConsoleMsg("note insertion failed");
+    Undo_OnStateChange_Item(GetItemProjectContext(item), "Insert Note", item);
 
 }
 void reaperSetPosition(double d) {
@@ -116,6 +113,9 @@ void reaperDeleteSelected() {
         actionChannel.runInMainThread(&reaperDeleteSelected);
         return;
     }
+
+    MediaItem* item = GetMediaItemTake_Item(take);
+    Undo_BeginBlock2(GetItemProjectContext(item));
     MIDI_DisableSort(take);
     for(RealNote* anote = piece + arrlen(piece) - 1; anote >= piece; anote--) {
         if(!anote->selected) continue;
@@ -123,6 +123,8 @@ void reaperDeleteSelected() {
         if(!res) ShowConsoleMsg("note deletion failed");
     }
     MIDI_Sort(take);
+
+    Undo_EndBlock2(GetItemProjectContext(item), "Delete notes", 4);
 }
 void reaperMoveNotes(double time, double freq) {
     //TODO: remove the arguments
@@ -132,6 +134,8 @@ void reaperMoveNotes(double time, double freq) {
         actionChannel.runInMainThread(&reaperMoveNotes, time, freq);
         return;
     }
+    MediaItem* item = GetMediaItemTake_Item(take);
+    Undo_BeginBlock2(GetItemProjectContext(item));
     MIDI_DisableSort(take);
     for(RealNote* anote = piece + arrlen(piece) - 1; anote >= piece; anote--) {
         if(!anote->selected) continue;
@@ -142,6 +146,8 @@ void reaperMoveNotes(double time, double freq) {
         reaperInsert(*anote);
     }
     MIDI_Sort(take);
+
+    Undo_EndBlock2(GetItemProjectContext(item), "Move notes", 4);
 }
 void reaperCopyNotes() {
     if(!reaperMainThread) {
@@ -150,6 +156,8 @@ void reaperCopyNotes() {
         actionChannel.runInMainThread(&reaperCopyNotes);
         return;
     }
+    MediaItem* item = GetMediaItemTake_Item(take);
+    Undo_BeginBlock2(GetItemProjectContext(item));
     MIDI_DisableSort(take);
     for(RealNote* anote = piece + arrlen(piece) - 1; anote >= piece; anote--) {
         if(!anote->selected) continue;
@@ -160,6 +168,8 @@ void reaperCopyNotes() {
         reaperInsert(*anote);
     }
     MIDI_Sort(take);
+
+    Undo_EndBlock2(GetItemProjectContext(item), "Copy notes", 4);
 }
 //void doReaperAction(action theAction, ActionArgs* largs) {
 //    std::unique_lock lk(actionMutex);

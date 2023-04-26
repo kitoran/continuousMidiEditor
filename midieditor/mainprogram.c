@@ -35,7 +35,7 @@
 
 #include <gui.h>
 
-SDL_Renderer* renderer;
+//SDL_Renderer* renderer;
 
 char* appName = "piano roll continous";
 #ifdef _WIN32
@@ -50,7 +50,7 @@ extern bool timeToLeave;
 extern bool timeToShow;
 #else
 bool timeToLeave  = false;
-bool timeToShow = true;
+bool timeToShow = false;
 #endif
 extern void SetThreadName(u32 dwThreadID, const char* threadName);
 extern int PlaybackEvent = 0;
@@ -71,8 +71,18 @@ int settingsMode = {0};
 struct {
     int prime;
     char text[4];
-} primes[NUMBER_OF_PRIMES];
+#define X(a) {a, #a},
+} primes[] = {
+    FOREACH(X, (2,
+            3,
+            5,
+            7,
+            11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71))
+        };
+#undef X
+static_assert (sizeof(primes)/sizeof(*primes) >= NUMBER_OF_PRIMES, "");
 extern void settingsGui(void) {
+
     static GuiWindow settingsWindow = 0;
     static Painter painter;
     if(settingsWindow == 0) {
@@ -80,56 +90,66 @@ extern void settingsGui(void) {
         painter = guiMakePainter(settingsWindow);
     }
     LineLayout settingsLayout = makeVerticalLayout(5);
-    guiSetForeground(&painter, 0);
-    guiClearWindow(settingsWindow);
-    pushLayout(&settingsLayout);
-      LineLayout oneLine = makeHorizontalLayout(5);
-      oneLine.pos = getPos(); pushLayout(&oneLine);
-        guiLabelZT(&painter, "Scale type:");
-        guiEnumComboBox(&painter, scale_type_enum, &scale[settingsMode].type);
-      popLayout(); feedbackSize(getLineSize(&oneLine)); oneLine.filled = oneLine.across =0;
-      if(scale[settingsMode].type == rational_intervals) {
-          guiLabelZT(&painter, "multipliers:");
-          STATIC(Grid, primesGrid, allocateGrid(20, 20, 5));
-          primesGrid.gridStart = getPos();
-          pushLayout(&primesGrid);
-            for(int i = 0; i < NUMBER_OF_PRIMES; i++) {
-              setCurrentGridPos(0, i);
-              guiLabelZT(&painter, primes[i].text);
-              setCurrentGridPos(1, i);
-              guiCheckBox(&painter, &(scale[settingsMode].primes[i]));
-            }
-          popLayout();
-          feedbackSize(getGridSize(&primesGrid));
+    if(guiSameWindow(&painter, false)) {
+        guiSetForeground(&painter, 0);
+        guiClearWindow(&painter);
+        pushLayout(&settingsLayout);
+          LineLayout oneLine = makeHorizontalLayout(5);
           oneLine.pos = getPos(); pushLayout(&oneLine);
-            guiLabelZT(&painter, "Max denominator");
-            guiIntField(&painter, 2, &scale[settingsMode].maxDenominator);
+            guiLabelZT(&painter, "Scale type:");
+            guiEnumComboBox(&painter, scale_type_enum, &scale[settingsMode].type);
           popLayout(); feedbackSize(getLineSize(&oneLine)); oneLine.filled = oneLine.across =0;
-    } else if(scale[settingsMode].type == equal_intervals) {
-        oneLine.pos = getPos(); pushLayout(&oneLine);
-        double dummy;
-        guiDoubleField(&painter, 3, &dummy);
-        guiLabelZT(&painter, " equal divisions of ");
-        oneLine.spacing = 0;
-        guiDoubleField(&painter, 3, &dummy);
-        guiLabelZT(&painter, " divisions of ");
-        guiDoubleField(&painter, 3, &dummy);
-        guiLabelZT(&painter, "/");
-        guiDoubleField(&painter, 3, &dummy);
-        popLayout(); feedbackSize(getLineSize(&oneLine)); oneLine.filled = oneLine.across =0;
-        oneLine.pos = getPos(); pushLayout(&oneLine);
-        guiLabelZT(&painter, "of");
-        guiDoubleField(&painter, 3, &dummy);  guiLabelZT(&painter, "cents");
-        popLayout(); feedbackSize(getLineSize(&oneLine)); oneLine.filled = oneLine.across =0;
-    }
+          if(scale[settingsMode].type == rational_intervals) {
+              guiLabelZT(&painter, "multipliers:");
+              STATIC(Grid, primesGrid, allocateGrid(NUMBER_OF_PRIMES, 2, 5));
+              primesGrid.gridStart = getPos();
+              pushLayout(&primesGrid);
+              ExactLayout e = makeExactLayout((Point){0,0});
+                for(int i = 0; i < NUMBER_OF_PRIMES; i++) {
+                    setCurrentGridPos(0, i);
+                    guiLabelZT(&painter, primes[i].text);
+                    setCurrentGridPos(1, i);
+                    e.exactPos = getPos(); e.exactPos.x += (primesGrid.gridWidths[i]+1)/2-5;
+                    pushLayout(&e);
+                    guiCheckBox(&painter, &(scale[settingsMode].primes[i]));
+                    popLayout();
+                    feedbackSize((Size){10, guiFontHeight()+10});
+                }
+              popLayout();
+              feedbackSize(getGridSize(&primesGrid));
+              oneLine.pos = getPos(); pushLayout(&oneLine);
+                guiLabelZT(&painter, "Max denominator");
+                guiIntField(&painter, 2, &scale[settingsMode].maxDenominator);
+              popLayout(); feedbackSize(getLineSize(&oneLine)); oneLine.filled = oneLine.across =0;
+        } else if(scale[settingsMode].type == equal_intervals) {
+            oneLine.pos = getPos(); pushLayout(&oneLine);
+            double dummy;
+            guiDoubleField(&painter, 3, &dummy);
+            guiLabelZT(&painter, " equal divisions of ");
+            oneLine.spacing = 0;
+            guiDoubleField(&painter, 3, &dummy);
+            guiLabelZT(&painter, " divisions of ");
+            guiDoubleField(&painter, 3, &dummy);
+            guiLabelZT(&painter, "/");
+            guiDoubleField(&painter, 3, &dummy);
+            popLayout(); feedbackSize(getLineSize(&oneLine)); oneLine.filled = oneLine.across =0;
+            oneLine.pos = getPos(); pushLayout(&oneLine);
+            guiLabelZT(&painter, "of");
+            guiDoubleField(&painter, 3, &dummy);  guiLabelZT(&painter, "cents");
+            popLayout(); feedbackSize(getLineSize(&oneLine)); oneLine.filled = oneLine.across =0;
+        }
 //    guiRadioButtonGroup(&painter, scale_relativity_enum, &scale[settingsMode].relative);
-    popLayout();
+          popLayout();
+          if(event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE) {
+              settingsOpen = false;
+              guiHideWindow(settingsWindow);
+          }
+    }
 }
 extern int pianorollgui(void) {
-//    running = true;
     SDL_SetHint( SDL_HINT_RENDER_SCALE_QUALITY, "2" );
-//    STATIC(bool, inited, guiInit());
     guiStartDrawingEx(false);
+    SDL_Rect d = {10, 10, 200, 200};
     makeMenu();
     SDL_EventState(SDL_SYSWMEVENT, SDL_ENABLE);
 
@@ -163,191 +183,207 @@ extern int pianorollgui(void) {
             Rect rect = currentItemConfig->value.windowGeometry;
             guiMoveWindow(rootWindow, rect.x, rect.y);
             SDL_SetWindowSize(rootWindow, rect.w, rect.h);
-            SDL_SetWindowTitle(rootWindow, appName);
-            SDL_ShowWindow(rootWindow);
-            SDL_RaiseWindow(rootWindow);
-            timeToShow = false;
         }
 
-        if(event.type == ButtonRelease) {
-            DEBUG_PRINT(event.button.which, "%d");
-        }
+        if(guiSameWindow(&rootWindowPainter, false)) {
+            if(event.type == ButtonRelease) {
+                DEBUG_PRINT(event.button.which, "%d");
+            }
+    //        SDL_FillRect(rootWindowPainter.drawable, &d, 0xffffff00);
+            if(event.type ==SDL_DROPFILE) {      // In case if dropped file
+                char*dropped_filedir = event.drop.file;
+                // Shows directory of dropped file
+                SDL_ShowSimpleMessageBox(
+                    SDL_MESSAGEBOX_INFORMATION,
+                    "File dropped on window",
+                    dropped_filedir,
+                    rootWindow
+                );
+                SDL_free(dropped_filedir);    // Free dropped_filedir memory
+            }
+            if(event.type ==SDL_DROPTEXT) {      // In case if dropped file
+                char*dropped_filedir = event.drop.file;
+                // Shows directory of dropped file
+                SDL_ShowSimpleMessageBox(
+                    SDL_MESSAGEBOX_INFORMATION,
+                    "Text dropped on window",
+                    dropped_filedir,
+                    rootWindow
+                );
+                SDL_free(dropped_filedir);    // Free dropped_filedir memory
+            }
+            int keyPressed = -1;
+    //        SDL_FillRect(rootWindowPainter.drawable, &d, 0xffffff00);
+            if(event.type==KeyPress) {
+                keyPressed = GET_KEYSYM(event);
+                if(keyPressed == ' ') {
+    #ifndef REAPER
+                    bool paused = SDL_GetAudioDeviceStatus(audioDevice) == SDL_AUDIO_PAUSED;
+                    if(paused) SDL_PauseAudioDevice(audioDevice, 0);
+                    else SDL_PauseAudioDevice(audioDevice, 1);
+    #else
 
-        if(event.type ==SDL_DROPFILE) {      // In case if dropped file
-            char*dropped_filedir = event.drop.file;
-            // Shows directory of dropped file
-            SDL_ShowSimpleMessageBox(
-                SDL_MESSAGEBOX_INFORMATION,
-                "File dropped on window",
-                dropped_filedir,
-                rootWindow
-            );
-            SDL_free(dropped_filedir);    // Free dropped_filedir memory
-        }
-        if(event.type ==SDL_DROPTEXT) {      // In case if dropped file
-            char*dropped_filedir = event.drop.file;
-            // Shows directory of dropped file
-            SDL_ShowSimpleMessageBox(
-                SDL_MESSAGEBOX_INFORMATION,
-                "Text dropped on window",
-                dropped_filedir,
-                rootWindow
-            );
-            SDL_free(dropped_filedir);    // Free dropped_filedir memory
-        }
-        int keyPressed = -1;
-        if(event.type==KeyPress) {
-            keyPressed = GET_KEYSYM(event);
-            if(keyPressed == ' ') {
-#ifndef REAPER
-                bool paused = SDL_GetAudioDeviceStatus(audioDevice) == SDL_AUDIO_PAUSED;
-                if(paused) SDL_PauseAudioDevice(audioDevice, 0);
-                else SDL_PauseAudioDevice(audioDevice, 1);
-#else
-
-#endif
-                const u32 playStop = 40044;
-#ifdef REAPER
-                reaperOnCommand(playStop);
-#else
-                stop();
-#endif
-            }
-        }
-        if(event.type==SDL_WINDOWEVENT) {
-            if(event.window.event == SDL_WINDOWEVENT_CLOSE) {
-                message("closing the window"
-                        "\n");
-//                arrsetlen(piece, 0);
-#ifndef REAPER
-                break;
-#else
-                SDL_HideWindow(rootWindow);
-//                currentItemConfig = NULL;
-                //TODO: probably wise to wait here on timeToShow
-#endif
-            }
-            if(event.window.event == SDL_WINDOWEVENT_MOVED) {
-                ASSERT(currentItemConfig != 0, "")
-                currentItemConfig->value.windowGeometry.x = event.window.data1;
-                currentItemConfig->value.windowGeometry.y = event.window.data2;
-            }
-            if(event.window.event == SDL_WINDOWEVENT_RESIZED) {
-                ASSERT(currentItemConfig != 0, "")
-                    currentItemConfig->value.windowGeometry.w = event.window.data1;
-                    currentItemConfig->value.windowGeometry.h = event.window.data2;
-            }
-//            continue;
-        }
-        if(event.type == SDL_SYSWMEVENT) {
-
-            if (event.syswm.msg->msg.win.msg == WM_COMMAND)
-            {
-                message("SDL_COMMAND %d!!!", event.syswm.msg->msg.win.wParam);
-                if (event.syswm.msg->msg.win.wParam == 0x453434)
-                {
-                    message("Encoding!!!");
+    #endif
+                    const u32 playStop = 40044;
+    #ifdef REAPER
+                    reaperOnCommand(playStop);
+    #else
+                    stop();
+    #endif
                 }
             }
-            continue;
+    //        SDL_FillRect(rootWindowPainter.drawable, &d, 0xffffff00);
+            if(event.type==SDL_WINDOWEVENT) {
+                if(event.window.event == SDL_WINDOWEVENT_CLOSE) {
+                    message("closing the window"
+                            "\n");
+    //                arrsetlen(piece, 0);
+    #ifndef REAPER
+                    break;
+    #else
+                    SDL_HideWindow(rootWindow);
+                    take = 0;
+    //                currentItemConfig = NULL;
+                    //TODO: probably wise to wait here on timeToShow
+    #endif
+                }
+                if(event.window.event == SDL_WINDOWEVENT_MOVED) {
+                    ASSERT(currentItemConfig != 0, "")
+                    currentItemConfig->value.windowGeometry.x = event.window.data1;
+                    currentItemConfig->value.windowGeometry.y = event.window.data2;
+                }
+                if(event.window.event == SDL_WINDOWEVENT_RESIZED) {
+                    ASSERT(currentItemConfig != 0, "")
+                        currentItemConfig->value.windowGeometry.w = event.window.data1;
+                        currentItemConfig->value.windowGeometry.h = event.window.data2;
+                }
+    //            continue;
+            }
+    //        SDL_FillRect(rootWindowPainter.drawable, &d, 0xffffff00);
+            if(event.type == SDL_SYSWMEVENT) {
+
+                if (event.syswm.msg->msg.win.msg == WM_COMMAND)
+                {
+                    message("SDL_COMMAND %d!!!", event.syswm.msg->msg.win.wParam);
+                    if (event.syswm.msg->msg.win.wParam == 0x453434)
+                    {
+                        message("Encoding!!!");
+                    }
+                }
+                continue;
+            }
+    //        SDL_FillRect(rootWindowPainter.drawable, &d, 0xffffff00);
+            guiSetForeground(&rootWindowPainter,0);
+    //        SDL_FillRect(rootWindowPainter.drawable, &d, 0xffffff00);
+            guiClearWindow(&rootWindowPainter);
+    //        SDL_FillRect(rootWindowPainter.drawable, &d, 0xffffff00);
+            setCurrentGridPos(0,0);
+    //        SDL_FillRect(rootWindowPainter.drawable, &d, 0xffffff00);
+            if(guiButton(&rootWindowPainter, "play", 4)) {
+    //            SDL_PauseAudioDevice(audioDevice, 0);
+                play();
+            } gridNextColumn();
+            if(guiButton(&rootWindowPainter, "stop", 4)) {
+    //            SDL_PauseAudioDevice(audioDevice, 1);
+                stop();
+            } gridNextColumn();
+            if(guiButton(&rootWindowPainter, "save", 4)) {
+    #ifndef WIN32
+                FILE* fp = popen(FILE_DIALOG_PATH" --file-selection --save", "r");
+                char line[1024];
+                while (fgets(line,sizeof(line),fp)) fprintf(stderr,
+                        "FileDialog says %s \n",line);
+
+                if(!WEXITSTATUS(pclose(fp))) {
+                    saveMelody(line);
+                } else fprintf(stderr,"FileDialog extted unsuccessfully\n");
+    #else
+                SDL_ShowSimpleMessageBox(
+                    SDL_MESSAGEBOX_INFORMATION,
+                    "Action not implemented yet",
+                    "Save action not implemented",
+                    rootWindow
+                );
+    #endif
+            } gridNextColumn();
+            if(guiButton(&rootWindowPainter, "load", 4)) {
+    #ifndef WIN32
+                FILE* fp = popen(FILE_DIALOG_PATH" --file-selection", "r");
+                char line[1024];
+                while (fgets(line,sizeof(line),fp)) fprintf(stderr,
+                        "FileDialog says %s \n",line);
+
+                if(!WEXITSTATUS(pclose(fp))) {
+                    loadMelody(line);
+                } else fprintf(stderr,"FileDialog extted unsuccessfully\n");
+    #else
+                SDL_ShowSimpleMessageBox(
+                    SDL_MESSAGEBOX_INFORMATION,
+                    "Action not implemented yet",
+                    "load action not implemented",
+                    rootWindow
+                );
+    #endif
+            } gridNextColumn();
+            if(guiButtonZT(&rootWindowPainter, "export")) {
+    #ifndef WIN32
+                FILE* fp = popen(FILE_DIALOG_PATH" --file-selection --save", "r");
+                char line[1024];
+                while (fgets(line,sizeof(line),fp)) fprintf(stderr,
+                        "FileDialog says %s \n",line);
+
+                if(!WEXITSTATUS(pclose(fp))) {
+                    export(line);
+                } else fprintf(stderr,"FileDialog extted unsuccessfully\n");
+    #else
+                SDL_ShowSimpleMessageBox(
+                    SDL_MESSAGEBOX_INFORMATION,
+                    "Action not implemented yet",
+                    "export action not implemented",
+                    rootWindow
+                );
+    #endif
+            } gridNextColumn();
+    #ifndef REAPER
+            persistentDoubleField(&rootWindowPainter, 6, projectSignature.qpm); gridNextColumn();
+            guiLabelZT(&rootWindowPainter, "bpm"); gridNextColumn();
+    #endif
+
+            if(guiDoubleField(&rootWindowPainter, 6, &(currentItemConfig->value.pitchRange))); gridNextColumn();
+            // TODO: draw tooltips
+    //        const char* elements;
+            guiEnumComboBox(&rootWindowPainter, midi_mode_enum, (int*)&(currentItemConfig->value.midiMode));//"use 1st channel", "don't use");
+            gridNextColumn();
+            guiCheckBox(&rootWindowPainter, &showChannels);        gridNextColumn();
+            guiLabelZT(&rootWindowPainter, "show channels");        gridNextColumn();
+    //TODO: save all fields to midi take properties
+    // TODO: add combination tones (difference tones, sum tones, means??)
+            guiCheckBox(&rootWindowPainter, &showScale);        gridNextColumn();
+            guiLabelZT(&rootWindowPainter, "show 16edo scale");        gridNextColumn();
+
+            STATIC(IMAGE*, gear, loadImageZT(GUI_RESOURCE_PATH, "settings30x30.png"));
+            Size size = {30,30};
+            if(guiToolButtonEx(&rootWindowPainter, gear, true, &size)) {
+                settingsOpen = true;
+            }   gridNextColumn();
+            STATIC(IMAGE*, magnet, loadImageZT(GUI_RESOURCE_PATH, "magnetic-icon.png"));
+            if(guiToolButtonEx(&rootWindowPainter, magnet, true, &size)) {
+                snap = true;
+            }   gridNextColumn();
+            setCurrentGridPos(3,0);
+            roll(&rootWindowPainter, getGridBottom(topLayout()));
         }
-        guiSetForeground(&rootWindowPainter,0);
-        guiClearWindow(rootWindow);
-        setCurrentGridPos(0,0);
-        if(guiButton(&rootWindowPainter, "play", 4)) {
-//            SDL_PauseAudioDevice(audioDevice, 0);
-            play();
-        } gridNextColumn();
-        if(guiButton(&rootWindowPainter, "stop", 4)) {
-//            SDL_PauseAudioDevice(audioDevice, 1);
-            stop();
-        } gridNextColumn();
-        if(guiButton(&rootWindowPainter, "save", 4)) {
-#ifndef WIN32
-            FILE* fp = popen(FILE_DIALOG_PATH" --file-selection --save", "r");
-            char line[1024];
-            while (fgets(line,sizeof(line),fp)) fprintf(stderr,
-                    "FileDialog says %s \n",line);
-
-            if(!WEXITSTATUS(pclose(fp))) {
-                saveMelody(line);
-            } else fprintf(stderr,"FileDialog extted unsuccessfully\n");
-#else
-            SDL_ShowSimpleMessageBox(
-                SDL_MESSAGEBOX_INFORMATION,
-                "Action not implemented yet",
-                "Save action not implemented",
-                rootWindow
-            );
-#endif
-        } gridNextColumn();
-        if(guiButton(&rootWindowPainter, "load", 4)) {
-#ifndef WIN32
-            FILE* fp = popen(FILE_DIALOG_PATH" --file-selection", "r");
-            char line[1024];
-            while (fgets(line,sizeof(line),fp)) fprintf(stderr,
-                    "FileDialog says %s \n",line);
-
-            if(!WEXITSTATUS(pclose(fp))) {
-                loadMelody(line);
-            } else fprintf(stderr,"FileDialog extted unsuccessfully\n");
-#else
-            SDL_ShowSimpleMessageBox(
-                SDL_MESSAGEBOX_INFORMATION,
-                "Action not implemented yet",
-                "load action not implemented",
-                rootWindow
-            );
-#endif
-        } gridNextColumn();
-        if(guiButtonZT(&rootWindowPainter, "export")) {
-#ifndef WIN32
-            FILE* fp = popen(FILE_DIALOG_PATH" --file-selection --save", "r");
-            char line[1024];
-            while (fgets(line,sizeof(line),fp)) fprintf(stderr,
-                    "FileDialog says %s \n",line);
-
-            if(!WEXITSTATUS(pclose(fp))) {
-                export(line);
-            } else fprintf(stderr,"FileDialog extted unsuccessfully\n");
-#else
-            SDL_ShowSimpleMessageBox(
-                SDL_MESSAGEBOX_INFORMATION,
-                "Action not implemented yet",
-                "export action not implemented",
-                rootWindow
-            );
-#endif
-        } gridNextColumn();
-#ifndef REAPER
-        persistentDoubleField(&rootWindowPainter, 6, projectSignature.qpm); gridNextColumn();
-        guiLabelZT(&rootWindowPainter, "bpm"); gridNextColumn();
-#endif
-
-        if(guiDoubleField(&rootWindowPainter, 6, &(currentItemConfig->value.pitchRange))); gridNextColumn();
-        // TODO: draw tooltips
-//        const char* elements;
-        guiEnumComboBox(&rootWindowPainter, midi_mode_enum, (int*)&(currentItemConfig->value.midiMode));//"use 1st channel", "don't use");
-        gridNextColumn();
-        guiCheckBox(&rootWindowPainter, &showChannels);        gridNextColumn();
-        guiLabelZT(&rootWindowPainter, "show channels");        gridNextColumn();
-//TODO: save all fields to midi take properties
-// TODO: add combination tones (difference tones, sum tones, means??)
-        guiCheckBox(&rootWindowPainter, &showScale);        gridNextColumn();
-        guiLabelZT(&rootWindowPainter, "show 16edo scale");        gridNextColumn();
-
-        STATIC(IMAGE*, gear, loadImageZT(GUI_RESOURCE_PATH, "settings30x30.png"));
-        Size size = {30,30};
-        if(guiToolButtonEx(&rootWindowPainter, gear, true, &size)) {
-            settingsOpen = true;
-        }   gridNextColumn();
         if(settingsOpen) {
             settingsGui();
         }
 
-        setCurrentGridPos(3,0);
-        roll(&rootWindowPainter, getGridBottom(topLayout()));
-//        SDL_RenderPresent(renderer);
+        if(timeToShow) {
+            SDL_SetWindowTitle(rootWindow, appName);
+            SDL_UpdateWindowSurface(rootWindow);
+            SDL_ShowWindow(rootWindow);
+            SDL_RaiseWindow(rootWindow);
+            timeToShow = false;
+        }
 
         if(event.type == SDL_QUIT) {
             continue;
