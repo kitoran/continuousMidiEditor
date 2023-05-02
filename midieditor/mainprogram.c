@@ -57,49 +57,25 @@ extern int PlaybackEvent = 0;
 
 static bool settingsOpen = false;
 
-INTROSPECT_ENUM_VISIBLE_NAMES(scale_type_enum,
-                              rational_intervals, "Rational intervals",
-                              equal_intervals, "equal steps");
-#define NUMBER_OF_PRIMES 15
-typedef struct Scale {
-    scale_type_enum type;
-    bool primes[NUMBER_OF_PRIMES];
-    int maxDenominator;
-} Scale;
-static Scale scale[3] = {0};
-int settingsMode = {0};
-struct {
-    int prime;
-    char text[4];
-#define X(a) {a, #a},
-} primes[] = {
-    FOREACH(X, (2,
-            3,
-            5,
-            7,
-            11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71))
-        };
-#undef X
-static_assert (sizeof(primes)/sizeof(*primes) >= NUMBER_OF_PRIMES, "");
+static GuiWindow settingsWindow = 0;
 extern void settingsGui(void) {
 
-    static GuiWindow settingsWindow = 0;
     static Painter painter;
     if(settingsWindow == 0) {
         settingsWindow = guiMakeWindow();
         painter = guiMakePainter(settingsWindow);
     }
     LineLayout settingsLayout = makeVerticalLayout(5);
-    if(guiSameWindow(&painter, false)) {
+    if(guiSameWindow(&painter, /*false*/true)) {
         guiSetForeground(&painter, 0);
         guiClearWindow(&painter);
         pushLayout(&settingsLayout);
           LineLayout oneLine = makeHorizontalLayout(5);
           oneLine.pos = getPos(); pushLayout(&oneLine);
             guiLabelZT(&painter, "Scale type:");
-            guiEnumComboBox(&painter, scale_type_enum, &scale[settingsMode].type);
+            guiEnumComboBox(&painter, scale_type_enum, &scale.type);
           popLayout(); feedbackSize(getLineSize(&oneLine)); oneLine.filled = oneLine.across =0;
-          if(scale[settingsMode].type == rational_intervals) {
+          if(scale.type == rational_intervals) {
               guiLabelZT(&painter, "multipliers:");
               STATIC(Grid, primesGrid, allocateGrid(NUMBER_OF_PRIMES, 2, 5));
               primesGrid.gridStart = getPos();
@@ -111,7 +87,7 @@ extern void settingsGui(void) {
                     setCurrentGridPos(1, i);
                     e.exactPos = getPos(); e.exactPos.x += (primesGrid.gridWidths[i]+1)/2-5;
                     pushLayout(&e);
-                    guiCheckBox(&painter, &(scale[settingsMode].primes[i]));
+                    guiCheckBox(&painter, &(scale.primes[i]));
                     popLayout();
                     feedbackSize((Size){10, guiFontHeight()+10});
                 }
@@ -119,9 +95,9 @@ extern void settingsGui(void) {
               feedbackSize(getGridSize(&primesGrid));
               oneLine.pos = getPos(); pushLayout(&oneLine);
                 guiLabelZT(&painter, "Max denominator");
-                guiIntField(&painter, 2, &scale[settingsMode].maxDenominator);
+                guiIntField(&painter, 2, &scale.maxComponent);
               popLayout(); feedbackSize(getLineSize(&oneLine)); oneLine.filled = oneLine.across =0;
-        } else if(scale[settingsMode].type == equal_intervals) {
+        } else if(scale.type == equal_intervals) {
             oneLine.pos = getPos(); pushLayout(&oneLine);
             double dummy;
             guiDoubleField(&painter, 3, &dummy);
@@ -138,9 +114,15 @@ extern void settingsGui(void) {
             guiDoubleField(&painter, 3, &dummy);  guiLabelZT(&painter, "cents");
             popLayout(); feedbackSize(getLineSize(&oneLine)); oneLine.filled = oneLine.across =0;
         }
-//    guiRadioButtonGroup(&painter, scale_relativity_enum, &scale[settingsMode].relative);
+        if(guiButtonZT(&painter, "OK")) {
+            recalculateScale = true;
+            settingsOpen = false;
+            guiHideWindow(settingsWindow);
+        }
+//    guiRadioButtonGroup(&painter, scale_relativity_enum, &scale.relative);
           popLayout();
           if(event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE) {
+              recalculateScale = true;
               settingsOpen = false;
               guiHideWindow(settingsWindow);
           }
@@ -185,7 +167,7 @@ extern int pianorollgui(void) {
             SDL_SetWindowSize(rootWindow, rect.w, rect.h);
         }
 
-        if(guiSameWindow(&rootWindowPainter, false)) {
+        if(guiSameWindow(&rootWindowPainter, /*false*/true)) {
             if(event.type == ButtonRelease) {
                 DEBUG_PRINT(event.button.which, "%d");
             }
@@ -231,6 +213,17 @@ extern int pianorollgui(void) {
                     stop();
     #endif
                 }
+                SDL_Keymod km = SDL_GetModState();
+                if(keyPressed == 'z' && (km & KMOD_CTRL)) {
+                    if(km & KMOD_SHIFT) {
+                        redo();
+                    } else {
+                        undo();
+                    }
+                }
+                if(keyPressed == 's' && (km & KMOD_CTRL)) {
+                    save();
+                }
             }
     //        SDL_FillRect(rootWindowPainter.drawable, &d, 0xffffff00);
             if(event.type==SDL_WINDOWEVENT) {
@@ -242,6 +235,7 @@ extern int pianorollgui(void) {
                     break;
     #else
                     SDL_HideWindow(rootWindow);
+//TODO: Hide settings window
                     take = 0;
     //                currentItemConfig = NULL;
                     //TODO: probably wise to wait here on timeToShow
@@ -287,63 +281,63 @@ extern int pianorollgui(void) {
     //            SDL_PauseAudioDevice(audioDevice, 1);
                 stop();
             } gridNextColumn();
-            if(guiButton(&rootWindowPainter, "save", 4)) {
-    #ifndef WIN32
-                FILE* fp = popen(FILE_DIALOG_PATH" --file-selection --save", "r");
-                char line[1024];
-                while (fgets(line,sizeof(line),fp)) fprintf(stderr,
-                        "FileDialog says %s \n",line);
+//            if(guiButton(&rootWindowPainter, "save", 4)) {
+//    #ifndef WIN32
+//                FILE* fp = popen(FILE_DIALOG_PATH" --file-selection --save", "r");
+//                char line[1024];
+//                while (fgets(line,sizeof(line),fp)) fprintf(stderr,
+//                        "FileDialog says %s \n",line);
 
-                if(!WEXITSTATUS(pclose(fp))) {
-                    saveMelody(line);
-                } else fprintf(stderr,"FileDialog extted unsuccessfully\n");
-    #else
-                SDL_ShowSimpleMessageBox(
-                    SDL_MESSAGEBOX_INFORMATION,
-                    "Action not implemented yet",
-                    "Save action not implemented",
-                    rootWindow
-                );
-    #endif
-            } gridNextColumn();
-            if(guiButton(&rootWindowPainter, "load", 4)) {
-    #ifndef WIN32
-                FILE* fp = popen(FILE_DIALOG_PATH" --file-selection", "r");
-                char line[1024];
-                while (fgets(line,sizeof(line),fp)) fprintf(stderr,
-                        "FileDialog says %s \n",line);
+//                if(!WEXITSTATUS(pclose(fp))) {
+//                    saveMelody(line);
+//                } else fprintf(stderr,"FileDialog extted unsuccessfully\n");
+//    #else
+//                SDL_ShowSimpleMessageBox(
+//                    SDL_MESSAGEBOX_INFORMATION,
+//                    "Action not implemented yet",
+//                    "Save action not implemented",
+//                    rootWindow
+//                );
+//    #endif
+//            } gridNextColumn();
+//            if(guiButton(&rootWindowPainter, "load", 4)) {
+//    #ifndef WIN32
+//                FILE* fp = popen(FILE_DIALOG_PATH" --file-selection", "r");
+//                char line[1024];
+//                while (fgets(line,sizeof(line),fp)) fprintf(stderr,
+//                        "FileDialog says %s \n",line);
 
-                if(!WEXITSTATUS(pclose(fp))) {
-                    loadMelody(line);
-                } else fprintf(stderr,"FileDialog extted unsuccessfully\n");
-    #else
-                SDL_ShowSimpleMessageBox(
-                    SDL_MESSAGEBOX_INFORMATION,
-                    "Action not implemented yet",
-                    "load action not implemented",
-                    rootWindow
-                );
-    #endif
-            } gridNextColumn();
-            if(guiButtonZT(&rootWindowPainter, "export")) {
-    #ifndef WIN32
-                FILE* fp = popen(FILE_DIALOG_PATH" --file-selection --save", "r");
-                char line[1024];
-                while (fgets(line,sizeof(line),fp)) fprintf(stderr,
-                        "FileDialog says %s \n",line);
+//                if(!WEXITSTATUS(pclose(fp))) {
+//                    loadMelody(line);
+//                } else fprintf(stderr,"FileDialog extted unsuccessfully\n");
+//    #else
+//                SDL_ShowSimpleMessageBox(
+//                    SDL_MESSAGEBOX_INFORMATION,
+//                    "Action not implemented yet",
+//                    "load action not implemented",
+//                    rootWindow
+//                );
+//    #endif
+//            } gridNextColumn();
+//            if(guiButtonZT(&rootWindowPainter, "export")) {
+//    #ifndef WIN32
+//                FILE* fp = popen(FILE_DIALOG_PATH" --file-selection --save", "r");
+//                char line[1024];
+//                while (fgets(line,sizeof(line),fp)) fprintf(stderr,
+//                        "FileDialog says %s \n",line);
 
-                if(!WEXITSTATUS(pclose(fp))) {
-                    export(line);
-                } else fprintf(stderr,"FileDialog extted unsuccessfully\n");
-    #else
-                SDL_ShowSimpleMessageBox(
-                    SDL_MESSAGEBOX_INFORMATION,
-                    "Action not implemented yet",
-                    "export action not implemented",
-                    rootWindow
-                );
-    #endif
-            } gridNextColumn();
+//                if(!WEXITSTATUS(pclose(fp))) {
+//                    export(line);
+//                } else fprintf(stderr,"FileDialog extted unsuccessfully\n");
+//    #else
+//                SDL_ShowSimpleMessageBox(
+//                    SDL_MESSAGEBOX_INFORMATION,
+//                    "Action not implemented yet",
+//                    "export action not implemented",
+//                    rootWindow
+//                );
+//    #endif
+//            } gridNextColumn();
     #ifndef REAPER
             persistentDoubleField(&rootWindowPainter, 6, projectSignature.qpm); gridNextColumn();
             guiLabelZT(&rootWindowPainter, "bpm"); gridNextColumn();
@@ -357,7 +351,8 @@ extern int pianorollgui(void) {
             guiCheckBox(&rootWindowPainter, &showChannels);        gridNextColumn();
             guiLabelZT(&rootWindowPainter, "show channels");        gridNextColumn();
     //TODO: save all fields to midi take properties
-    // TODO: add combination tones (difference tones, sum tones, means??)
+    // TODO: add combination tones (difference tones, sum tones, means??
+      // utonal or harmonic combinations - 1/(1/a+1/b), 1/(1/a-1/b)    )
             guiCheckBox(&rootWindowPainter, &showScale);        gridNextColumn();
             guiLabelZT(&rootWindowPainter, "show 16edo scale");        gridNextColumn();
 
@@ -365,6 +360,8 @@ extern int pianorollgui(void) {
             Size size = {30,30};
             if(guiToolButtonEx(&rootWindowPainter, gear, true, &size)) {
                 settingsOpen = true;
+                guiShowWindow(settingsWindow);
+                guiRaiseWindow(settingsWindow);
             }   gridNextColumn();
             STATIC(IMAGE*, magnet, loadImageZT(GUI_RESOURCE_PATH, "magnetic-icon.png"));
             if(guiToolButtonEx(&rootWindowPainter, magnet, true, &size)) {

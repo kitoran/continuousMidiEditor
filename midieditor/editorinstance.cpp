@@ -1,6 +1,12 @@
 #include "editorinstance.h"
 #include "stdlib.h"
 extern "C" {
+
+Scale scale = {rational_intervals,
+               {true, true, true, true},
+               16};
+bool recalculateScale = false;
+
 double  itemStart;
 CONTINUOUSMIDIEDITOR_Config* config = 0;
 CONTINUOUSMIDIEDITOR_Config* currentItemConfig = 0;

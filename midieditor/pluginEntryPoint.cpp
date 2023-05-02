@@ -325,19 +325,34 @@ void timer_function() {
     std::unique_lock lk(actionChannel.mutex);
     if(actionChannel.pending) {
         actionChannel.action();
+        MIDI_GetHash(take, false, takeHash, sizeof(takeHash));
         actionChannel.pending = false;
     }
     actionChannel.action = decltype(actionChannel.action)(); //
     //TODO: i don't know if this assignment frees the closure
-    //TODO: correctly handle take deletion
     if(take != 0) {
-        char hash[sizeof(takeHash)];
-        bool getHashRes = MIDI_GetHash(take, false, hash, sizeof(hash));
-        ASSERT(getHashRes, "MIDI_GetHash returned false ¯\_(ツ)_/¯");
-        if(memcmp(hash, takeHash, sizeof(takeHash))) {
-            loadTake();
+        MediaItem_Take* newTake = GetMediaItemTakeByGUID((ReaProject*)currentItemConfig->value.project, &currentItemConfig->key);
+        ASSERT(newTake == 0 || newTake == take, "GetMediaItemTakeByGUID returned something weird");
+        if(newTake == 0) {
+            arrsetlen(tempoMarkers, 0);
+            arrsetlen(piece, 0);
+            take = 0;
+
+            SDL_WindowEvent windowEvent = {SDL_WINDOWEVENT,
+                                           SDL_GetTicks(),
+                                           SDL_GetWindowID(rootWindow),
+                                           SDL_WINDOWEVENT_CLOSE};
+            SDL_Event event; event.window = windowEvent;
+            SDL_PushEvent(&event);
+        } else {
+            char hash[sizeof(takeHash)];
+            bool getHashRes = MIDI_GetHash(take, false, hash, sizeof(hash));
+            ASSERT(getHashRes, "MIDI_GetHash returned false ¯\_(ツ)_/¯");
+            if(memcmp(hash, takeHash, sizeof(takeHash))) {
+                loadTake();
+            }
+            guiRedrawFromOtherThread(rootWindow);
         }
-        guiRedrawFromOtherThread(rootWindow);
     }
     lk.unlock();
     actionChannel.cv.notify_one();
@@ -455,6 +470,8 @@ bool hookCommandProc(int iCmd, int /*flag*/)
 
 
 
+
+
         if(!sdlThreadStarted) {
             th=std::thread(sdlThread);
             mutex_ = SDL_CreateMutex();
@@ -465,8 +482,16 @@ bool hookCommandProc(int iCmd, int /*flag*/)
         SDL_LockMutex(mutex_);
 //            std::lock_guard lg(mutex_);
         MediaItem* item = GetSelectedMediaItem(NULL, 0);
-        ReaProject* project = GetItemProjectContext(item);
+
         take = GetActiveTake(item);
+
+        ReaProject* project = GetItemProjectContext(item);
+
+        double ppqpos = MIDI_GetPPQPosFromProjTime(take, 1.1);
+        volatile double pos = MIDI_GetProjTimeFromPPQPos(take, ppqpos);
+
+
+//        ReaProject* project = GetItemProjectContext(item);
         loadTake();
 //        data_ready = true;
         //TODO: free arrays on unloading?..

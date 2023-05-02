@@ -21,6 +21,11 @@ void message(const char* format, ...);
 void reaperMoveNotes(double time, double freq);
 void reaperCopyNotes();
 void reload();
+
+void undo();
+void redo();
+
+void save();
 #ifdef __cplusplus
 }
 #endif

@@ -83,6 +83,13 @@ void reaperInsert(RealNote note) {
                     note.midiChannel, mp.key,
                     100,
                     NULL);
+    fprintf(stderr, "\ninserting note at %lf %lf\n", note.note.start,
+            startppqpos);
+    double newstrtt;
+    MIDI_GetNote(take, 0, NULL, NULL, &newstrtt, NULL, NULL, NULL, NULL);
+    double newtime = MIDI_GetProjTimeFromPPQPos(take, newstrtt);
+    fprintf(stderr, "got note at %lf %lf\n", newtime,
+            newstrtt);
 
     pieceLength = /*itemStart + */GetMediaItemInfo_Value(item, "D_LENGTH");
 //    message("inserting note %lf - %lf\n", startppqpos, endppqpos);
@@ -121,8 +128,10 @@ void reaperDeleteSelected() {
         if(!anote->selected) continue;
         bool res = MIDI_DeleteNote(take, anote-piece);
         if(!res) ShowConsoleMsg("note deletion failed");
+        fprintf(stderr, "deleting note %d\n", (int)(anote-piece));
     }
     MIDI_Sort(take);
+    Undo_OnStateChange_Item(GetItemProjectContext(item), "Delete Notes", item);
 
     Undo_EndBlock2(GetItemProjectContext(item), "Delete notes", 4);
 }
@@ -211,19 +220,19 @@ void ActionChannel::runInMainThread(F f, Args... args) {
 
 }
 void startPlayingNote(double freq) {
-
+    double pitchInterval = currentItemConfig->value.pitchRange;
+    MidiPitch mp = getMidiPitch(freq, pitchInterval);
+    ASSERT(mp.key < 128, "this note is too high");
     if(!reaperMainThread) {
         actionChannel.name = __func__;
         actionChannel.runInMainThread(&startPlayingNote, freq);
         return;
     }
-    double pitchInterval = currentItemConfig->value.pitchRange;
-    MidiPitch mp = getMidiPitch(freq, pitchInterval);
     int channel = 0;
-    char pitchEvent[] = {pitch_wheel | channel, mp.wheel&0b1111111, mp.wheel>>7};
-    StuffMIDIMessage(0, pitchEvent[0], pitchEvent[1], pitchEvent[2]);
     char noteOnEvent[] = {note_on | channel, mp.key, 100};
     StuffMIDIMessage(0, noteOnEvent[0], noteOnEvent[1], noteOnEvent[2]);
+    char pitchEvent[] = {pitch_wheel | channel, mp.wheel&0b1111111, mp.wheel>>7};
+    StuffMIDIMessage(0, pitchEvent[0], pitchEvent[1], pitchEvent[2]);
     playedKey = mp.key;
 }
 void stopPlayingNote() {
@@ -238,6 +247,34 @@ void stopPlayingNote() {
     StuffMIDIMessage(0, noteOffEvent[0], noteOffEvent[1], noteOffEvent[2]);
     char pitchEvent[] = {pitch_wheel | channel, 0, 0b01000000};
     StuffMIDIMessage(0, pitchEvent[0], pitchEvent[1], pitchEvent[2]);
+}
+void loadTake();
+void undo() {
+    if(!reaperMainThread) {
+        actionChannel.name = __func__;
+        actionChannel.runInMainThread(&undo);
+        return;
+    }
+    Undo_DoUndo2(currentItemConfig->value.project);
+    loadTake();
+}
+void redo() {
+    if(!reaperMainThread) {
+        actionChannel.name = __func__;
+        actionChannel.runInMainThread(&redo);
+        return;
+    }
+    Undo_DoRedo2(currentItemConfig->value.project);
+    loadTake();
+}
+void save() {
+    if(!reaperMainThread) {
+        actionChannel.name = __func__;
+        actionChannel.runInMainThread(&save);
+        return;
+    }
+    Main_SaveProject(GetItemProjectContext(GetMediaItemTake_Item(take)), false);
+//    loadTake();
 }
 void MessageBoxInfo(char* title, char* message)
 {
