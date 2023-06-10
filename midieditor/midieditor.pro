@@ -1,6 +1,7 @@
 TEMPLATE = app
 CONFIG -= app_bundle
 CONFIG -= qt
+CONFIG += c++20
 DEFINES += MY_PATH=\\\"$$PWD\\\"
 #MAX_STRING_LEN=100
 CONFIG += SDL

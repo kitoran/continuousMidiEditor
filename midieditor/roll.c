@@ -171,7 +171,44 @@ void makeFareyScale()
     }
     qsort(calculatedScale, arrlen(calculatedScale), sizeof(*calculatedScale), compsteps);
 }
+#define FREQ_MIN 20
+#define FREQ_MAX 20000
+void makeEqualScale()
+{
+    FOR_STB_ARRAY(Step*, step, calculatedScale) {
+        free(step->desc);
+    }
+    arrsetlen(calculatedScale, 0);
+    double range = log(FREQ_MAX)-log(FREQ_MIN);
+    double step = log(2)*scale.equave / scale.divisions/12;
+    int i = -range/step;
+    while(i < range/step) {
+        char* desc = malloc(30);
+        int rem = REM(i, scale.divisions);
+        if(rem == 0) {
+            snprintf(desc, 30,
+                           "%d\\%d %d",
+                           rem,
+                           scale.divisions,
+                           i/scale.divisions);
+        } else {
+            snprintf(desc, 30,
+                           "%d\\%d",
+                           rem,
+                           scale.divisions);
+        }
+        double f1 = range/step, f2 = f1*i, f3 = exp(f2);
+        Step s = {
+            .ratio = exp(step*i),
+            .desc = desc,
+            .color = gray(255*(rem==0))
+        };
 
+        arrpush(calculatedScale, s);
+        i++;
+    }
+}
+// TODO: pan around with middle mouse button
 void roll(Painter* p, int y) {
 
     if(calculatedScale == 0 || recalculateScale) {
@@ -180,7 +217,11 @@ void roll(Painter* p, int y) {
 //
 //            Step s = {f->num*1.0/f->den, desc, 0xffffffff};
 //        }]
-        makeFareyScale();
+        if(scale.type == rational_intervals) {
+            makeFareyScale();
+        } else {
+            makeEqualScale();
+        }
         recalculateScale = false;
     }
 
@@ -264,8 +305,6 @@ void navigationBar(Painter* p, Size size) {
     }
     feedbackSize(size);
 }
-#define FREQ_MIN 20
-#define FREQ_MAX 20000
 double yToFreqLinear(int height, Point pos, int my) {
     double verticalScrollMirrored = 1-currentItemConfig->value.verticalFrac-currentItemConfig->value.verticalScroll;
     double freqVMin = verticalScrollMirrored * (FREQ_MAX-FREQ_MIN) + FREQ_MIN;
@@ -326,7 +365,7 @@ int freqToY(int height, Point pos, double freq) {
 Rect noteToRect(Size size, Point pos, IdealNote n) { // TODO use sdl renderer drawing range or whatsitcalled
     Point s = { timeToX(size.w, n.start), freqToY(size.h, pos, n.freq) };
     int right = timeToX(size.w, n.start + n.length);
-    return (Rect) { s.x, s.y - 5, right - s.x, 10 };
+    return (Rect) { s.x, s.y - 5, MAX(right - s.x, 1), 10 };
 }
 
 double* timesOfGridLines = NULL;
@@ -369,7 +408,10 @@ double closestTime(int width, int x) {
 
 double closestFreq(int height, Point pos, int y) { // TODO: this function
     if (base < 0 || arrlen(calculatedScale) == 0) return yToFreq(height, pos, y);
-    Step step = searchStep(yToFreq(height, pos, y) / piece[base].note.freq);
+    double whatSearching;
+    if(scale.relative == scale_relative) whatSearching = yToFreq(height, pos, y) / piece[base].note.freq;
+    else whatSearching = yToFreq(height, pos, y);
+    Step step = searchStep(whatSearching);
     double le = yToFreq(height, pos, y + 5);
     double mo = yToFreq(height, pos, y - 5);
     int mm = freqToY(height, pos, mo);
@@ -379,7 +421,7 @@ double closestFreq(int height, Point pos, int y) { // TODO: this function
     if (le < tarfreq &&
         mo > tarfreq
         ) {
-        return step.ratio * piece[base].note.freq;
+        return (scale.relative == scale_relative?step.ratio:1) * piece[base].note.freq;
     }
     else return yToFreq(height, pos, y);
 }
@@ -479,7 +521,7 @@ void noteArea(Painter* p, Size size) {
 //                                    pos,
 //                                    1760)- digSize / 2 }, 0xffffffff);
 
-    if(base >= 0) {
+    if(base >= 0 || scale.relative == scale_absolute) {
 //        FOR_STATIC_ARRAY(fraction*, frac, fractions) {
 
 //            guiSetForeground(p, gray((MAX_DEN+1-frac->den) *255 / (MAX_DEN+1)));
@@ -498,10 +540,11 @@ void noteArea(Painter* p, Size size) {
 //                guiDrawTextZT(p, str, (Point) { 10, r - digSize / 2 }, 0xffffffff);
 //            }
 //        }
+        // TODO: ctrl+click on note to add to selection, shift+select a range to add range to selection
         FOR_STB_ARRAY(Step*, frac, calculatedScale) {
 
             guiSetForeground(p, frac->color);
-            int r = freqToY(size.h, pos, piece[base].note.freq * frac->ratio);
+            int r = freqToY(size.h, pos, (scale.relative == scale_relative?piece[base].note.freq:1) * frac->ratio);
             char str[30];
             if(r >= pos.y && r < (int)(pos.y+size.h)) {
                 guiDrawLine(p, 0, r, size.w, r);
@@ -520,6 +563,9 @@ void noteArea(Painter* p, Size size) {
     }
     FOR_NOTES(anote, piece) {
         Rect r = noteToRect(size, pos, anote->note);
+        guiSetForeground(p, 0xff333333);
+        guiFillRectangle(p,
+                         r);
         if(anote == piece + base) {
             guiSetForeground(p, 0xffffffff);
         } else if(anote->note.muted) {
@@ -533,21 +579,21 @@ void noteArea(Painter* p, Size size) {
             }
         }
         guiFillRectangle(p,
-                         r);
+                         (Rect){.x=r.x+1, .y=r.y+1, .w=r.w-2, .h=r.h-2});
         if(showChannels) {
             //TODO: fix
-            guiDrawTextZT(p, channelnames[anote->midiChannel], r.pos,
-                    anote->selected||anote == piece + base?0:0xffffffff);
-//            char fwef[40];
-//            sprintf(fwef, "%d", (int)(anote-piece));
-//            guiDrawTextZT(p, fwef, r.pos,
+//            guiDrawTextZT(p, channelnames[anote->midiChannel], r.pos,
 //                    anote->selected||anote == piece + base?0:0xffffffff);
+            char fwef[40];
+            sprintf(fwef, "%d  %d   %d", (int)(anote-piece), anote->reaperNumber, anote->midiChannel);
+            guiDrawTextZT(p, fwef, r.pos,
+                    anote->selected||anote == piece + base?0:0xffffffff);
         }
     }
-    if(base >= 0) {
+    if(base >= 0  || scale.relative == scale_absolute) {
         FOR_STB_ARRAY(Step*, frac, calculatedScale) {
             guiSetForeground(p, frac->color);
-            int r = freqToY(size.h, pos, piece[base].note.freq * frac->ratio);
+            int r = freqToY(size.h, pos, (scale.relative == scale_relative?piece[base].note.freq:1)* frac->ratio);
             char str[30];
             if(r >= pos.y && r < (int)(pos.y+size.h)) {
                 sprintf(str, "%s", frac->desc);
@@ -584,6 +630,7 @@ void noteArea(Painter* p, Size size) {
         guiDrawRectangle(p, r);
     }
 
+    SDL_Keymod km = SDL_GetModState();
     if(event.type == ButtonRelease) {
         SDL_MouseButtonEvent e =
                 event.button;
@@ -628,7 +675,12 @@ void noteArea(Painter* p, Size size) {
                                 > MAX(noteRect.x, selectionRect.x);
                 bool verticalOverlap = MIN(noteRect.y+noteRect.h, selectionRect.y+selectionRect.h)
                                 > MAX(noteRect.y, selectionRect.y);
-                anote->selected = horizontalOverlap && verticalOverlap;
+                if(km & KMOD_CTRL) {
+                    anote->selected = anote->selected ||
+                            (horizontalOverlap && verticalOverlap);
+                } else {
+                    anote->selected = horizontalOverlap && verticalOverlap;
+                }
             }
         }
         dragStart = (Point){ -1, -1 };
@@ -641,7 +693,6 @@ void noteArea(Painter* p, Size size) {
 
         DEBUG_PRINT(e.x, "%d");
         DEBUG_PRINT(e.y, "%d");
-        SDL_Keymod km = SDL_GetModState();
         if(km & KMOD_CTRL) {
             double myFrac = 1 - (e.mouseY - pos.y) * 1.0/ size.h;
             double partOfRangeBelowScreen = 1-currentItemConfig->value.verticalFrac-currentItemConfig->value.verticalScroll;
@@ -786,7 +837,8 @@ void noteArea(Painter* p, Size size) {
                                                 e.x);
                 draggedNote.length = end-draggedNote.start;
             }
-            QUICK_ASSERT(draggedNote.length > 0);
+//            QUICK_ASSERT(draggedNote.length > 0);
+            if(draggedNote.length <= 0) draggedNote.length = 0.01;
             double chs = draggedNote.start-piece[dragged].note.start,
                    chf = draggedNote.freq/piece[dragged].note.freq,
                    chl = draggedNote.length-piece[dragged].note.length;
@@ -830,8 +882,17 @@ void noteArea(Painter* p, Size size) {
             }
         }
     }
-    if(event.type == KeyPress && (GET_KEYSYM(event) == '\x7f' || GET_KEYSYM(event) == backspace)) {
-        removeNotes(&base);
+    if(event.type == KeyPress) {
+        int keyPressed = GET_KEYSYM(event);
+        SDL_Keymod km = SDL_GetModState();
+        if(keyPressed == '\x7f' || keyPressed == backspace) {
+            removeNotes(&base);
+        }
+        if(keyPressed == 'a' && (km & KMOD_CTRL)) {
+            FOR_NOTES(anote, piece) {
+                anote->selected = true;
+            }
+        }
     }
 
     fuckThisEvent:

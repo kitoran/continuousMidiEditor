@@ -28,14 +28,22 @@ extern struct MediaItem_Take* take;
 INTROSPECT_ENUM_VISIBLE_NAMES(scale_type_enum,
                               rational_intervals, "Rational intervals",
                               equal_intervals, "equal steps");
+INTROSPECT_ENUM_VISIBLE_NAMES(scale_relativity_enum,
+                              scale_absolute, "Fixed scale",
+                              scale_relative, "Scale relative to the selected base");
 #define NUMBER_OF_PRIMES 15
 typedef struct Scale {
     scale_type_enum type;
     bool primes[NUMBER_OF_PRIMES];
     int maxComponent;
+    scale_relativity_enum relative;
+    double equave;
+    int divisions;
+    double root;
 } Scale;
 extern bool recalculateScale;
 extern Scale scale;
+//todo: move scale to the new config - "progect config" ?
 static struct {
     int prime;
     char text[4];
@@ -71,6 +79,7 @@ typedef struct CONTINUOUSMIDIEDITOR_Config {
             double verticalFrac;
             midi_mode_enum midiMode;
             double pitchRange;
+            bool combinations;
             ReaProject* project;
         } value;
 } CONTINUOUSMIDIEDITOR_Config;

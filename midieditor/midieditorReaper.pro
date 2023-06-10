@@ -16,7 +16,8 @@ windows {
     DEFINES += _CRT_SECURE_NO_WARNINGS
     INCLUDEPATH += C:\src\SDL2-devel-2.26.5-VC\SDL2-2.26.5\include C:\src\SDL2-devel-2.26.5-VC\SDL2_ttf-2.20.1\include
     CONFIG -= console
-#    LIBS += /lKernel32
+    LIBS += /lwinmm
+    #Kernel32
     QMAKE_CXXFLAGS += /Zc:preprocessor /wd4838
 #    -lSDL2main -lShell32
     QMAKE_LFLAGS += user32.lib SDL2.lib SDL2_ttf.lib

@@ -25,6 +25,7 @@
 //#define __cplusplus // wtf why was this not defined in the first place/
 #include  <thread>
 #include  <condition_variable>
+#include  <algorithm>
 #include "gui.h"
 #include "melody.h"
 #include "actions.h"
@@ -239,26 +240,47 @@ void loadTake()
     int i = 0;
     itemStart = GetMediaItemInfo_Value(item, "D_POSITION");
     pieceLength = /*itemStart + */GetMediaItemInfo_Value(item, "D_LENGTH");
-    double channelPitches[16];// don't care about channel 0 because in MPE it's different
     // but allocate it anyway just 'cause
-    double channelNoteStarts[16];
+    int noteNumber = 0;
+    struct channelProperty {
+        double pitch;
+                // don't care about channel 0 because in MPE it's different
+        double noteStart;
+        int noteNumber;
+        bool selected; bool muted;
+    } channelProperties[16] = {0};
+
     for(int i = 0; i < 16; i++) {
-        channelPitches[i] = 1;
-        channelNoteStarts[i]=-1;
+        channelProperties[i] = channelProperty{1, -1, -1, false, false};
+//        channelPitches[i] = 1;
+//        channelNoteStarts[i]=-1;
     }
+#define MAX_MIDI_EVENT_LENGTH 3
+#define PADINCASEIMISSEDSOMELONGEREVENTS 10000
+    u8 msg[MAX_MIDI_EVENT_LENGTH+PADINCASEIMISSEDSOMELONGEREVENTS];
+
+    int notecntOut, ccevtcntOut, textsyxevtcntOut;
+    int allevts = MIDI_CountEvts(take, &notecntOut,
+                                 &ccevtcntOut,
+                                 &textsyxevtcntOut);
+
+    int size = 10003;
+    double trertse;
+    bool getallevre = MIDI_GetAllEvts(take, (char*)msg, &size);
+
+    size = 10003;
+    getallevre = MIDI_GetEvt(take, 0, 0, 0, &trertse, (char*)(&msg[0]), &size);
     while(true) {
         //TODO: use getAllEvents? i don't want to because there's no way to get needed buffer size ahead
         // of time. Maybe if midi track is more than 4 kb i can just tell the user that tey are too
         // musical for this extension // there's MIDI_CountEvts
-        bool mutedUnusedForNow;
-#define MAX_MIDI_EVENT_LENGTH 3
-#define PADINCASEIMISSEDSOMELONGEREVENTS 100
-        u8 msg[MAX_MIDI_EVENT_LENGTH+PADINCASEIMISSEDSOMELONGEREVENTS];
+        bool muted;
+        bool selected;
         int size = 3;
-        res = MIDI_GetEvt(take, i++, 0, &mutedUnusedForNow, &ppqpos, (char*)(&msg[0]), &size);
+        res = MIDI_GetEvt(take, i++, &selected, &muted, &ppqpos, (char*)(&msg[0]), &size);
         if(!res) break;
         ASSERT(size <= 3, "got midi event longer than 3 bytes, dying\n");
-        int channel = msg[0] & MIDI_CHANNEL_MASK;
+        u8 channel = msg[0] & MIDI_CHANNEL_MASK;
         if((msg[0] & MIDI_COMMAND_MASK) == pitchWheelEvent) {
            i16 pitchWheel =
                    (msg[2] << 7) |
@@ -266,7 +288,7 @@ void loadTake()
            double differenceInTones =
                    double(pitchWheel-0x2000)/0x2000 * currentItemConfig->value.pitchRange / 2.0;
            double ratio = pow(2, differenceInTones/6);
-           channelPitches[channel] = ratio;
+           channelProperties[channel].pitch = ratio;
         }
         //TODO: delete selected notes on "delete"
         //TODO: store velocity value too
@@ -277,20 +299,29 @@ void loadTake()
 // so to get note's key we only need to read it from onteOff event
         double pos = MIDI_GetProjTimeFromPPQPos(take, ppqpos);
         if((msg[0] & MIDI_COMMAND_MASK) == noteOn) {
-            channelNoteStarts[channel] = pos;
+            channelProperties[channel].noteStart = pos;
+            channelProperties[channel].noteNumber = noteNumber;
+            channelProperties[channel].selected = selected;
+            channelProperties[channel].muted = muted;
+            noteNumber++;
         }
         if((msg[0] & MIDI_COMMAND_MASK) == noteOff) {
             int key = msg[1];
             int vel = msg[2];
             double freq = (440.0 / 32) * pow(2, ((key - 9) / 12.0));
-            freq *= channelPitches[channel];
-            message("st %lf end %lf pitch %d vel %d\n"
-                    "start %lf  freq %lf", pos, channelNoteStarts[channel] , key, vel
-                    , start, freq);
+            freq *= channelProperties[channel].pitch;
+//            message("st %lf end %lf pitch %d vel %d\n"
+//                    "start %lf  freq %lf", pos, channelNoteStarts[channel] , key, vel
+//                    , start, freq);
             appendRealNote({.note = {.freq = freq,
-                                     .start = channelNoteStarts[channel]  - itemStart,
-                                     .length = pos-channelNoteStarts[channel]},
-                            .midiChannel = channel});
+                                     .start = channelProperties[channel].noteStart  - itemStart,
+                                     .length = pos-channelProperties[channel].noteStart,
+                                     .muted = channelProperties[channel].muted,
+                                     .velocity = vel
+                                    },
+                            .midiChannel = channel,
+                            .selected = channelProperties[channel].selected,
+                           .reaperNumber = channelProperties[channel].noteNumber});
         }
     }
     // GetProjectTimeSignature2 actually returns beats, not quarters, per minute.
@@ -319,6 +350,10 @@ void loadTake()
     }
     bool getHashRes = MIDI_GetHash(take, false, takeHash, sizeof(takeHash));
     ASSERT(getHashRes, "MIDI_GetHash returned false");
+    std::stable_sort(piece, piece+arrlen(piece), [](const RealNote& a, const RealNote& b){
+        return a.reaperNumber < b.reaperNumber;
+    });
+
 }
 //TODO: No stretch when resizing window
 void timer_function() {
@@ -412,7 +447,6 @@ extern "C" bool timeToShow;
 //std::atomic<MediaItem*> item = NULL;
 //TODO: save data in settings.c every 5 seconds
 void sdlThread() {
-
     SetThreadName ((DWORD)-1, "contMidiEditorThread");
     reaperMainThread = false;
 

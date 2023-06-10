@@ -99,19 +99,26 @@ extern void settingsGui(void) {
               popLayout(); feedbackSize(getLineSize(&oneLine)); oneLine.filled = oneLine.across =0;
         } else if(scale.type == equal_intervals) {
             oneLine.pos = getPos(); pushLayout(&oneLine);
-            double dummy;
-            guiDoubleField(&painter, 3, &dummy);
-            guiLabelZT(&painter, " equal divisions of ");
-            oneLine.spacing = 0;
-            guiDoubleField(&painter, 3, &dummy);
-            guiLabelZT(&painter, " divisions of ");
-            guiDoubleField(&painter, 3, &dummy);
-            guiLabelZT(&painter, "/");
-            guiDoubleField(&painter, 3, &dummy);
+            guiIntField(&painter, 3, &scale.divisions);
+            guiLabelZT(&painter, "equal steps of ");
+            guiDoubleField(&painter, 4, &scale.equave);
+            popLayout();
+            feedbackSize(getLineSize(&oneLine));
+            oneLine.filled = oneLine.across =0;
+            oneLine.pos = getPos(); pushLayout(&oneLine);
+            guiLabelZT(&painter, "(write the equave as one decimal");
             popLayout(); feedbackSize(getLineSize(&oneLine)); oneLine.filled = oneLine.across =0;
             oneLine.pos = getPos(); pushLayout(&oneLine);
-            guiLabelZT(&painter, "of");
-            guiDoubleField(&painter, 3, &dummy);  guiLabelZT(&painter, "cents");
+            guiLabelZT(&painter, "e.q the fifth = 1.5)");
+            popLayout(); feedbackSize(getLineSize(&oneLine)); oneLine.filled = oneLine.across =0;
+        }
+        guiRadioButtonGroup(&painter, scale_relativity_enum, &scale.relative);
+        if(&scale.relative == scale_absolute) {
+            oneLine.pos = getPos(); pushLayout(&oneLine);
+
+            guiLabelZT(&painter, "The root of the scale");
+            guiDoubleField(&painter, 5, &scale.root);
+
             popLayout(); feedbackSize(getLineSize(&oneLine)); oneLine.filled = oneLine.across =0;
         }
         if(guiButtonZT(&painter, "OK")) {
@@ -119,13 +126,12 @@ extern void settingsGui(void) {
             settingsOpen = false;
             guiHideWindow(settingsWindow);
         }
-//    guiRadioButtonGroup(&painter, scale_relativity_enum, &scale.relative);
-          popLayout();
-          if(event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE) {
-              recalculateScale = true;
-              settingsOpen = false;
-              guiHideWindow(settingsWindow);
-          }
+        popLayout();
+        if(event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE) {
+            recalculateScale = true;
+            settingsOpen = false;
+            guiHideWindow(settingsWindow);
+        }
     }
 }
 extern int pianorollgui(void) {
@@ -223,6 +229,9 @@ extern int pianorollgui(void) {
                 }
                 if(keyPressed == 's' && (km & KMOD_CTRL)) {
                     save();
+                }
+                if(keyPressed == 'r' && (km & KMOD_CTRL)) {
+                    reload();
                 }
             }
     //        SDL_FillRect(rootWindowPainter.drawable, &d, 0xffffff00);

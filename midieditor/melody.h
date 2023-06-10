@@ -12,8 +12,9 @@ typedef struct IdealNote {
 
 typedef struct RealNote {
     IdealNote note;
-    int midiChannel;
+    unsigned char midiChannel;
     bool selected;
+    int reaperNumber;
 } RealNote;
 
 #define REAL_NOTE_FORMAT "freq = %lf, start = %lf, length = %lf channel = %d"
