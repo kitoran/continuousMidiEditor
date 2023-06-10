@@ -43,7 +43,6 @@ typedef struct Scale {
 } Scale;
 extern bool recalculateScale;
 extern Scale scale;
-//todo: move scale to the new config - "progect config" ?
 static struct {
     int prime;
     char text[4];

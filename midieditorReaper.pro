@@ -26,10 +26,10 @@ windows {
         INSTALLS += SDL2.dll
     #    QMAKE_CXXFLAGS += /D__cplusplus #wtf why was this not defined in the first place
 }
-include(../../library/stb/stb_ds.pri)
+include(../library/stb/stb_ds.pri)
 #include(../../library/gui-SDL/gui.pri)
-include(../../library/gui/gui.pri)
-include(../../library/extmath/extmath.pri)
+include(../library/gui/gui.pri)
+include(../library/extmath/extmath.pri)
 SOURCES += \
     actionsReaper.cpp \
     editorinstance.cpp \

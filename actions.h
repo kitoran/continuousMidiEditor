@@ -13,12 +13,12 @@ void reaperDeleteSelected();
 void reaperSetPosition(double d);
 
 void reaperOnCommand(u32 command);
-void startPlayingNote(double freq);
+void startPlayingNote(double freq, int vel);
 void stopPlayingNote();
 void MessageBoxInfo(char*title, char *message);
 void message(const char* format, ...);
 
-void reaperMoveNotes(double time, double freq);
+void reaperMoveNotes(/*double time, double freq*/);
 void reaperCopyNotes();
 void reload();
 

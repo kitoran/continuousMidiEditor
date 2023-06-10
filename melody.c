@@ -185,9 +185,8 @@ void moveNotes(double timeChange, double freqChange, int *dragged, int* base)
             timeChange = -anote->note.start;
         }
     }
-    //TODO: open editor on startup if it was open when closing reaper last time
 #ifdef REAPER
-    reaperMoveNotes(timeChange, freqChange);
+    reaperMoveNotes(/*timeChange, freqChange*/);
     RealNote draggedNote = piece[*dragged];
     RealNote baseNote = {0}; if(*base>=0)baseNote=piece[*base]; // I'm sorry i'm doing it this way, i really should just sort with my own code or reload piece from reaper
 //    qsort(piece, arrlen(piece), sizeof(*piece), cmpStarts); Now i'm reloading after every move, so no need to sort
@@ -208,12 +207,12 @@ void copyNotes(int *dragged, int* base)
 {
 #ifdef REAPER
     reaperCopyNotes();
-    RealNote draggedNote = piece[*dragged];
-    RealNote baseNote = {0}; if(*base>=0)baseNote=piece[*base]; // I'm sorry i'm doing it this way, i really should just sort with my own code or reload piece from reaper
-    qsort(piece, arrlen(piece), sizeof(*piece), cmpStarts);
 #else
     ABORT("");
 #endif
+    RealNote draggedNote = piece[*dragged];
+    RealNote baseNote = {0}; if(*base>=0)baseNote=piece[*base]; // I'm sorry i'm doing it this way, i really should just sort with my own code or reload piece from reaper
+    qsort(piece, arrlen(piece), sizeof(*piece), cmpStarts);
     RealNote* newDragged = bsearch(&draggedNote, piece, arrlen(piece), sizeof(*piece), cmpStarts);
     ASSERT(newDragged, "");
     *dragged = (int)(newDragged-piece);

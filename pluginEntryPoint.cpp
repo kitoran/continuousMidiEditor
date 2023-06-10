@@ -61,14 +61,13 @@ UINT command;
 //    res = vsscanf(oneline, format, va_args);
 //    va_end(arg_ptr);
 //}
-//todo: why did i use sdl_strtokr instead of strtok_r
-// TODO: not thread safe access to variables
-//TODO: rewrite using GetSetMediaItemTakeInfo_String?
+
 static bool ProcessExtensionLine(const char *line, ProjectStateContext *ctx, bool /*isUndo*/, struct project_config_extension_t */*reg*/)
 {
 
     char* copy = strdup(line);
     char* saveptr = NULL;
+//why did i use sdl_strtokr instead of strtok_r
     char* token = SDL_strtokr(copy, " \n", &saveptr);
     if(strcmp(token, "<CONTINUOUSMIDIEDITOR")) {
         return false;
@@ -271,9 +270,7 @@ void loadTake()
     size = 10003;
     getallevre = MIDI_GetEvt(take, 0, 0, 0, &trertse, (char*)(&msg[0]), &size);
     while(true) {
-        //TODO: use getAllEvents? i don't want to because there's no way to get needed buffer size ahead
-        // of time. Maybe if midi track is more than 4 kb i can just tell the user that tey are too
-        // musical for this extension // there's MIDI_CountEvts
+
         bool muted;
         bool selected;
         int size = 3;
@@ -290,11 +287,8 @@ void loadTake()
            double ratio = pow(2, differenceInTones/6);
            channelProperties[channel].pitch = ratio;
         }
-        //TODO: delete selected notes on "delete"
-        //TODO: store velocity value too
 //          res = MIDI_GetNote(take, i++, 0, 0, , &endppqpos, 0, &pitch, &vel);
 
-        // TODO: indicate when we changed the take
 // we think that all the simultaneous notes are on different channels
 // so to get note's key we only need to read it from onteOff event
         double pos = MIDI_GetProjTimeFromPPQPos(take, ppqpos);
@@ -355,7 +349,7 @@ void loadTake()
     });
 
 }
-//TODO: No stretch when resizing window
+
 void timer_function() {
     std::unique_lock lk(actionChannel.mutex);
     if(actionChannel.pending) {
@@ -363,8 +357,7 @@ void timer_function() {
         MIDI_GetHash(take, false, takeHash, sizeof(takeHash));
         actionChannel.pending = false;
     }
-    actionChannel.action = decltype(actionChannel.action)(); //
-    //TODO: i don't know if this assignment frees the closure
+    actionChannel.action = decltype(actionChannel.action)();
     if(take != 0) {
         MediaItem_Take* newTake = GetMediaItemTakeByGUID((ReaProject*)currentItemConfig->value.project, &currentItemConfig->key);
         ASSERT(newTake == 0 || newTake == take, "GetMediaItemTakeByGUID returned something weird");
@@ -391,7 +384,7 @@ void timer_function() {
     }
     lk.unlock();
     actionChannel.cv.notify_one();
-    currentPositionInSamples =  (int)round((GetPlayPosition()-itemStart)*44100); // TODO: ask sample rate from reaper or someone
+    currentPositionInSamples =  (int)round((GetPlayPosition()-itemStart)*44100);
     cursorPosition = GetCursorPosition()-itemStart;
     double deb1 = GetPlayPosition();
     double deb2 = GetCursorPosition();
@@ -401,9 +394,6 @@ void timer_function() {
 //    if(previousPlaying < 10) {
 //        currentPositionInSamples = cursorPosition*44100;
 //    }
-    //todo: add horizontally moving notes
-    //todo: make sound when placing or moving note
-    //todo: add resize notes
     previousPlaying = playing*(previousPlaying + playing);
     if(playing) {
         SDL_UserEvent userevent = {(u32)PlaybackEvent, SDL_GetTicks(), 0, 0, 0, 0};
@@ -442,10 +432,10 @@ extern "C" SDL_mutex* mutex_; // I use SDL_mutex because MSVC doesn't provide th
 //bool data_ready = false;
 extern "C" extern bool timeToLeave;
 extern "C" bool timeToShow;
-// extern "C" bool timeToHide  ?; // TODO: maybe remove Close
+// extern "C" bool timeToHide  ?;
 //std::condition_variable ;
 //std::atomic<MediaItem*> item = NULL;
-//TODO: save data in settings.c every 5 seconds
+
 void sdlThread() {
     SetThreadName ((DWORD)-1, "contMidiEditorThread");
     reaperMainThread = false;
@@ -510,8 +500,7 @@ bool hookCommandProc(int iCmd, int /*flag*/)
             th=std::thread(sdlThread);
             mutex_ = SDL_CreateMutex();
                     sdlThreadStarted = true;
-         } //TODO: check if this
-                // use-case of STATIC warrants its own macro
+         }
 //        closeSDLWindow();
         SDL_LockMutex(mutex_);
 //            std::lock_guard lg(mutex_);
@@ -528,7 +517,6 @@ bool hookCommandProc(int iCmd, int /*flag*/)
 //        ReaProject* project = GetItemProjectContext(item);
         loadTake();
 //        data_ready = true;
-        //TODO: free arrays on unloading?..
         timeToShow = true;
         SDL_UnlockMutex(mutex_);
 //        condVar.notify_one();
@@ -779,7 +767,6 @@ extern "C" REAPER_PLUGIN_DLL_EXPORT int REAPER_PLUGIN_ENTRYPOINT(
 //  .if (!rec->Register("hookcustommenu", (void*)swsMenuHook)) {
 //     abort();
 //  }
-  // TODO: remove all aborts, use messageboxes instead
   if (!rec->Register("hookcommand2", (void*)hookCommandProc2))
       abort();
 

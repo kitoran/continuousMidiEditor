@@ -30,20 +30,7 @@ typedef struct Step {
     u32 color;
 } Step;
 Step* calculatedScale = NULL;
-//todo: make a sound when positioning
-// todo: add control for a looping region
-//todo: show combination tones?
-// todo: base note and selected are different notes, select multiple notes
-// todo: when using wheel over a scrollbar just this scrollbar is affected
-//todo: go to playhead
-// todo: don't abort on middle mouse button
-//todo: make a mode where you don't put midi pitch wheel , just work as a normal pianoroll with
-// the notes in the correct places for a given scale
-//todo: snap button
-// todo: allow to choose a scale
-// todo: show higher fractions if there is place
-// todo: consider putting extension info in reaper's midi item tag instead of using my own
-//todo: allow two base notes?
+#define RANGE_FOR_VELOCITY_DRAGGING 3
 #define MAX_DEN 9
 double toDouble(fraction f) {
    return f.num*1.0/f.den;
@@ -208,7 +195,7 @@ void makeEqualScale()
         i++;
     }
 }
-// TODO: pan around with middle mouse button
+
 void roll(Painter* p, int y) {
 
     if(calculatedScale == 0 || recalculateScale) {
@@ -362,7 +349,7 @@ int freqToY(int height, Point pos, double freq) {
     int relativeY = (int)round((1-myFrac)*height);
     return (int)round(relativeY + pos.y);
 }
-Rect noteToRect(Size size, Point pos, IdealNote n) { // TODO use sdl renderer drawing range or whatsitcalled
+Rect noteToRect(Size size, Point pos, IdealNote n) {
     Point s = { timeToX(size.w, n.start), freqToY(size.h, pos, n.freq) };
     int right = timeToX(size.w, n.start + n.length);
     return (Rect) { s.x, s.y - 5, MAX(right - s.x, 1), 10 };
@@ -370,17 +357,6 @@ Rect noteToRect(Size size, Point pos, IdealNote n) { // TODO use sdl renderer dr
 
 double* timesOfGridLines = NULL;
 double closestTime(int width, int x) {
-
-    // TODO: this function
-//    double tr = xToTime(width, x);
-//    double closest = round(tr / BEAT) * BEAT;
-//    double le = xToTime(width, x - 5);
-//    double mo = xToTime(width, x + 5);
-//    if (le < closest &&
-//        mo > closest) {
-//        tr = closest;
-//    }
-//    return tr;
     double test = xToTime(width, x);
     int il = 0, ih = arrlen(timesOfGridLines)-1;
     while(ih-il>1) {
@@ -406,7 +382,7 @@ double closestTime(int width, int x) {
     }
 }
 
-double closestFreq(int height, Point pos, int y) { // TODO: this function
+double closestFreq(int height, Point pos, int y) {
     if (base < 0 || arrlen(calculatedScale) == 0) return yToFreq(height, pos, y);
     double whatSearching;
     if(scale.relative == scale_relative) whatSearching = yToFreq(height, pos, y) / piece[base].note.freq;
@@ -433,6 +409,7 @@ enum {
     selectingARange,
     draggingLeftEdge,
     draggingRightEdge,
+    draggingVelocity,
     movingNote,
     copyingNote
 } mouseMode = justMovingMouse;
@@ -448,16 +425,13 @@ void noteArea(Painter* p, Size size) {
     double lastVisibleTime = xToTime(size.w, size.w);
 //    double a = itemStart/BEAT;
 //    double a = itemStart/BEAT;
-// TODO:режим обозначения каналов
-  //  TODO: horizontal scaling doesnt work rightc
     TempoMarker last = projectSignature; int next = 0; //double lastFraction = 0;
     int lastpixel = -10;
-//TODO: watch for added/deleted tempo markers
-    int numOfBeat = 0; // TODO: maybe use TimeMap_GetTimeSigAtTime
+    int numOfBeat = 0;
     double projectTime = 0;
     arrsetlen(timesOfGridLines, 0);
     for(; projectTime < lastVisibleTime+itemStart; projectTime += beatTime(&last)) {
-        while(next < arrlen(tempoMarkers) && projectTime >= tempoMarkers[next].when) { // TODO: does work with multiple markers in one beat?
+        while(next < arrlen(tempoMarkers) && projectTime >= tempoMarkers[next].when) {
             ASSERT(tempoMarkers[next].num != 0, "time signature is 0????");
             if(tempoMarkers[next].num > 0) {
                 numOfBeat = 0;
@@ -540,7 +514,6 @@ void noteArea(Painter* p, Size size) {
 //                guiDrawTextZT(p, str, (Point) { 10, r - digSize / 2 }, 0xffffffff);
 //            }
 //        }
-        // TODO: ctrl+click on note to add to selection, shift+select a range to add range to selection
         FOR_STB_ARRAY(Step*, frac, calculatedScale) {
 
             guiSetForeground(p, frac->color);
@@ -563,7 +536,7 @@ void noteArea(Painter* p, Size size) {
     }
     FOR_NOTES(anote, piece) {
         Rect r = noteToRect(size, pos, anote->note);
-        guiSetForeground(p, 0xff333333);
+        guiSetForeground(p, anote->selected?0xff777777:0xff333333);
         guiFillRectangle(p,
                          r);
         if(anote == piece + base) {
@@ -580,12 +553,13 @@ void noteArea(Painter* p, Size size) {
         }
         guiFillRectangle(p,
                          (Rect){.x=r.x+1, .y=r.y+1, .w=r.w-2, .h=r.h-2});
-        if(showChannels) {
+        if(showChannels || mouseMode == draggingVelocity) {
             //TODO: fix
 //            guiDrawTextZT(p, channelnames[anote->midiChannel], r.pos,
 //                    anote->selected||anote == piece + base?0:0xffffffff);
-            char fwef[40];
-            sprintf(fwef, "%d  %d   %d", (int)(anote-piece), anote->reaperNumber, anote->midiChannel);
+            char fwef[40];// = "30";
+            if(showChannels) sprintf(fwef, "%d  %d   %d", (int)(anote-piece), anote->reaperNumber, anote->midiChannel);
+            if(mouseMode == draggingVelocity) sprintf(fwef, "%d", anote->note.velocity);
             guiDrawTextZT(p, fwef, r.pos,
                     anote->selected||anote == piece + base?0:0xffffffff);
         }
@@ -730,6 +704,7 @@ void noteArea(Painter* p, Size size) {
             select->selected = true;
         }
         double freq = 0;
+        int vel = 100;
         if(select) {
             if(e.button == 2) base = (int)(select-piece);
             if(e.button == 1)  {
@@ -738,13 +713,15 @@ void noteArea(Painter* p, Size size) {
                     mouseMode = draggingRightEdge;
                 } else if(e.x <= MIN(noteRect.x+5, noteRect.x+noteRect.w/2)) {
                     mouseMode = draggingLeftEdge;
+                } else if(e.y <= noteRect.y+RANGE_FOR_VELOCITY_DRAGGING) {
+                    mouseMode = draggingVelocity;
                 } else {
                     mouseMode = movingNote; // the user can then press ctrl to change mode to copying,
                     // but only if they haven't moved the mouse tooo far yet
                 }
                 dragged  = (int)(select-piece);
             }
-            freq = select->note.freq;
+            freq = select->note.freq; vel = select->note.velocity;
             draggedNoteInitialPos = select->note;
         }
 
@@ -755,17 +732,17 @@ void noteArea(Painter* p, Size size) {
         if(base >= 0 && select == NULL && e.button == 1) {
 
             freq = closestFreq(size.h, pos, e.y);
-            newNote = (IdealNote){ freq, time, xToTime(size.w, e.x+1)-time};
+            newNote = (IdealNote){ freq, time, xToTime(size.w, e.x+1)-time, false, 100};
         }
         if(base < 0 && select == NULL && e.button == 1) {
 //            fprintf(stderr, "oops im here !!!L_)(\n");
-            newNote = (IdealNote){ c.freq, time, xToTime(size.w, e.x+1)-time};
+            newNote = (IdealNote){ c.freq, time, xToTime(size.w, e.x+1)-time, false, 100};
             freq = c.freq;
         }
         if(select == NULL && e.button == 3) {
             mouseMode = selectingARange;
         }
-        if(freq) startPlayingNote(freq);
+        if(freq) startPlayingNote(freq, vel);
     }
     if(event.type == MotionEvent) {
         SDL_MouseMotionEvent e =
@@ -809,8 +786,6 @@ void noteArea(Painter* p, Size size) {
             coord c = {closestFreq(size.h, pos, e.y), closestTime(size.w, e.x)};
             IdealNote draggedNote = piece[dragged].note;
             if(mouseMode == movingNote || mouseMode == copyingNote) {
-                // TODO: make it so once the user has already moved the mouse 5 pixels, they can position
-                // the note close to its original position
                 if(abs(e.y - dragStart.y) > 5) {
                     draggedNote.freq = c.freq;
                 } else {
@@ -837,6 +812,11 @@ void noteArea(Painter* p, Size size) {
                                                 e.x);
                 draggedNote.length = end-draggedNote.start;
             }
+            int chv = 0;
+            if(mouseMode == draggingVelocity) {
+                chv = e.yrel;
+                SDL_WarpMouseInWindow(rootWindow, e.x, e.y-e.yrel);
+            }
 //            QUICK_ASSERT(draggedNote.length > 0);
             if(draggedNote.length <= 0) draggedNote.length = 0.01;
             double chs = draggedNote.start-piece[dragged].note.start,
@@ -848,6 +828,8 @@ void noteArea(Painter* p, Size size) {
                     anote->note.start += chs;
                     anote->note.freq *= chf;
                     anote->note.length += chl;
+
+                    anote->note.velocity = CLAMP(anote->note.velocity - e.yrel, 0, 127);
                 }
             }
 
@@ -857,7 +839,7 @@ void noteArea(Painter* p, Size size) {
 //                volatile int  wer = 2;
 //            }
             stopPlayingNote();
-            startPlayingNote(draggedNote.freq);
+            startPlayingNote(draggedNote.freq, draggedNote.velocity);
         } else {
             STATIC(SDL_Cursor*, defaultCursor, SDL_GetDefaultCursor());
             RealNote* noteUnderCursor = NULL;
@@ -871,12 +853,14 @@ void noteArea(Painter* p, Size size) {
                         e.x <= MIN(noteRect.x+5, noteRect.x+noteRect.w/*/2*/)) {
                         STATIC(SDL_Cursor*, leftRight, SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZEWE));
                         SDL_SetCursor(leftRight);
+                    } else if(e.y <= noteRect.y+RANGE_FOR_VELOCITY_DRAGGING) {
+                        STATIC(SDL_Cursor*, upDown, SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZENS));
+                        SDL_SetCursor(upDown);
                     } else {
                         SDL_SetCursor(defaultCursor);
                     }
                 }
             }
-            //TODO: don't set default sursor on every mouse motion maybe
             if(noteUnderCursor == NULL) {
                 SDL_SetCursor(defaultCursor);
             }

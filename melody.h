@@ -12,7 +12,7 @@ typedef struct IdealNote {
 
 typedef struct RealNote {
     IdealNote note;
-    unsigned char midiChannel;
+    int midiChannel;
     bool selected;
     int reaperNumber;
 } RealNote;

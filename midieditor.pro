@@ -18,10 +18,9 @@ windows {
     SDL2.dll.path = C:\src\SDL2-devel-2.26.1-VC\SDL2-2.26.1\
     INSTALLS += SDL2.dll
 }
-include(../../library/stb/stb_ds.pri)
-#include(../../library/gui-SDL/gui.pri)
-include(../../library/gui/gui.pri)
-include(../../library/extmath/extmath.pri)
+include(../library/stb/stb_ds.pri)
+include(../library/gui/gui.pri)
+include(../library/extmath/extmath.pri)
 SOURCES += main.c \
     actions.c \
     editorinstance.cpp \

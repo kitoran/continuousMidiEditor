@@ -244,10 +244,8 @@ extern int pianorollgui(void) {
                     break;
     #else
                     SDL_HideWindow(rootWindow);
-//TODO: Hide settings window
                     take = 0;
     //                currentItemConfig = NULL;
-                    //TODO: probably wise to wait here on timeToShow
     #endif
                 }
                 if(event.window.event == SDL_WINDOWEVENT_MOVED) {
@@ -353,15 +351,12 @@ extern int pianorollgui(void) {
     #endif
 
             if(guiDoubleField(&rootWindowPainter, 6, &(currentItemConfig->value.pitchRange))); gridNextColumn();
-            // TODO: draw tooltips
     //        const char* elements;
             guiEnumComboBox(&rootWindowPainter, midi_mode_enum, (int*)&(currentItemConfig->value.midiMode));//"use 1st channel", "don't use");
             gridNextColumn();
             guiCheckBox(&rootWindowPainter, &showChannels);        gridNextColumn();
             guiLabelZT(&rootWindowPainter, "show channels");        gridNextColumn();
-    //TODO: save all fields to midi take properties
-    // TODO: add combination tones (difference tones, sum tones, means??
-      // utonal or harmonic combinations - 1/(1/a+1/b), 1/(1/a-1/b)    )
+
             guiCheckBox(&rootWindowPainter, &showScale);        gridNextColumn();
             guiLabelZT(&rootWindowPainter, "show 16edo scale");        gridNextColumn();
 

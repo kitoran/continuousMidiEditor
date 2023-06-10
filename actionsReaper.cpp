@@ -36,7 +36,6 @@ void stop() {
 //extern double __declspec(selectany) itemStart;
 //extern double __declspec(selectany) itemStart;
 
-// TODO: reassign channels if haven't found a free channel but it's possible to find or just let user readdign them
 enum MidiEventType: u8 {
     note_off = 0b1000 << 4,
     note_on = 0b1001 << 4,
@@ -100,7 +99,7 @@ void insertNoteImpl(const RealNote& note)
     if(!res) ShowConsoleMsg("note insertion failed");
 }
 
-void commit() {
+static void commit() {
 #pragma pack(push)
 #pragma pack( 1)
     struct reapermidimessage {
@@ -133,12 +132,12 @@ void commit() {
             {
                 (u8)(note_on | note.midiChannel),
                 (u8)mp.key,
-                (u8)127}
+                (u8)note.note.velocity}
         };
         d[3*i+1] = {
             endppqpos,
             (char)(note.selected | (note.note.muted < 1)),
-            3, {(u8)(note_off | note.midiChannel), (u8)mp.key, (u8)100}
+            3, {(u8)(note_off | note.midiChannel), (u8)mp.key, (u8)note.note.velocity}
         };
         d[3*i+2] = {
             startppqpos, (char)(note.selected | (note.note.muted < 1)), 3,
@@ -188,7 +187,6 @@ void reaperSetPosition(double d) {
         actionChannel.runInMainThread(&reaperSetPosition, d);
         return;
     }
-    //TODO: this is prob wrong
     SetEditCurPos(d+itemStart, false, true);
 }
 void reaperOnCommand(u32 command) {
@@ -222,12 +220,11 @@ void reaperDeleteSelected() {
     Undo_EndBlock2(GetItemProjectContext(item), "Delete notes", 4);
 //    reload();
 }
-void reaperMoveNotes(double time, double freq) {
-    //TODO: remove the arguments
+void reaperMoveNotes(/*double time, double freq*/) {
     if(!reaperMainThread) {
 //        ASSERT((**selectedNotes).note.freq > 1, "");
         actionChannel.name = __func__;
-        actionChannel.runInMainThread(&reaperMoveNotes, time, freq);
+        actionChannel.runInMainThread(&reaperMoveNotes/*, time, freq*/);
         return;
     }
     MediaItem* item = GetMediaItemTake_Item(take);
@@ -316,18 +313,17 @@ void ActionChannel::runInMainThread(F f, Args... args) {
 UINT32 pack3(u8* a) {
     return a[2]<<16|a[1]<<8|a[0];
 }
-static HMIDIOUT fweefwefwe;
-void startPlayingNote(double freq) {
-    int numMidiDevs = midiOutGetNumDevs();
-    fprintf(stderr, "wefgwefwefwefw %d\n", numMidiDevs);
-    MIDIOUTCAPSA dfgsdfsd;
-    for(int i = 0; i <= numMidiDevs; i++) {
-        midiOutGetDevCapsA(i, &dfgsdfsd, sizeof(dfgsdfsd));
-        fprintf(stderr, "%d: %s\n", i, dfgsdfsd.szPname);
-    }
-    //todo: at leas let user check which port is activated
-    STATIC(bool, init, (midiOutOpen(&fweefwefwe, 1, NULL, 0, CALLBACK_NULL), true
-                        ));
+//static HMIDIOUT fweefwefwe;
+void startPlayingNote(double freq, int vel) {
+//    int numMidiDevs = midiOutGetNumDevs();
+//    fprintf(stderr, "wefgwefwefwefw %d\n", numMidiDevs);
+//    MIDIOUTCAPSA dfgsdfsd;
+//    for(int i = 0; i <= numMidiDevs; i++) {
+//        midiOutGetDevCapsA(i, &dfgsdfsd, sizeof(dfgsdfsd));
+//        fprintf(stderr, "%d: %s\n", i, dfgsdfsd.szPname);
+//    }
+//    STATIC(bool, init, (midiOutOpen(&fweefwefwe, 1, NULL, 0, CALLBACK_NULL), true
+//                        ));
 
 
 
@@ -336,11 +332,11 @@ void startPlayingNote(double freq) {
     ASSERT(mp.key < 128, "this note is too high");
     if(!reaperMainThread) {
         actionChannel.name = __func__;
-        actionChannel.runInMainThread(&startPlayingNote, freq);
+        actionChannel.runInMainThread(&startPlayingNote, freq, vel);
         return;
     }
     int channel = 1;
-    u8 noteOnEvent[] = {note_on | channel, mp.key, 127};
+    u8 noteOnEvent[] = {note_on | channel, mp.key, vel};
     StuffMIDIMessage(0, noteOnEvent[0], noteOnEvent[1], noteOnEvent[2]);
     u8 pitchEvent[] = {pitch_wheel | channel, mp.wheel&0b1111111, mp.wheel>>7};
     StuffMIDIMessage(0, pitchEvent[0], pitchEvent[1], pitchEvent[2]);
