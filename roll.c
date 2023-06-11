@@ -537,7 +537,7 @@ void noteArea(Painter* p, Size size) {
     }
 //    static bool midimaploaded = false;
 //    if(!
-    int dummy;
+    int dummy = arrlen(piece);
     STATIC(unsigned char *, midiNoteMap, stbi_load(MY_PATH "/midi_note_colormap.png",
                                         &dummy, &dummy, &dummy, 0));
 

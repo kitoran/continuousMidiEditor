@@ -14,6 +14,32 @@ extern TempoMarker projectSignature = {
 //double qpm;
 //int numeratorOfProjectTimeSig;
 double pieceLength = 0;
+int piecelen() {
+    return arrlen(piece);
+}
+void reassignChannels() {
+//    int pos = 0;
+    double untilWhenChannelsOccupied[CHANNELS];
+    for(int i = 0; i < CHANNELS; i++) untilWhenChannelsOccupied[i] = -1;
+    bool warned = false;
+    FOR_NOTES(anote, piece) {
+        for(int i = (currentItemConfig->value.midiMode==midi_mode_mpe?1:0);i<16;i++) {
+            if(untilWhenChannelsOccupied[i] <= anote->note.start) {
+                anote->midiChannel=i;
+                untilWhenChannelsOccupied[i] = anote->note.start + anote->note.length;
+                break;
+            }
+        }
+        if(!warned) {
+            MessageBoxInfo("not enough channels", "this piece may sound wrong because it's too polyphonic");
+            warned = true;
+        }
+    }
+//    while(arrlen(piece) > pos && piece[pos].note.start < note.start) {
+//    }
+//    bool occupiedChannels[CHANNELS] = {0};
+}
+
 int insertNote(IdealNote note) {
 
     int pos = 0;
@@ -50,7 +76,7 @@ int insertNote(IdealNote note) {
     if(!freeChannelFound) {
         MessageBoxInfo("no free channel found", "this note may affect how other notes sound");
     }
-
+    reassignChannels();
 //    if(note.start + note.length > end) end = note.start + note.length;
 #ifdef REAPER
     reaperInsert(piece[res]);
@@ -199,6 +225,8 @@ void moveNotes(double timeChange, double freqChange, int *dragged, int* base)
             timeChange = -anote->note.start;
         }
     }
+
+    reassignChannels();
 #ifdef REAPER
     reaperMoveNotes(/*timeChange, freqChange*/);
     RealNote draggedNote = piece[*dragged];
@@ -219,6 +247,8 @@ void moveNotes(double timeChange, double freqChange, int *dragged, int* base)
 
 void copyNotes(int *dragged, int* base)
 {
+
+    reassignChannels();
 #ifdef REAPER
     reaperCopyNotes();
 #else

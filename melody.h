@@ -16,7 +16,6 @@ typedef struct RealNote {
     bool selected;
     int reaperNumber;
 } RealNote;
-
 #define REAL_NOTE_FORMAT "freq = %lf, start = %lf, length = %lf channel = %d"
 // unhygienic macro
 #define REAL_NOTE_ARGS(a) a.note.freq, a.note.start, a.note.length, a.midiChannel
@@ -26,6 +25,7 @@ extern "C" {
 #endif
 
 extern RealNote* piece;
+int piecelen();
 void moveNotes(double timeChange, double freqChange, int* dragged, int *base);
 void copyNotes(int *dragged, int* base);
 int insertNote(IdealNote note);
