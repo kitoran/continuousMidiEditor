@@ -412,7 +412,8 @@ enum {
     draggingRightEdge,
     draggingVelocity,
     movingNote,
-    copyingNote
+    copyingNote,
+    limboCopyingOrDeselecting
 } mouseMode = justMovingMouse;
 //RealNote** selectionSA = NULL;
 const char* channelnames[]={"1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16"};
@@ -692,7 +693,7 @@ void noteArea(Painter* p, Size size) {
             currentItemConfig->value.horizontalFrac /= pow(1.5, e.y);
             double newPartOfItemToLeftOfScreen = partOfItemToLeftOfMouse - currentItemConfig->value.horizontalFrac*myFrac;
             currentItemConfig->value.horizontalScroll = newPartOfItemToLeftOfScreen;
-
+            if(currentItemConfig->value.horizontalScroll < 0) currentItemConfig->value.horizontalScroll = 0;
 //            currentItemConfig->value.horizontalFrac /= pow(1.5, e.y);
 //            double playhead = samplesToTime(currentPositionInSamples);
 //            currentItemConfig->value.horizontalScroll = (playhead - 1.0/2*pieceLength*currentItemConfig->value.horizontalFrac)/pieceLength;
@@ -733,6 +734,7 @@ void noteArea(Painter* p, Size size) {
                 } else if(e.y <= noteRect.y+RANGE_FOR_VELOCITY_DRAGGING) {
                     mouseMode = draggingVelocity;
                 } else {
+
                     mouseMode = movingNote; // the user can then press ctrl to change mode to copying,
                     // but only if they haven't moved the mouse tooo far yet
                 }
