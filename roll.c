@@ -17,7 +17,6 @@
 bool showChannels = false;
 bool showScale = false;
 bool snap = true;
-
 typedef struct {
     int num;
     int den;
@@ -590,6 +589,8 @@ void noteArea(Painter* p, Size size) {
         guiFillRectangle(p,
                          r);
     }
+
+    static int lastTouchedVel = 100;
     if(mouseMode == selectingARange) {
         Point mouse; SDL_GetMouseState(&mouse.x, &mouse.y);
 //        mouse.x -= pos.x; mouse.y -= pos.y;
@@ -640,7 +641,7 @@ void noteArea(Painter* p, Size size) {
                 if(keys[SDL_SCANCODE_M]) {
                     muted = true;
                 }
-                newNote = (IdealNote){ newNote.freq, start, end - start, muted, 100};
+                newNote = (IdealNote){ newNote.freq, start, end - start, muted, lastTouchedVel};
 
                 if(base >= insertNote(newNote)) {
                     base++;
@@ -713,7 +714,7 @@ void noteArea(Painter* p, Size size) {
             select->selected = true;
         }
         double freq = 0;
-        int vel = 100;
+//        int vel = lastTouchedVel;
         if(select) {
             if(e.button == 2) base = (int)(select-piece);
             if(e.button == 1)  {
@@ -730,7 +731,8 @@ void noteArea(Painter* p, Size size) {
                 }
                 dragged  = (int)(select-piece);
             }
-            freq = select->note.freq; vel = select->note.velocity;
+            freq = select->note.freq;
+            lastTouchedVel = select->note.velocity;
             draggedNoteInitialPos = select->note;
         }
 
@@ -738,20 +740,19 @@ void noteArea(Painter* p, Size size) {
         double time = closestTime(size.w, e.x);
 //        DEBUG_PRINT(select, "%ld");
 
-        if(base >= 0 && select == NULL && e.button == 1) {
-
-            freq = closestFreq(size.h, pos, e.y);
-            newNote = (IdealNote){ freq, time, xToTime(size.w, e.x+1)-time, false, 100};
-        }
-        if(base < 0 && select == NULL && e.button == 1) {
-//            fprintf(stderr, "oops im here !!!L_)(\n");
-            newNote = (IdealNote){ c.freq, time, xToTime(size.w, e.x+1)-time, false, 100};
-            freq = c.freq;
+        if(select == NULL && e.button == 1) {
+            if(base >= 0) {
+                freq = closestFreq(size.h, pos, e.y);
+            }
+            if(base < 0) {
+                freq = c.freq;
+            }
+            newNote = (IdealNote){ freq, time, xToTime(size.w, e.x+1)-time, false, lastTouchedVel};
         }
         if(select == NULL && e.button == 3) {
             mouseMode = selectingARange;
         }
-        if(freq) startPlayingNote(freq, vel);
+        if(freq) startPlayingNote(freq, lastTouchedVel);
     }
     if(event.type == MotionEvent) {
         SDL_MouseMotionEvent e =
