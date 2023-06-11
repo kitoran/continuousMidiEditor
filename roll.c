@@ -839,7 +839,7 @@ void noteArea(Painter* p, Size size) {
                     anote->note.freq *= chf;
                     anote->note.length += chl;
 
-                    anote->note.velocity = CLAMP(anote->note.velocity - e.yrel, 0, 127);
+                    anote->note.velocity = CLAMP(anote->note.velocity - chv, 0, 127);
                 }
             }
 

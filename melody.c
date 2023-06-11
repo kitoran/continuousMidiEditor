@@ -167,11 +167,25 @@ void clearPiece()
 }
 
 
-int cmpStarts(void const* n1, void const*n2) {
-    return (((RealNote*)n1)->note.start > ((RealNote*)n2)->note.start)?1:
-           (((RealNote*)n1)->note.start < ((RealNote*)n2)->note.start)?-1:
-                                                                       0;
+int cmpStarts(void const* n1, void const*n2) { // shut up
+    RealNote* rn1 = n1, *rn2 = n2;
+    return (rn1->note.start > rn2->note.start)?1:
+           (rn1->note.start < rn2->note.start)?-1:
+            (rn1->note.length > rn2->note.length)?1:
+            (rn1->note.length < rn2->note.length)?-1:
+            (rn1->note.freq > rn2->note.freq)?1:
+            (rn1->note.freq < rn2->note.freq)?-1:
+            (rn1->note.muted > rn2->note.muted)?1:
+            (rn1->note.muted < rn2->note.muted)?-1:
+            (rn1->note.velocity > rn2->note.velocity)?1:
+            (rn1->note.velocity < rn2->note.velocity)?-1:
+                                                    0;
 }
+
+//void sortMelody() {
+
+
+//}
 
 void moveNotes(double timeChange, double freqChange, int *dragged, int* base)
 {
@@ -189,17 +203,17 @@ void moveNotes(double timeChange, double freqChange, int *dragged, int* base)
     reaperMoveNotes(/*timeChange, freqChange*/);
     RealNote draggedNote = piece[*dragged];
     RealNote baseNote = {0}; if(*base>=0)baseNote=piece[*base]; // I'm sorry i'm doing it this way, i really should just sort with my own code or reload piece from reaper
-//    qsort(piece, arrlen(piece), sizeof(*piece), cmpStarts); Now i'm reloading after every move, so no need to sort
 #else
     ABORT("");
 #endif
-//    RealNote* newDragged = bsearch(&draggedNote, piece, arrlen(piece), sizeof(*piece), cmpStarts);
-//    ASSERT(newDragged, "");
-//    *dragged = 0;//(int)(newDragged-piece);
-//    if(*base>=0) {
-//        RealNote* newBase = bsearch(&baseNote, piece, arrlen(piece), sizeof(*piece), cmpStarts);
-//        *base = (int)(newBase-piece);
-//    }
+    qsort(piece, arrlen(piece), sizeof(*piece), cmpStarts); //Now i'm reloading after every move, so no need to sort
+    RealNote* newDragged = bsearch(&draggedNote, piece, arrlen(piece), sizeof(*piece), cmpStarts);
+    ASSERT(newDragged, "");
+    *dragged = 0;//(int)(newDragged-piece);
+    if(*base>=0) {
+        RealNote* newBase = bsearch(&baseNote, piece, arrlen(piece), sizeof(*piece), cmpStarts);
+        *base = (int)(newBase-piece);
+    }
 
 }
 

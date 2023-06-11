@@ -174,10 +174,10 @@ void reaperInsert(RealNote note) {
     MediaItem* item = GetMediaItemTake_Item(take);
 //    Undo_BeginBlock2(GetItemProjectContext(item));
     commit();
+    Undo_OnStateChange_Item(GetItemProjectContext(item), "Insert Note", item);
 //    Undo_EndBlock2(GetItemProjectContext(item), "Move notes", 4);
 
 
-    //    Undo_OnStateChange_Item(GetItemProjectContext(item), "Insert Note", item);
 //    insertNoteImpl(note);
 //    reload();
 }
@@ -207,6 +207,7 @@ void reaperDeleteSelected() {
     MediaItem* item = GetMediaItemTake_Item(take);
     Undo_BeginBlock2(GetItemProjectContext(item));
     commit();
+    Undo_OnStateChange_Item(GetItemProjectContext(item), "Delete Note", item);
 //    MIDI_DisableSort(take);
 //    for(RealNote* anote = piece + arrlen(piece) - 1; anote >= piece; anote--) {
 //        if(!anote->selected) continue;
@@ -241,7 +242,7 @@ void reaperMoveNotes(/*double time, double freq*/) {
 //        insertNoteImpl(*anote);
 //    }
     MIDI_Sort(take);
-
+Undo_OnStateChange_Item(GetItemProjectContext(item), "Move Notes", item);
     Undo_EndBlock2(GetItemProjectContext(item), "Move notes", 4);
 //    reload();
 
@@ -258,6 +259,8 @@ void reaperCopyNotes() {
     MIDI_DisableSort(take);
 
     commit();
+    Undo_OnStateChange_Item(GetItemProjectContext(item), "Copy Notes", item);
+//    Undo_OnStateChange(GetItemProjectContext(item));
 //    for(RealNote* anote = piece + arrlen(piece) - 1; anote >= piece; anote--) {
 //        if(!anote->selected) continue;
 ////        bool res = MIDI_DeleteNote(take, anote-piece);
