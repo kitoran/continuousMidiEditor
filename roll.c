@@ -686,10 +686,17 @@ void noteArea(Painter* p, Size size) {
             currentItemConfig->value.verticalScroll = 1 - currentItemConfig->value.verticalFrac - newPartOfRangeBelowScreen;
 
         } else {
+            double myFrac = (e.mouseX - pos.x) * 1.0/ size.w;
+            double partOfItemToLeftOfScreen = currentItemConfig->value.horizontalScroll;
+            double partOfItemToLeftOfMouse = partOfItemToLeftOfScreen + currentItemConfig->value.horizontalFrac*myFrac;
             currentItemConfig->value.horizontalFrac /= pow(1.5, e.y);
-            double playhead = samplesToTime(currentPositionInSamples);
-            currentItemConfig->value.horizontalScroll = (playhead - 1.0/2*pieceLength*currentItemConfig->value.horizontalFrac)/pieceLength;
-            currentItemConfig->value.horizontalScroll = MAX(0, currentItemConfig->value.horizontalScroll);
+            double newPartOfItemToLeftOfScreen = partOfItemToLeftOfMouse - currentItemConfig->value.horizontalFrac*myFrac;
+            currentItemConfig->value.horizontalScroll = newPartOfItemToLeftOfScreen;
+
+//            currentItemConfig->value.horizontalFrac /= pow(1.5, e.y);
+//            double playhead = samplesToTime(currentPositionInSamples);
+//            currentItemConfig->value.horizontalScroll = (playhead - 1.0/2*pieceLength*currentItemConfig->value.horizontalFrac)/pieceLength;
+//            currentItemConfig->value.horizontalScroll = MAX(0, currentItemConfig->value.horizontalScroll);
         }
         /*if(e.y >  0)*/
     }

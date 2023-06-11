@@ -23,14 +23,16 @@ void reassignChannels() {
     for(int i = 0; i < CHANNELS; i++) untilWhenChannelsOccupied[i] = -1;
     bool warned = false;
     FOR_NOTES(anote, piece) {
+        bool found = false;
         for(int i = (currentItemConfig->value.midiMode==midi_mode_mpe?1:0);i<16;i++) {
             if(untilWhenChannelsOccupied[i] <= anote->note.start) {
                 anote->midiChannel=i;
                 untilWhenChannelsOccupied[i] = anote->note.start + anote->note.length;
+                found = true;
                 break;
             }
         }
-        if(!warned) {
+        if(!warned && !found) {
             MessageBoxInfo("not enough channels", "this piece may sound wrong because it's too polyphonic");
             warned = true;
         }
