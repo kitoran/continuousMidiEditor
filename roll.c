@@ -9,6 +9,8 @@
 #include "playback.h"
 //#include <thread.h>
 #include "stb_ds.h"
+#include "stb_image.h"
+
 #include "melody.h"
 #include <math.h>
 #include <stdio.h>
@@ -534,6 +536,12 @@ void noteArea(Painter* p, Size size) {
             }
         }
     }
+//    static bool midimaploaded = false;
+//    if(!
+    int dummy;
+    STATIC(unsigned char *, midiNoteMap, stbi_load(MY_PATH "/midi_note_colormap.png",
+                                        &dummy, &dummy, &dummy, 0));
+
     FOR_NOTES(anote, piece) {
         Rect r = noteToRect(size, pos, anote->note);
         guiSetForeground(p, anote->selected?0xff777777:0xff333333);
@@ -548,7 +556,8 @@ void noteArea(Painter* p, Size size) {
                 double hue = 360/16*anote->midiChannel;
                 guiSetForeground(p, hsvd2bgr(hue,anote->selected?0.3:1,1));
             } else {
-                guiSetForeground(p, anote->selected?0xffe0ece4:0xffd0bc04);
+                unsigned char* velbase = midiNoteMap+3*12+3*anote->note.velocity;
+                guiSetForeground(p, anote->selected?0xffe0ece4:rgb(velbase[0], velbase[1], velbase[2]));
             }
         }
         guiFillRectangle(p,
