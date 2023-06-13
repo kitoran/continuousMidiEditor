@@ -587,9 +587,9 @@ extern "C" REAPER_PLUGIN_DLL_EXPORT int REAPER_PLUGIN_ENTRYPOINT(
     return 0;
 
   // see also https://gist.github.com/cfillion/350356a62c61a1a2640024f8dc6c6770
-#define GET_FUNC(a) a = (decltype(a))rec->GetFunc(#a); if(!a) abort();
-  GET_FUNC(AddMediaItemToTrack)     	GET_FUNC(GetEnvelopePointEx)     	GET_FUNC(InsertAutomationItem)     	GET_FUNC(SetRegionRenderMatrix)
-  GET_FUNC(AddProjectMarker)     	GET_FUNC(GetEnvelopeScalingMode)     	GET_FUNC(InsertEnvelopePoint)     	GET_FUNC(SetTakeMarker)
+#define GET_FUNC(a) a = (decltype(a))rec->GetFunc(#a); if(!a)  {MessageBoxA(0, "please tell the developer at kitttoran@gmail.com", \
+    "can't load microtonal midi editor", MB_OK | MB_SYSTEMMODAL); return false; }
+
   GET_FUNC(AddProjectMarker2)     	GET_FUNC(GetEnvelopeStateChunk)     	GET_FUNC(InsertEnvelopePointEx)     	GET_FUNC(SetTakeStretchMarker)
   GET_FUNC(AddRemoveReaScript)     	GET_FUNC(GetExePath)     	GET_FUNC(InsertMedia)     	GET_FUNC(SetTakeStretchMarkerSlope)
   GET_FUNC(AddTakeToMediaItem)     	GET_FUNC(GetExtState)     	GET_FUNC(InsertMediaSection)     	GET_FUNC(SetTempoTimeSigMarker)
@@ -633,58 +633,58 @@ extern "C" REAPER_PLUGIN_DLL_EXPORT int REAPER_PLUGIN_ENTRYPOINT(
   GET_FUNC(CreateTakeAudioAccessor)     	GET_FUNC(GetMediaSourceNumChannels)     	GET_FUNC(MIDI_EnumSelCC)     	GET_FUNC(TakeFX_GetFXName)
   GET_FUNC(CreateTrackAudioAccessor)     	GET_FUNC(GetMediaSourceParent)     	GET_FUNC(MIDI_EnumSelEvts)     	GET_FUNC(TakeFX_GetIOSize)
   GET_FUNC(CreateTrackSend)     	GET_FUNC(GetMediaSourceSampleRate)     	GET_FUNC(MIDI_EnumSelNotes)     	GET_FUNC(TakeFX_GetNamedConfigParm)
-  GET_FUNC(CSurf_FlushUndo)     	GET_FUNC(GetMediaSourceType)     	GET_FUNC(MIDI_EnumSelTextSysexEvts)     	GET_FUNC(TakeFX_GetNumParams)
-  GET_FUNC(CSurf_GetTouchState)     	GET_FUNC(GetMediaTrackInfo_Value)     	GET_FUNC(MIDI_GetAllEvts)     	GET_FUNC(TakeFX_GetOffline)
-  GET_FUNC(CSurf_GoEnd)     	GET_FUNC(GetMIDIInputName)     	GET_FUNC(MIDI_GetCC)     	GET_FUNC(TakeFX_GetOpen)
-  GET_FUNC(CSurf_GoStart)     	GET_FUNC(GetMIDIOutputName)     	GET_FUNC(MIDI_GetCCShape)     	GET_FUNC(TakeFX_GetParam)
-  GET_FUNC(CSurf_NumTracks)     	GET_FUNC(GetMixerScroll)     	GET_FUNC(MIDI_GetEvt)     	GET_FUNC(TakeFX_GetParameterStepSizes)
-  GET_FUNC(CSurf_OnArrow)     	GET_FUNC(GetMouseModifier)     	GET_FUNC(MIDI_GetGrid)     	GET_FUNC(TakeFX_GetParamEx)
-  GET_FUNC(CSurf_OnFwd)     	GET_FUNC(GetMousePosition)     	GET_FUNC(MIDI_GetHash)     	GET_FUNC(TakeFX_GetParamFromIdent)
-  GET_FUNC(CSurf_OnFXChange)     	GET_FUNC(GetNumAudioInputs)     	GET_FUNC(MIDI_GetNote)     	GET_FUNC(TakeFX_GetParamIdent)
-  GET_FUNC(CSurf_OnInputMonitorChange)     	GET_FUNC(GetNumAudioOutputs)     	GET_FUNC(MIDI_GetPPQPos_EndOfMeasure)     	GET_FUNC(TakeFX_GetParamName)
-  GET_FUNC(CSurf_OnInputMonitorChangeEx)     	GET_FUNC(GetNumMIDIInputs)     	GET_FUNC(MIDI_GetPPQPos_StartOfMeasure)     	GET_FUNC(TakeFX_GetParamNormalized)
-  GET_FUNC(CSurf_OnMuteChange)     	GET_FUNC(GetNumMIDIOutputs)     	GET_FUNC(MIDI_GetPPQPosFromProjQN)     	GET_FUNC(TakeFX_GetPinMappings)
-  GET_FUNC(CSurf_OnMuteChangeEx)     	GET_FUNC(GetNumTakeMarkers)     	GET_FUNC(MIDI_GetPPQPosFromProjTime)     	GET_FUNC(TakeFX_GetPreset)
-  GET_FUNC(CSurf_OnPanChange)     	GET_FUNC(GetNumTracks)     	GET_FUNC(MIDI_GetProjQNFromPPQPos)     	GET_FUNC(TakeFX_GetPresetIndex)
-  GET_FUNC(CSurf_OnPanChangeEx)     	GET_FUNC(GetOS)     	GET_FUNC(MIDI_GetProjTimeFromPPQPos)     	GET_FUNC(TakeFX_GetUserPresetFilename)
-  GET_FUNC(CSurf_OnPause)     	GET_FUNC(GetOutputChannelName)     	GET_FUNC(MIDI_GetRecentInputEvent)     	GET_FUNC(TakeFX_NavigatePresets)
-  GET_FUNC(CSurf_OnPlay)     	GET_FUNC(GetOutputLatency)     	GET_FUNC(MIDI_GetScale)     	GET_FUNC(TakeFX_SetEnabled)
-  GET_FUNC(CSurf_OnPlayRateChange)     	GET_FUNC(GetParentTrack)     	GET_FUNC(MIDI_GetTextSysexEvt)     	GET_FUNC(TakeFX_SetNamedConfigParm)
-  GET_FUNC(CSurf_OnRecArmChange)     	GET_FUNC(GetPeakFileName)     	GET_FUNC(MIDI_GetTrackHash)     	GET_FUNC(TakeFX_SetOffline)
-  GET_FUNC(CSurf_OnRecArmChangeEx)     	GET_FUNC(GetPeakFileNameEx)     	GET_FUNC(midi_init)     	GET_FUNC(TakeFX_SetOpen)
-  GET_FUNC(CSurf_OnRecord)     	GET_FUNC(GetPeakFileNameEx2)     	GET_FUNC(MIDI_InsertCC)     	GET_FUNC(TakeFX_SetParam)
-  GET_FUNC(CSurf_OnRecvPanChange)     	GET_FUNC(GetPlayPosition)     	GET_FUNC(MIDI_InsertEvt)     	GET_FUNC(TakeFX_SetParamNormalized)
-  GET_FUNC(CSurf_OnRecvVolumeChange)     	GET_FUNC(GetPlayPosition2)     	GET_FUNC(MIDI_InsertNote)     	GET_FUNC(TakeFX_SetPinMappings)
-  GET_FUNC(CSurf_OnRew)     	GET_FUNC(GetPlayPosition2Ex)     	GET_FUNC(MIDI_InsertTextSysexEvt)     	GET_FUNC(TakeFX_SetPreset)
-  GET_FUNC(CSurf_OnRewFwd)     	GET_FUNC(GetPlayPositionEx)     	GET_FUNC(midi_reinit)     	GET_FUNC(TakeFX_SetPresetByIndex)
-  GET_FUNC(CSurf_OnScroll)     	GET_FUNC(GetPlayState)     	GET_FUNC(MIDI_SelectAll)     	GET_FUNC(TakeFX_Show)
-  GET_FUNC(CSurf_OnSelectedChange)     	GET_FUNC(GetPlayStateEx)     	GET_FUNC(MIDI_SetAllEvts)     	GET_FUNC(TakeIsMIDI)
-  GET_FUNC(CSurf_OnSendPanChange)     	GET_FUNC(GetProjectLength)     	GET_FUNC(MIDI_SetCC)     	GET_FUNC(ThemeLayout_GetLayout)
-  GET_FUNC(CSurf_OnSendVolumeChange)     	GET_FUNC(GetProjectName)     	GET_FUNC(MIDI_SetCCShape)     	GET_FUNC(ThemeLayout_GetParameter)
-  GET_FUNC(CSurf_OnSoloChange)     	GET_FUNC(GetProjectPath)     	GET_FUNC(MIDI_SetEvt)     	GET_FUNC(ThemeLayout_RefreshAll)
-  GET_FUNC(CSurf_OnSoloChangeEx)     	GET_FUNC(GetProjectPathEx)     	GET_FUNC(MIDI_SetItemExtents)     	GET_FUNC(ThemeLayout_SetLayout)
-  GET_FUNC(CSurf_OnStop)     	GET_FUNC(GetProjectStateChangeCount)     	GET_FUNC(MIDI_SetNote)     	GET_FUNC(ThemeLayout_SetParameter)
-  GET_FUNC(CSurf_OnTempoChange)     	GET_FUNC(GetProjectTimeOffset)     	GET_FUNC(MIDI_SetTextSysexEvt)     	GET_FUNC(time_precise)
-  GET_FUNC(CSurf_OnTrackSelection)     	GET_FUNC(GetProjectTimeSignature)     	GET_FUNC(MIDI_Sort)     	GET_FUNC(TimeMap2_beatsToTime)
-  GET_FUNC(CSurf_OnVolumeChange)     	GET_FUNC(GetProjectTimeSignature2)     	GET_FUNC(MIDIEditor_EnumTakes)     	GET_FUNC(TimeMap2_GetDividedBpmAtTime)
-  GET_FUNC(CSurf_OnVolumeChangeEx)     	GET_FUNC(GetProjExtState)     	GET_FUNC(MIDIEditor_GetActive)     	GET_FUNC(TimeMap2_GetNextChangeTime)
-  GET_FUNC(CSurf_OnWidthChange)     	GET_FUNC(GetResourcePath)     	GET_FUNC(MIDIEditor_GetMode)     	GET_FUNC(TimeMap2_QNToTime)
-  GET_FUNC(CSurf_OnWidthChangeEx)     	GET_FUNC(GetSelectedEnvelope)     	GET_FUNC(MIDIEditor_GetSetting_int)     	GET_FUNC(TimeMap2_timeToBeats)
-  GET_FUNC(CSurf_OnZoom)     	GET_FUNC(GetSelectedMediaItem)     	GET_FUNC(MIDIEditor_GetSetting_str)     	GET_FUNC(TimeMap2_timeToQN)
-  GET_FUNC(CSurf_ResetAllCachedVolPanStates)     	GET_FUNC(GetSelectedTrack)     	GET_FUNC(MIDIEditor_GetTake)     	GET_FUNC(TimeMap_curFrameRate)
-  GET_FUNC(CSurf_ScrubAmt)     	GET_FUNC(GetSelectedTrack2)     	GET_FUNC(MIDIEditor_LastFocused_OnCommand)     	GET_FUNC(TimeMap_GetDividedBpmAtTime)
-  GET_FUNC(CSurf_SetAutoMode)     	GET_FUNC(GetSelectedTrackEnvelope)     	GET_FUNC(MIDIEditor_OnCommand)     	GET_FUNC(TimeMap_GetMeasureInfo)
-  GET_FUNC(CSurf_SetPlayState)     	GET_FUNC(GetSet_ArrangeView2)     	GET_FUNC(MIDIEditor_SetSetting_int)     	GET_FUNC(TimeMap_GetMetronomePattern)
-  GET_FUNC(CSurf_SetRepeatState)     	GET_FUNC(GetSet_LoopTimeRange)     	GET_FUNC(mkpanstr)     	GET_FUNC(TimeMap_GetTimeSigAtTime)
-  GET_FUNC(CSurf_SetSurfaceMute)     	GET_FUNC(GetSet_LoopTimeRange2)     	GET_FUNC(mkvolpanstr)     	GET_FUNC(TimeMap_QNToMeasures)
-  GET_FUNC(CSurf_SetSurfacePan)     	GET_FUNC(GetSetAutomationItemInfo)     	GET_FUNC(mkvolstr)     	GET_FUNC(TimeMap_QNToTime)
-  GET_FUNC(CSurf_SetSurfaceRecArm)     	GET_FUNC(GetSetAutomationItemInfo_String)     	GET_FUNC(MoveEditCursor)     	GET_FUNC(TimeMap_QNToTime_abs)
-  GET_FUNC(CSurf_SetSurfaceSelected)     	GET_FUNC(GetSetEnvelopeInfo_String)     	GET_FUNC(MoveMediaItemToTrack)     	GET_FUNC(TimeMap_timeToQN)
-  GET_FUNC(CSurf_SetSurfaceSolo)     	GET_FUNC(GetSetEnvelopeState)     	GET_FUNC(MuteAllTracks)     	GET_FUNC(TimeMap_timeToQN_abs)
-  GET_FUNC(CSurf_SetSurfaceVolume)     	GET_FUNC(GetSetEnvelopeState2)     	GET_FUNC(my_getViewport)     	GET_FUNC(ToggleTrackSendUIMute)
-  GET_FUNC(CSurf_SetTrackListChange)     	GET_FUNC(GetSetItemState)     	GET_FUNC(NamedCommandLookup)     	GET_FUNC(Track_GetPeakHoldDB)
-  GET_FUNC(CSurf_TrackFromID)     	GET_FUNC(GetSetItemState2)     	GET_FUNC(OnPauseButton)     	GET_FUNC(Track_GetPeakInfo)
-  GET_FUNC(CSurf_TrackToID)     	GET_FUNC(GetSetMediaItemInfo_String)     	GET_FUNC(OnPauseButtonEx)     	GET_FUNC(TrackCtl_SetToolTip)
+        GET_FUNC(GetMediaSourceType)     	GET_FUNC(MIDI_EnumSelTextSysexEvts)     	GET_FUNC(TakeFX_GetNumParams)
+        GET_FUNC(GetMediaTrackInfo_Value)     	GET_FUNC(MIDI_GetAllEvts)     	GET_FUNC(TakeFX_GetOffline)
+        GET_FUNC(GetMIDIInputName)     	GET_FUNC(MIDI_GetCC)     	GET_FUNC(TakeFX_GetOpen)
+        GET_FUNC(GetMIDIOutputName)     	GET_FUNC(MIDI_GetCCShape)     	GET_FUNC(TakeFX_GetParam)
+        GET_FUNC(GetMixerScroll)     	GET_FUNC(MIDI_GetEvt)     	GET_FUNC(TakeFX_GetParameterStepSizes)
+        GET_FUNC(GetMouseModifier)     	GET_FUNC(MIDI_GetGrid)     	GET_FUNC(TakeFX_GetParamEx)
+        GET_FUNC(GetMousePosition)     	GET_FUNC(MIDI_GetHash)     	GET_FUNC(TakeFX_GetParamFromIdent)
+        GET_FUNC(GetNumAudioInputs)     	GET_FUNC(MIDI_GetNote)     	GET_FUNC(TakeFX_GetParamIdent)
+        GET_FUNC(GetNumAudioOutputs)     	GET_FUNC(MIDI_GetPPQPos_EndOfMeasure)     	GET_FUNC(TakeFX_GetParamName)
+        GET_FUNC(GetNumMIDIInputs)     	GET_FUNC(MIDI_GetPPQPos_StartOfMeasure)     	GET_FUNC(TakeFX_GetParamNormalized)
+        GET_FUNC(GetNumMIDIOutputs)     	GET_FUNC(MIDI_GetPPQPosFromProjQN)     	GET_FUNC(TakeFX_GetPinMappings)
+        GET_FUNC(GetNumTakeMarkers)     	GET_FUNC(MIDI_GetPPQPosFromProjTime)     	GET_FUNC(TakeFX_GetPreset)
+        GET_FUNC(GetNumTracks)     	GET_FUNC(MIDI_GetProjQNFromPPQPos)     	GET_FUNC(TakeFX_GetPresetIndex)
+        GET_FUNC(GetOS)     	GET_FUNC(MIDI_GetProjTimeFromPPQPos)     	GET_FUNC(TakeFX_GetUserPresetFilename)
+        GET_FUNC(GetOutputChannelName)     	GET_FUNC(MIDI_GetRecentInputEvent)     	GET_FUNC(TakeFX_NavigatePresets)
+        GET_FUNC(GetOutputLatency)     	GET_FUNC(MIDI_GetScale)     	GET_FUNC(TakeFX_SetEnabled)
+        GET_FUNC(GetParentTrack)     	GET_FUNC(MIDI_GetTextSysexEvt)     	GET_FUNC(TakeFX_SetNamedConfigParm)
+        GET_FUNC(GetPeakFileName)     	GET_FUNC(MIDI_GetTrackHash)     	GET_FUNC(TakeFX_SetOffline)
+        GET_FUNC(GetPeakFileNameEx)     	GET_FUNC(midi_init)     	GET_FUNC(TakeFX_SetOpen)
+        GET_FUNC(GetPeakFileNameEx2)     	GET_FUNC(MIDI_InsertCC)     	GET_FUNC(TakeFX_SetParam)
+        GET_FUNC(GetPlayPosition)     	GET_FUNC(MIDI_InsertEvt)     	GET_FUNC(TakeFX_SetParamNormalized)
+        GET_FUNC(GetPlayPosition2)     	GET_FUNC(MIDI_InsertNote)     	GET_FUNC(TakeFX_SetPinMappings)
+        GET_FUNC(GetPlayPosition2Ex)     	GET_FUNC(MIDI_InsertTextSysexEvt)     	GET_FUNC(TakeFX_SetPreset)
+        GET_FUNC(GetPlayPositionEx)     	GET_FUNC(midi_reinit)     	GET_FUNC(TakeFX_SetPresetByIndex)
+        GET_FUNC(GetPlayState)     	GET_FUNC(MIDI_SelectAll)     	GET_FUNC(TakeFX_Show)
+        GET_FUNC(GetPlayStateEx)     	GET_FUNC(MIDI_SetAllEvts)     	GET_FUNC(TakeIsMIDI)
+        GET_FUNC(GetProjectLength)     	GET_FUNC(MIDI_SetCC)     	GET_FUNC(ThemeLayout_GetLayout)
+        GET_FUNC(GetProjectName)     	GET_FUNC(MIDI_SetCCShape)     	GET_FUNC(ThemeLayout_GetParameter)
+        GET_FUNC(GetProjectPath)     	GET_FUNC(MIDI_SetEvt)     	GET_FUNC(ThemeLayout_RefreshAll)
+        GET_FUNC(GetProjectPathEx)     	GET_FUNC(MIDI_SetItemExtents)     	GET_FUNC(ThemeLayout_SetLayout)
+        GET_FUNC(GetProjectStateChangeCount)     	GET_FUNC(MIDI_SetNote)     	GET_FUNC(ThemeLayout_SetParameter)
+        GET_FUNC(GetProjectTimeOffset)     	GET_FUNC(MIDI_SetTextSysexEvt)     	GET_FUNC(time_precise)
+        GET_FUNC(GetProjectTimeSignature)     	GET_FUNC(MIDI_Sort)     	GET_FUNC(TimeMap2_beatsToTime)
+        GET_FUNC(GetProjectTimeSignature2)     	GET_FUNC(MIDIEditor_EnumTakes)     	GET_FUNC(TimeMap2_GetDividedBpmAtTime)
+        GET_FUNC(GetProjExtState)     	GET_FUNC(MIDIEditor_GetActive)     	GET_FUNC(TimeMap2_GetNextChangeTime)
+        GET_FUNC(GetResourcePath)     	GET_FUNC(MIDIEditor_GetMode)     	GET_FUNC(TimeMap2_QNToTime)
+        GET_FUNC(GetSelectedEnvelope)     	GET_FUNC(MIDIEditor_GetSetting_int)     	GET_FUNC(TimeMap2_timeToBeats)
+        GET_FUNC(GetSelectedMediaItem)     	GET_FUNC(MIDIEditor_GetSetting_str)     	GET_FUNC(TimeMap2_timeToQN)
+        GET_FUNC(GetSelectedTrack)     	GET_FUNC(MIDIEditor_GetTake)     	GET_FUNC(TimeMap_curFrameRate)
+        GET_FUNC(GetSelectedTrack2)     	GET_FUNC(MIDIEditor_LastFocused_OnCommand)     	GET_FUNC(TimeMap_GetDividedBpmAtTime)
+        GET_FUNC(GetSelectedTrackEnvelope)     	GET_FUNC(MIDIEditor_OnCommand)     	GET_FUNC(TimeMap_GetMeasureInfo)
+        GET_FUNC(GetSet_ArrangeView2)     	GET_FUNC(MIDIEditor_SetSetting_int)     	GET_FUNC(TimeMap_GetMetronomePattern)
+        GET_FUNC(GetSet_LoopTimeRange)     	GET_FUNC(mkpanstr)     	GET_FUNC(TimeMap_GetTimeSigAtTime)
+        GET_FUNC(GetSet_LoopTimeRange2)     	GET_FUNC(mkvolpanstr)     	GET_FUNC(TimeMap_QNToMeasures)
+        GET_FUNC(GetSetAutomationItemInfo)     	GET_FUNC(mkvolstr)     	GET_FUNC(TimeMap_QNToTime)
+        GET_FUNC(GetSetAutomationItemInfo_String)     	GET_FUNC(MoveEditCursor)     	GET_FUNC(TimeMap_QNToTime_abs)
+        GET_FUNC(GetSetEnvelopeInfo_String)     	GET_FUNC(MoveMediaItemToTrack)     	GET_FUNC(TimeMap_timeToQN)
+        GET_FUNC(GetSetEnvelopeState)     	GET_FUNC(MuteAllTracks)     	GET_FUNC(TimeMap_timeToQN_abs)
+        GET_FUNC(GetSetEnvelopeState2)     	GET_FUNC(my_getViewport)     	GET_FUNC(ToggleTrackSendUIMute)
+        GET_FUNC(GetSetItemState)     	GET_FUNC(NamedCommandLookup)     	GET_FUNC(Track_GetPeakHoldDB)
+        GET_FUNC(GetSetItemState2)     	GET_FUNC(OnPauseButton)     	GET_FUNC(Track_GetPeakInfo)
+        GET_FUNC(GetSetMediaItemInfo_String)     	GET_FUNC(OnPauseButtonEx)     	GET_FUNC(TrackCtl_SetToolTip)
   GET_FUNC(DB2SLIDER)     	GET_FUNC(GetSetMediaItemTakeInfo_String)     	GET_FUNC(OnPlayButton)     	GET_FUNC(TrackFX_AddByName)
   GET_FUNC(DeleteEnvelopePointEx)     	GET_FUNC(GetSetMediaTrackInfo_String)     	GET_FUNC(OnPlayButtonEx)     	GET_FUNC(TrackFX_CopyToTake)
   GET_FUNC(DeleteEnvelopePointRange)     	GET_FUNC(GetSetProjectAuthor)     	GET_FUNC(OnStopButton)     	GET_FUNC(TrackFX_CopyToTrack)
@@ -721,12 +721,12 @@ extern "C" REAPER_PLUGIN_DLL_EXPORT int REAPER_PLUGIN_ENTRYPOINT(
   GET_FUNC(EnumRegionRenderMatrix)     	GET_FUNC(GetTrackColor)     	GET_FUNC(Resample_EnumModes)     	GET_FUNC(TrackFX_GetPresetIndex)
   GET_FUNC(EnumTrackMIDIProgramNames)     	GET_FUNC(GetTrackDepth)     	GET_FUNC(resolve_fn)     	GET_FUNC(TrackFX_GetRecChainVisible)
   GET_FUNC(EnumTrackMIDIProgramNamesEx)     	GET_FUNC(GetTrackEnvelope)     	GET_FUNC(resolve_fn2)     	GET_FUNC(TrackFX_GetRecCount)
-  GET_FUNC(Envelope_Evaluate)     	GET_FUNC(GetTrackEnvelopeByChunkName)     	GET_FUNC(ReverseNamedCommandLookup)     	GET_FUNC(TrackFX_GetUserPresetFilename)
-  GET_FUNC(Envelope_FormatValue)     	GET_FUNC(GetTrackEnvelopeByName)     	GET_FUNC(ScaleFromEnvelopeMode)     	GET_FUNC(TrackFX_NavigatePresets)
-  GET_FUNC(Envelope_GetParentTake)     	GET_FUNC(GetTrackFromPoint)     	GET_FUNC(ScaleToEnvelopeMode)     	GET_FUNC(TrackFX_SetEnabled)
-  GET_FUNC(Envelope_GetParentTrack)     	GET_FUNC(GetTrackGUID)     	GET_FUNC(SelectAllMediaItems)     	GET_FUNC(TrackFX_SetEQBandEnabled)
-  GET_FUNC(Envelope_SortPoints)     	GET_FUNC(GetTrackMediaItem)     	GET_FUNC(SelectProjectInstance)     	GET_FUNC(TrackFX_SetEQParam)
-  GET_FUNC(Envelope_SortPointsEx)     	GET_FUNC(GetTrackMIDILyrics)     	GET_FUNC(SetActiveTake)     	GET_FUNC(TrackFX_SetNamedConfigParm)
+        GET_FUNC(GetTrackEnvelopeByChunkName)     	GET_FUNC(ReverseNamedCommandLookup)     	GET_FUNC(TrackFX_GetUserPresetFilename)
+  GET_FUNC(GetTrackEnvelopeByName)     	GET_FUNC(ScaleFromEnvelopeMode)     	GET_FUNC(TrackFX_NavigatePresets)
+  GET_FUNC(GetTrackFromPoint)     	GET_FUNC(ScaleToEnvelopeMode)     	GET_FUNC(TrackFX_SetEnabled)
+  GET_FUNC(GetTrackGUID)     	GET_FUNC(SelectAllMediaItems)     	GET_FUNC(TrackFX_SetEQBandEnabled)
+  GET_FUNC(GetTrackMediaItem)     	GET_FUNC(SelectProjectInstance)     	GET_FUNC(TrackFX_SetEQParam)
+  GET_FUNC(GetTrackMIDILyrics)     	GET_FUNC(SetActiveTake)     	GET_FUNC(TrackFX_SetNamedConfigParm)
   GET_FUNC(ExecProcess)     	GET_FUNC(GetTrackMIDINoteName)     	GET_FUNC(SetAutomationMode)     	GET_FUNC(TrackFX_SetOffline)
   GET_FUNC(file_exists)     	GET_FUNC(GetTrackMIDINoteNameEx)     	GET_FUNC(SetCurrentBPM)     	GET_FUNC(TrackFX_SetOpen)
   GET_FUNC(FindTempoTimeSigMarker)     	GET_FUNC(GetTrackMIDINoteRange)     	GET_FUNC(SetCursorContext)     	GET_FUNC(TrackFX_SetParam)
@@ -760,27 +760,36 @@ extern "C" REAPER_PLUGIN_DLL_EXPORT int REAPER_PLUGIN_ENTRYPOINT(
   GET_FUNC(GetEnvelopePointByTimeEx)     	GET_FUNC(image_resolve_fn)     	GET_FUNC(SetProjExtState)
 
 //CreatePopupMenu();
-  if(!ShowConsoleMsg) {
-    fprintf(stderr, "[reaper_barebone] Unable to import ShowConsoleMsg\n");
-    return 0;
-  }
+
 //  .if (!rec->Register("hookcustommenu", (void*)swsMenuHook)) {
 //     abort();
 //  }
-  if (!rec->Register("hookcommand2", (void*)hookCommandProc2))
-      abort();
+  if (!rec->Register("hookcommand2", (void*)hookCommandProc2)) {
+      MessageBoxA(0, "please tell the developer at kitttoran@gmail.com", \
+         "can't load microtonal midi editor", MB_OK | MB_SYSTEMMODAL);
+      return false;
+  }
 
-  if (!rec->Register("hookcommand", (void*)hookCommandProc))
-      abort();
-  if (!rec->Register("timer", (void*)timer_function))
-      abort();
+  if (!rec->Register("hookcommand", (void*)hookCommandProc)) {
+      MessageBoxA(0, "please tell the developer at kitttoran@gmail.com", \
+         "can't load microtonal midi editor", MB_OK | MB_SYSTEMMODAL);
+      return false;
+  }
+  if (!rec->Register("timer", (void*)timer_function)) {
+      MessageBoxA(0, "please tell the developer at kitttoran@gmail.com", \
+         "can't load microtonal midi editor", MB_OK | MB_SYSTEMMODAL);
+      return false;
+  }
   static project_config_extension_t pce = {
       ProcessExtensionLine,
       SaveExtensionConfig,
       0, 0
   };
-  if (!rec->Register("projectconfig", &pce))
-      abort();
+  if (!rec->Register("projectconfig", &pce)) {
+      MessageBoxA(0, "please tell the developer at kitttoran@gmail.com", \
+         "can't load microtonal midi editor", MB_OK | MB_SYSTEMMODAL);
+      return false;
+  }
 
   char* name = (char*)malloc(200);
 //  memcpy(name, "MyCommandName", strlen("MyCommandName")+1);
@@ -796,7 +805,11 @@ extern "C" REAPER_PLUGIN_DLL_EXPORT int REAPER_PLUGIN_ENTRYPOINT(
     NULL // reserved for future use
   };
   command = rec->Register("custom_action",&action);
-    if(!command) abort();
+    if(!command) {
+        MessageBoxA(0, "please tell the developer at kitttoran@gmail.com", \
+           "can't load microtonal midi editor", MB_OK | MB_SYSTEMMODAL);
+        return false;
+    }
 
       memcpy(name, "Transport: Play", strlen("Transport: Play")+1);
   int play =  rec->Register("command_id_lookup", name);

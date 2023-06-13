@@ -178,28 +178,28 @@ extern int pianorollgui(void) {
                 DEBUG_PRINT(event.button.which, "%d");
             }
     //        SDL_FillRect(rootWindowPainter.drawable, &d, 0xffffff00);
-            if(event.type ==SDL_DROPFILE) {      // In case if dropped file
-                char*dropped_filedir = event.drop.file;
-                // Shows directory of dropped file
-                SDL_ShowSimpleMessageBox(
-                    SDL_MESSAGEBOX_INFORMATION,
-                    "File dropped on window",
-                    dropped_filedir,
-                    rootWindow
-                );
-                SDL_free(dropped_filedir);    // Free dropped_filedir memory
-            }
-            if(event.type ==SDL_DROPTEXT) {      // In case if dropped file
-                char*dropped_filedir = event.drop.file;
-                // Shows directory of dropped file
-                SDL_ShowSimpleMessageBox(
-                    SDL_MESSAGEBOX_INFORMATION,
-                    "Text dropped on window",
-                    dropped_filedir,
-                    rootWindow
-                );
-                SDL_free(dropped_filedir);    // Free dropped_filedir memory
-            }
+//            if(event.type ==SDL_DROPFILE) {      // In case if dropped file
+//                char*dropped_filedir = event.drop.file;
+//                // Shows directory of dropped file
+//                SDL_ShowSimpleMessageBox(
+//                    SDL_MESSAGEBOX_INFORMATION,
+//                    "File dropped on window",
+//                    dropped_filedir,
+//                    rootWindow
+//                );
+//                SDL_free(dropped_filedir);    // Free dropped_filedir memory
+//            }
+//            if(event.type ==SDL_DROPTEXT) {      // In case if dropped file
+//                char*dropped_filedir = event.drop.file;
+//                // Shows directory of dropped file
+//                SDL_ShowSimpleMessageBox(
+//                    SDL_MESSAGEBOX_INFORMATION,
+//                    "Text dropped on window",
+//                    dropped_filedir,
+//                    rootWindow
+//                );
+//                SDL_free(dropped_filedir);    // Free dropped_filedir memory
+//            }
             int keyPressed = -1;
     //        SDL_FillRect(rootWindowPainter.drawable, &d, 0xffffff00);
             if(event.type==KeyPress) {
@@ -368,7 +368,8 @@ extern int pianorollgui(void) {
                 guiRaiseWindow(settingsWindow);
             }   gridNextColumn();
             STATIC(IMAGE*, magnet, loadImageZT(GUI_RESOURCE_PATH, "magnetic-icon.png"));
-            if(guiToolButtonEx(&rootWindowPainter, magnet, true, &size)) {
+            if(guiToolButtonEx(&rootWindowPainter, magnet, snap, &size)) {
+                ABORT("snap!");
                 snap = true;
             }   gridNextColumn();
             setCurrentGridPos(3,0);
