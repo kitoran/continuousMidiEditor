@@ -45,27 +45,7 @@ enum MidiEventType: u8 {
 enum MidiCCEvent: u8 {
     all_notes_off = 123,
 };
-const double LOG_SEMITONE = log(2)/12;
-const double BIAS =  log(440)/LOG_SEMITONE-69;
-struct MidiPitch {
-    int key;
-    int wheel;
-};
 
-MidiPitch  getMidiPitch(double freq, double pitchRangeInterval) {
-
-    int key = (int)round(log(freq)/LOG_SEMITONE-BIAS);
-    CLAMP(key, 0, 127);
-    double freqOfTheKey = (440.0 / 32) * pow(2, ((key - 9) / 12.0));
-    double difference = freq/freqOfTheKey;
-
-    double differenceInSemitones = 12*log(difference)/log(2);
-    double differenceInPitchRamgeIntervals = differenceInSemitones/pitchRangeInterval;
-    int pitchWheel = (int)round(differenceInPitchRamgeIntervals*0x2000)+0x2000;
-    ASSERT(pitchWheel < 0x4000, "pitch out of range");
-    ASSERT(pitchWheel >= 0, "pitch out of range");
-    return MidiPitch{key, pitchWheel};
-}
 
 static void setTakeMidiData() {
 #pragma pack(push)

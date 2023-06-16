@@ -47,11 +47,17 @@ extern TempoMarker* tempoMarkers;
 extern TempoMarker projectSignature;
 extern double pieceLength;
 
-#ifdef __cplusplus
-}
-#endif
 bool saveMelody(char* filename);
 bool loadMelody(char* filename);
 
+typedef struct MidiPitch {
+    int key;
+    int wheel;
+} MidiPitch ;
 
+MidiPitch  getMidiPitch(double freq, double pitchRangeInterval) ;
+
+#ifdef __cplusplus
+}
+#endif
 #endif // MELODY_H

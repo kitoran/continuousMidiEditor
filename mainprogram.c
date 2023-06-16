@@ -356,6 +356,8 @@ extern int pianorollgui(void) {
             gridNextColumn();
             guiCheckBox(&rootWindowPainter, &showChannels);        gridNextColumn();
             guiLabelZT(&rootWindowPainter, "show channels");        gridNextColumn();
+            guiCheckBox(&rootWindowPainter, &showMidi);        gridNextColumn();
+            guiLabelZT(&rootWindowPainter, "show midi");        gridNextColumn();
 
             guiCheckBox(&rootWindowPainter, &showScale);        gridNextColumn();
             guiLabelZT(&rootWindowPainter, "show 16edo scale");        gridNextColumn();

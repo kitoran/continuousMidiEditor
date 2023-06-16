@@ -244,6 +244,7 @@ void loadTake()
     struct channelProperty {
         double pitch;
                 // don't care about channel 0 because in MPE it's different
+        double savedPitch;
         double noteStart;
         int noteNumber;
         bool selected; bool muted;
@@ -297,13 +298,14 @@ void loadTake()
             channelProperties[channel].noteNumber = noteNumber;
             channelProperties[channel].selected = selected;
             channelProperties[channel].muted = muted;
+            channelProperties[channel].savedPitch = channelProperties[channel].pitch;
             noteNumber++;
         }
         if((msg[0] & MIDI_COMMAND_MASK) == noteOff) {
             int key = msg[1];
             int vel = msg[2];
             double freq = (440.0 / 32) * pow(2, ((key - 9) / 12.0));
-            freq *= channelProperties[channel].pitch;
+            freq *= channelProperties[channel].savedPitch;
 //            message("st %lf end %lf pitch %d vel %d\n"
 //                    "start %lf  freq %lf", pos, channelNoteStarts[channel] , key, vel
 //                    , start, freq);

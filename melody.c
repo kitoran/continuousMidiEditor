@@ -236,6 +236,26 @@ void commitChanges(int *dragged, int* base, char* undoName)
 
 }
 
+
+#define LOG_SEMITONE (log(2)/12)
+#define BIAS (log(440)/LOG_SEMITONE-69)
+
+
+MidiPitch  getMidiPitch(double freq, double pitchRangeInterval) {
+    int key = (int)round(log(freq)/LOG_SEMITONE-BIAS);
+    CLAMP(key, 0, 127);
+    double freqOfTheKey = (440.0 / 32) * pow(2, ((key - 9) / 12.0));
+    double difference = freq/freqOfTheKey;
+
+    double differenceInSemitones = 12*log(difference)/log(2);
+    double differenceInPitchRamgeIntervals = differenceInSemitones/pitchRangeInterval;
+    int pitchWheel = (int)round(differenceInPitchRamgeIntervals*0x2000)+0x2000;
+    ASSERT(pitchWheel < 0x4000, "pitch out of range");
+    ASSERT(pitchWheel >= 0, "pitch out of range");
+    return (MidiPitch){key, pitchWheel};
+}
+
+
 //void copyNotes(int *dragged, int* base)
 //{
 

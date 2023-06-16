@@ -14,7 +14,9 @@
 #include "melody.h"
 #include <math.h>
 #include <stdio.h>
+
 bool showChannels = false;
+bool showMidi = false;
 bool showScale = false;
 bool snap = true;
 typedef struct {
@@ -568,6 +570,10 @@ void noteArea(Painter* p, Size size) {
 //                    anote->selected||anote == piece + base?0:0xffffffff);
             char fwef[40];// = "30";
             if(showChannels) sprintf(fwef, "%d  %d   %d", (int)(anote-piece), anote->reaperNumber, anote->midiChannel);
+            if(showMidi) {
+                MidiPitch mp = getMidiPitch(anote->note.freq, currentItemConfig->value.pitchRange);
+                sprintf(fwef, "%d %d", mp.key, mp.wheel);
+            }
             if(mouseMode == draggingVelocity) sprintf(fwef, "%d", anote->note.velocity);
             guiDrawTextZT(p, fwef, r.pos,
                     anote->selected||anote == piece + base?0:0xffffffff);
@@ -721,10 +727,14 @@ void noteArea(Painter* p, Size size) {
             }
         }
         if(select && !select->selected) {
-            FOR_NOTES(anote, piece) {
-                anote->selected = false;
+            if(km & (KMOD_SHIFT | KMOD_CTRL)) {
+                select->selected = true;
+            } else {
+                FOR_NOTES(anote, piece) {
+                    anote->selected = false;
+                }
+                select->selected = true;
             }
-            select->selected = true;
         }
         double freq = 0;
 //        int vel = lastTouchedVel;
@@ -738,8 +748,10 @@ void noteArea(Painter* p, Size size) {
                     mouseMode = draggingLeftEdge;
                 } else if(e.y <= noteRect.y+RANGE_FOR_VELOCITY_DRAGGING) {
                     mouseMode = draggingVelocity;
+                } else if( select->selected
+                           && (km & KMOD_CTRL)) {
+                    mouseMode = limboCopyingOrDeselecting;
                 } else {
-
                     mouseMode = movingNote; // the user can then press ctrl to change mode to copying,
                     // but only if they haven't moved the mouse tooo far yet
                 }
@@ -792,6 +804,7 @@ void noteArea(Painter* p, Size size) {
             SDL_Keymod km = SDL_GetModState();
 
             if((km & KMOD_CTRL) && mouseMode != copyingNote) {
+                ASSERT(mouseMode == limboCopyingOrDeselecting, "mouseMode is %d", mouseMode)
                 mouseMode = copyingNote;
 
                 int initialSize = arrlen(piece);
