@@ -491,9 +491,14 @@ bool hookCommandProc(int iCmd, int /*flag*/)
     if(iCmd == command) {
 
 
-
-
-
+        if(aborted) {
+            MB("Can't open the microtonal midi editor because it has experienced an error earlier. "
+               "If this impacts you, consider writing to the developer at kitttoran@gmail.com and "
+               "I will fix this problem",
+               "Can't open the microtonal midi editor", 0);
+            return true;
+        }
+    
 
 
         if(!sdlThreadStarted) {

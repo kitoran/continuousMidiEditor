@@ -619,14 +619,15 @@ void noteArea(Painter* p, Size size) {
     if(event.type == ButtonRelease) {
         SDL_MouseButtonEvent e =
                 event.button;
+
         if(dragged >= 0) {
             IdealNote draggedNote = piece[dragged].note;
             if(mouseMode == copyingNote) {
-                copyNotes( &dragged, &base);
+                commitChanges( &dragged, &base, "copy note(s)");
+            } else if(mouseMode == limboCopyingOrDeselecting) {
+                piece[dragged].selected = false;
             } else {
-                moveNotes(draggedNote.start - draggedNoteInitialPos.start,
-                           draggedNote.freq - draggedNoteInitialPos.freq,
-                           &dragged, &base);
+                commitChanges( &dragged, &base, "move note(s)");
             }
         }
         dragged = -1;
@@ -660,8 +661,12 @@ void noteArea(Painter* p, Size size) {
                                 > MAX(noteRect.x, selectionRect.x);
                 bool verticalOverlap = MIN(noteRect.y+noteRect.h, selectionRect.y+selectionRect.h)
                                 > MAX(noteRect.y, selectionRect.y);
-                if(km & KMOD_CTRL) {
+                if(km & KMOD_SHIFT) {
                     anote->selected = anote->selected ||
+                            (horizontalOverlap && verticalOverlap);
+                } else if(km & KMOD_CTRL) {
+#define XOR !=
+                    anote->selected = anote->selected XOR
                             (horizontalOverlap && verticalOverlap);
                 } else {
                     anote->selected = horizontalOverlap && verticalOverlap;

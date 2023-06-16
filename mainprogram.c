@@ -369,8 +369,7 @@ extern int pianorollgui(void) {
             }   gridNextColumn();
             STATIC(IMAGE*, magnet, loadImageZT(GUI_RESOURCE_PATH, "magnetic-icon.png"));
             if(guiToolButtonEx(&rootWindowPainter, magnet, snap, &size)) {
-                ABORT("snap!");
-                snap = true;
+                snap = !snap;
             }   gridNextColumn();
             setCurrentGridPos(3,0);
             roll(&rootWindowPainter, getGridBottom(topLayout()));

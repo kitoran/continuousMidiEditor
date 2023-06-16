@@ -81,7 +81,7 @@ int insertNote(IdealNote note) {
     reassignChannels();
 //    if(note.start + note.length > end) end = note.start + note.length;
 #ifdef REAPER
-    reaperInsert(piece[res]);
+    reaperCommitChanges("insert note");
 #endif
     return res;
 }
@@ -111,7 +111,7 @@ void removeNotes(int* base) {
     }
     arrsetlen(piece, writingIndex);
 #if REAPER
-    reaperDeleteSelected();
+    reaperCommitChanges("delete note(s)");
 #endif
 }
 
@@ -215,22 +215,11 @@ int cmpStarts(void const* n1, void const*n2) { // shut up
 
 //}
 
-void moveNotes(double timeChange, double freqChange, int *dragged, int* base)
+void commitChanges(int *dragged, int* base, char* undoName)
 {
-//    volatile int lll = arrlen(movedNotes);
-
-//    ASSERT(arrlen(movedNotes) > 0, "trying to move 0 notes :(");
-//    ASSERT(movedNotes[0]->note.start + timeChange > 0, "trying to move notes to the time before the start :(");
-    FOR_NOTES(anote, piece) {
-        if(! (anote->selected)) continue;
-        if(anote->note.start + timeChange < 0) {
-            timeChange = -anote->note.start;
-        }
-    }
-
     reassignChannels();
 #ifdef REAPER
-    reaperMoveNotes(/*timeChange, freqChange*/);
+    reaperCommitChanges(undoName);
     RealNote draggedNote = piece[*dragged];
     RealNote baseNote = {0}; if(*base>=0)baseNote=piece[*base]; // I'm sorry i'm doing it this way, i really should just sort with my own code or reload piece from reaper
 #else
@@ -247,24 +236,24 @@ void moveNotes(double timeChange, double freqChange, int *dragged, int* base)
 
 }
 
-void copyNotes(int *dragged, int* base)
-{
+//void copyNotes(int *dragged, int* base)
+//{
 
-    reassignChannels();
-#ifdef REAPER
-    reaperCopyNotes();
-#else
-    ABORT("");
-#endif
-    RealNote draggedNote = piece[*dragged];
-    RealNote baseNote = {0}; if(*base>=0)baseNote=piece[*base]; // I'm sorry i'm doing it this way, i really should just sort with my own code or reload piece from reaper
-    qsort(piece, arrlen(piece), sizeof(*piece), cmpStarts);
-    RealNote* newDragged = bsearch(&draggedNote, piece, arrlen(piece), sizeof(*piece), cmpStarts);
-    ASSERT(newDragged, "");
-    *dragged = (int)(newDragged-piece);
-    if(*base>=0) {
-        RealNote* newBase = bsearch(&baseNote, piece, arrlen(piece), sizeof(*piece), cmpStarts);
-        *base = (int)(newBase-piece);
-    }
+//    reassignChannels();
+//#ifdef REAPER
+//    reaperCopyNotes();
+//#else
+//    ABORT("");
+//#endif
+//    RealNote draggedNote = piece[*dragged];
+//    RealNote baseNote = {0}; if(*base>=0)baseNote=piece[*base]; // I'm sorry i'm doing it this way, i really should just sort with my own code or reload piece from reaper
+//    qsort(piece, arrlen(piece), sizeof(*piece), cmpStarts);
+//    RealNote* newDragged = bsearch(&draggedNote, piece, arrlen(piece), sizeof(*piece), cmpStarts);
+//    ASSERT(newDragged, "");
+//    *dragged = (int)(newDragged-piece);
+//    if(*base>=0) {
+//        RealNote* newBase = bsearch(&baseNote, piece, arrlen(piece), sizeof(*piece), cmpStarts);
+//        *base = (int)(newBase-piece);
+//    }
 
-}
+//}

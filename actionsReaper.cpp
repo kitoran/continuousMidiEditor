@@ -67,39 +67,7 @@ MidiPitch  getMidiPitch(double freq, double pitchRangeInterval) {
     return MidiPitch{key, pitchWheel};
 }
 
-void insertNoteImpl(const RealNote& note)
-{
-    double startppqpos = MIDI_GetPPQPosFromProjTime(take,
-                                                    note.note.start+itemStart);
-    double endppqpos = MIDI_GetPPQPosFromProjTime(take,
-                                                    note.note.start+note.note.length+itemStart);
-
-    MediaItem* item = GetMediaItemTake_Item(take);
-//    Undo_BeginBlock2(GetItemProjectContext(item));
-    MidiPitch mp = getMidiPitch(note.note.freq, currentItemConfig->value.pitchRange);
-    char pitchEvent[] = {pitch_wheel | note.midiChannel, mp.wheel&0b1111111, mp.wheel>>7};
-    MIDI_InsertEvt(take, false, false, startppqpos-1, pitchEvent, sizeof(pitchEvent));
-    bool res = MIDI_InsertNote(take, note.selected, note.note.muted,
-                    startppqpos, endppqpos,
-                    note.midiChannel, mp.key,
-                    note.note.velocity,
-                    NULL);
-    ASSERT(res, "fail to insert note???");
-    fprintf(stderr, "\ninserting note at %lf %lf\n", note.note.start,
-            startppqpos);
-    double newstrtt;
-    int pitchgot;
-    MIDI_GetNote(take, 0, NULL, NULL, &newstrtt, NULL, NULL, &pitchgot, NULL);
-    double newtime = MIDI_GetProjTimeFromPPQPos(take, newstrtt);
-    fprintf(stderr, "got note at %lf %lf\n", newtime,
-            newstrtt);
-
-    pieceLength = /*itemStart + */GetMediaItemInfo_Value(item, "D_LENGTH");
-//    message("inserting note %lf - %lf\n", startppqpos, endppqpos);
-    if(!res) ShowConsoleMsg("note insertion failed");
-}
-
-static void commit() {
+static void setTakeMidiData() {
 #pragma pack(push)
 #pragma pack( 1)
     struct reapermidimessage {
@@ -163,24 +131,6 @@ static void commit() {
     MIDI_SetAllEvts(take, (const char*)&d, sizeof(reapermidimessage)*arrlen(piece)*3);
 }
 
-void reaperInsert(RealNote note) {
-    if(!reaperMainThread) {
-        ASSERT(note.note.freq>1,"")
-        actionChannel.name = __func__;
-        actionChannel.runInMainThread(&reaperInsert, note);
-        return;
-    }
-
-    MediaItem* item = GetMediaItemTake_Item(take);
-//    Undo_BeginBlock2(GetItemProjectContext(item));
-    commit();
-    Undo_OnStateChange_Item(GetItemProjectContext(item), "Insert Note", item);
-//    Undo_EndBlock2(GetItemProjectContext(item), "Move notes", 4);
-
-
-//    insertNoteImpl(note);
-//    reload();
-}
 void reaperSetPosition(double d) {
     if(!reaperMainThread) {
         actionChannel.name = __func__;
@@ -197,40 +147,17 @@ void reaperOnCommand(u32 command) {
     }
     Main_OnCommand(command, 0);
 }
-void reaperDeleteSelected() {
-    if(!reaperMainThread) {
-        actionChannel.name = __func__;
-        actionChannel.runInMainThread(&reaperDeleteSelected);
-        return;
-    }
 
-    MediaItem* item = GetMediaItemTake_Item(take);
-    Undo_BeginBlock2(GetItemProjectContext(item));
-    commit();
-    Undo_OnStateChange_Item(GetItemProjectContext(item), "Delete Note", item);
-//    MIDI_DisableSort(take);
-//    for(RealNote* anote = piece + arrlen(piece) - 1; anote >= piece; anote--) {
-//        if(!anote->selected) continue;
-//        bool res = MIDI_DeleteNote(take, anote-piece);
-//        if(!res) ShowConsoleMsg("note deletion failed");
-//        fprintf(stderr, "deleting note %d\n", (int)(anote-piece));
-//    }
-//    MIDI_Sort(take);
-//    Undo_OnStateChange_Item(GetItemProjectContext(item), "Delete Notes", item);
-
-    Undo_EndBlock2(GetItemProjectContext(item), "Delete notes", 4);
-//    reload();
-}
-void reaperMoveNotes(/*double time, double freq*/) {
+void reaperCommitChanges(char* undoMessage) {
     if(!reaperMainThread) {
 //        ASSERT((**selectedNotes).note.freq > 1, "");
         actionChannel.name = __func__;
-        actionChannel.runInMainThread(&reaperMoveNotes/*, time, freq*/);
+        actionChannel.runInMainThread(&reaperCommitChanges, undoMessage/*, time, freq*/);
         return;
     }
     MediaItem* item = GetMediaItemTake_Item(take);
     Undo_BeginBlock2(GetItemProjectContext(item));
-    commit();
+    setTakeMidiData();
 //    MIDI_DisableSort(take);
 //    for(RealNote* anote = piece + arrlen(piece) - 1; anote >= piece; anote--) {
 //        if(!anote->selected) continue;
@@ -241,46 +168,12 @@ void reaperMoveNotes(/*double time, double freq*/) {
 //        if(!anote->selected) continue;
 //        insertNoteImpl(*anote);
 //    }
-    MIDI_Sort(take);
-Undo_OnStateChange_Item(GetItemProjectContext(item), "Move Notes", item);
-    Undo_EndBlock2(GetItemProjectContext(item), "Move notes", 4);
-//    reload();
-
-}
-void reaperCopyNotes() {
-    if(!reaperMainThread) {
-//        ASSERT((**selectedNotes).note.freq > 1, "");
-        actionChannel.name = __func__;
-        actionChannel.runInMainThread(&reaperCopyNotes);
-        return;
-    }
-    MediaItem* item = GetMediaItemTake_Item(take);
-    Undo_BeginBlock2(GetItemProjectContext(item));
-    MIDI_DisableSort(take);
-
-    commit();
-    Undo_OnStateChange_Item(GetItemProjectContext(item), "Copy Notes", item);
-//    Undo_OnStateChange(GetItemProjectContext(item));
-//    for(RealNote* anote = piece + arrlen(piece) - 1; anote >= piece; anote--) {
-//        if(!anote->selected) continue;
-////        bool res = MIDI_DeleteNote(take, anote-piece);
-////        if(!res) ShowConsoleMsg("note deletion (while moving) failed");
-////        anote->freq+=freq;
-////        anote->start+=time;
-//        insertNoteImpl(*anote);
-//    }
 //    MIDI_Sort(take);
-
-    Undo_EndBlock2(GetItemProjectContext(item), "Copy notes", 4);
+Undo_OnStateChange_Item(GetItemProjectContext(item), "undoMessage", item);
+    Undo_EndBlock2(GetItemProjectContext(item), "undoMessage", 4);
 //    reload();
-}
-//void doReaperAction(action theAction, ActionArgs* largs) {
-//    std::unique_lock lk(actionMutex);
-//    actionCV.wait(lk, [](){action == action_none;});
-//    args = largs;
-//    action = theAction;
-//}
 
+}
 extern "C" void message(const char* format, ...) {
     va_list arg_ptr;
 

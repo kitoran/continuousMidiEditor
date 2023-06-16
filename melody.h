@@ -26,11 +26,13 @@ extern "C" {
 
 extern RealNote* piece;
 int piecelen();
-void moveNotes(double timeChange, double freqChange, int* dragged, int *base);
-void copyNotes(int *dragged, int* base);
+//void moveNotes(double timeChange, double freqChange, int* dragged, int *base);
+//void copyNotes(int *dragged, int* base);
 int insertNote(IdealNote note);
 void appendRealNote(RealNote note);
 void removeNotes(int* base);
+
+void commitChanges(int *dragged, int* base, char* undoName);
 void clearPiece();
 typedef struct {
     double when;

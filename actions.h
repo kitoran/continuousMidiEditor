@@ -7,9 +7,6 @@ extern "C" {
 void play();
 void stop();
 
-void reaperInsert(RealNote note);
-void reaperDeleteSelected();
-
 void reaperSetPosition(double d);
 
 void reaperOnCommand(u32 command);
@@ -18,8 +15,7 @@ void stopPlayingNote();
 void MessageBoxInfo(char*title, char *message);
 void message(const char* format, ...);
 
-void reaperMoveNotes(/*double time, double freq*/);
-void reaperCopyNotes();
+void reaperCommitChanges(char* undoName);
 void reload();
 
 void undo();
