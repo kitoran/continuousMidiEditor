@@ -34,6 +34,10 @@ A built program will be available in "releases" once I release it
 
 Please send any questions and everything else to kitttoran@gmail.com
 
+## Limitations
+
+* there is no way to set the length of the source. The length is just where the last note ends. 
+
 ## Authors
 
 My name is Nikita. My email is kitttoran@gmail.com

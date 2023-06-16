@@ -66,3 +66,4 @@ HEADERS += \
 
 FORMS += \
     settingsform.ui
+OTHER_FILES += README.md

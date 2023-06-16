@@ -280,7 +280,8 @@ extern int pianorollgui(void) {
     //        SDL_FillRect(rootWindowPainter.drawable, &d, 0xffffff00);
             setCurrentGridPos(0,0);
     //        SDL_FillRect(rootWindowPainter.drawable, &d, 0xffffff00);
-            if(guiButton(&rootWindowPainter, "play", 4)) {
+            Size buttonSizes = {26,26};
+            if(resourseToolButtonEx(&rootWindowPainter, "resources/gen_play.png", playing, &buttonSizes)) {
     //            SDL_PauseAudioDevice(audioDevice, 0);
                 play();
             } gridNextColumn();
