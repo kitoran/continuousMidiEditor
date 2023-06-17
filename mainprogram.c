@@ -71,10 +71,10 @@ extern void settingsGui(void) {
         guiClearWindow(&painter);
         pushLayout(&settingsLayout);
           LineLayout oneLine = makeHorizontalLayout(5);
-          oneLine.pos = getPos(); pushLayout(&oneLine);
-            guiLabelZT(&painter, "Scale type:");
-            guiEnumComboBox(&painter, scale_type_enum, &scale.type);
-          popLayout(); feedbackSize(getLineSize(&oneLine)); oneLine.filled = oneLine.across =0;
+//          oneLine.pos = getPos(); pushLayout(&oneLine);
+//            guiLabelZT(&painter, "Scale type:");
+//            guiEnumComboBox(&painter, scale_type_enum, &scale.type);
+//          popLayout(); feedbackSize(getLineSize(&oneLine)); oneLine.filled = oneLine.across =0;
           if(scale.type == rational_intervals) {
               guiLabelZT(&painter, "multipliers:");
               STATIC(Grid, primesGrid, allocateGrid(NUMBER_OF_PRIMES, 2, 5));
@@ -112,7 +112,7 @@ extern void settingsGui(void) {
             guiLabelZT(&painter, "e.q the fifth = 1.5)");
             popLayout(); feedbackSize(getLineSize(&oneLine)); oneLine.filled = oneLine.across =0;
         }
-        guiRadioButtonGroup(&painter, scale_relativity_enum, &scale.relative);
+//        guiRadioButtonGroup(&painter, scale_relativity_enum, &scale.relative);
         if(&scale.relative == scale_absolute) {
             oneLine.pos = getPos(); pushLayout(&oneLine);
 
@@ -164,7 +164,38 @@ void transportPanel(Size buttonSizes)
     }
     popLayout(); feedbackSize(getLineSize(&transportLayout));
 }
+enum {
+    COMMAND_IMPORT,
+    COMMAND_CONVERT,
+    COMMAND_REOPEN,
+    COMMAND_SHOWDEBUG
+};
+HMENU hView;
+void makeMenu(/*GuiWindow window*/) {
+    SDL_SysWMinfo wmInfo;
+    SDL_VERSION(&wmInfo.version);
+    SDL_GetWindowWMInfo(rootWindow, &wmInfo);
+    HWND hwnd = wmInfo.info.win.window;
 
+    HMENU hMenuBar = CreateMenu();
+    HMENU hFile = CreateMenu();
+//    AppendMenuA(hMenuBar, MF_POPUP, (UINT_PTR)hFile, "&File");
+//    HMENU hEncoding = CreateMenu();
+//    AppendMenuA(hFile, MF_POPUP, (UINT_PTR)hEncoding, "Midi encoding");
+//    AppendMenuA(hEncoding, MF_STRING, COMMAND_REOPEN, "Reopen with different encoding...");
+//    AppendMenuA(hEncoding, MF_STRING, COMMAND_CONVERT, "Convert to different encoding...");
+//    AppendMenuA(hFile, MF_STRING, COMMAND_IMPORT, "Import MIDI file...");
+
+//    HMENU hEdit = CreateMenu();
+//    AppendMenuA(hMenuBar, MF_POPUP, (UINT_PTR)hEdit, "&Edit");
+
+    hView = CreateMenu();
+    AppendMenuA(hMenuBar, MF_POPUP, (UINT_PTR)hView, "&View");
+    AppendMenuA(hView, MF_POPUP, COMMAND_SHOWDEBUG, "Show debug widgets");
+
+    SetMenu(hwnd, hMenuBar);
+}
+bool showDebug = false;
 extern int pianorollgui(void) {
     SDL_SetHint( SDL_HINT_RENDER_SCALE_QUALITY, "2" );
     guiStartDrawingEx(false);
@@ -297,9 +328,13 @@ extern int pianorollgui(void) {
                 if (event.syswm.msg->msg.win.msg == WM_COMMAND)
                 {
                     message("SDL_COMMAND %d!!!", event.syswm.msg->msg.win.wParam);
-                    if (event.syswm.msg->msg.win.wParam == 0x453434)
+                    if (event.syswm.msg->msg.win.wParam == COMMAND_SHOWDEBUG)
                     {
-                        message("Encoding!!!");
+                        showDebug = !showDebug;
+                        CheckMenuItem(hView, COMMAND_SHOWDEBUG, showDebug ? MF_CHECKED:0);
+                        for(int i = 0; i < grid.gridWidthsLen; i++) {
+                            grid.gridWidths[i] = 0;
+                        }
                     }
                 }
                 continue;
@@ -376,17 +411,19 @@ extern int pianorollgui(void) {
             guiLabelZT(&rootWindowPainter, "bpm"); gridNextColumn();
     #endif
 
+            guiLabelZT(&rootWindowPainter, "pitch wheel range in semitones");        gridNextColumn();
             if(guiDoubleField(&rootWindowPainter, 6, &(currentItemConfig->value.pitchRange))); gridNextColumn();
     //        const char* elements;
             guiEnumComboBox(&rootWindowPainter, midi_mode_enum, (int*)&(currentItemConfig->value.midiMode));//"use 1st channel", "don't use");
             gridNextColumn();
-            guiCheckBox(&rootWindowPainter, &showChannels);        gridNextColumn();
-            guiLabelZT(&rootWindowPainter, "show channels");        gridNextColumn();
-            guiCheckBox(&rootWindowPainter, &showMidi);        gridNextColumn();
-            guiLabelZT(&rootWindowPainter, "show midi");        gridNextColumn();
-
-            guiCheckBox(&rootWindowPainter, &showScale);        gridNextColumn();
-            guiLabelZT(&rootWindowPainter, "show 16edo scale");        gridNextColumn();
+            if(showDebug) {
+                guiCheckBox(&rootWindowPainter, &showChannels);        gridNextColumn();
+                guiLabelZT(&rootWindowPainter, "show channels");        gridNextColumn();
+                guiCheckBox(&rootWindowPainter, &showMidi);        gridNextColumn();
+                guiLabelZT(&rootWindowPainter, "show midi");        gridNextColumn();
+            }
+//            guiCheckBox(&rootWindowPainter, &showScale);        gridNextColumn();
+//            guiLabelZT(&rootWindowPainter, "show 16edo scale");        gridNextColumn();
 
 //            STATIC(IMAGE*, gear, loadImageZT(GUI_RESOURCE_PATH, "settings30x30.png"));
             Size size = {30,30};

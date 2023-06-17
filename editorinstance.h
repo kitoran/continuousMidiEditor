@@ -61,8 +61,8 @@ static_assert (sizeof(primes)/sizeof(*primes) >= NUMBER_OF_PRIMES, "");
 
 
 INTROSPECT_ENUM_VISIBLE_NAMES(midi_mode_enum,
-                midi_mode_regular, "Regular MIDI",
-                midi_mode_mpe, "MPE")
+                midi_mode_regular, "No MPE (use 16 channels)",
+                midi_mode_mpe, "MPE (use channels 2-16)")
 
 extern bool showRationalIntervals;
 extern bool showScale;
