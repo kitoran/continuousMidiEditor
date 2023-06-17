@@ -2,7 +2,7 @@ TEMPLATE = lib
 CONFIG -= app_bundle
 CONFIG -= qt
 CONFIG += c++20
-DEFINES += MY_PATH=\\\"$$PWD\\\" GUI_NO_PERSISTENT_WIDGETS REAPER
+DEFINES += MY_PATH=\\\"$$PWD\/\\\" GUI_NO_PERSISTENT_WIDGETS REAPER
 #MAX_STRING_LEN=100
 CONFIG += SDL
 TARGET = reaper_midieditor
@@ -21,7 +21,7 @@ windows {
     QMAKE_CXXFLAGS += /Zc:preprocessor /wd4838
 #    -lSDL2main -lShell32
     QMAKE_LFLAGS += user32.lib SDL2.lib SDL2_ttf.lib
-    QMAKE_CFLAGS += /std:c11 /we4013 /wd4838
+    QMAKE_CFLAGS += /std:c11 /we4013 /wd4838 /we4020  /we4133
     SDL2.dll.path = C:\src\SDL2-devel-2.26.5-VC\SDL2-2.26.5\
         INSTALLS += SDL2.dll
     #    QMAKE_CXXFLAGS += /D__cplusplus #wtf why was this not defined in the first place

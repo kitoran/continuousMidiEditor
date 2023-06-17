@@ -281,7 +281,7 @@ extern int pianorollgui(void) {
             setCurrentGridPos(0,0);
     //        SDL_FillRect(rootWindowPainter.drawable, &d, 0xffffff00);
             Size buttonSizes = {26,26};
-            if(resourseToolButtonEx(&rootWindowPainter, "resources/gen_play.png", playing, &buttonSizes)) {
+            if(guiToolButtonEx(&rootWindowPainter, MY_PATH "/resources/gen_play.png", true, playing, &buttonSizes, 2)) {
     //            SDL_PauseAudioDevice(audioDevice, 0);
                 play();
             } gridNextColumn();
@@ -363,15 +363,15 @@ extern int pianorollgui(void) {
             guiCheckBox(&rootWindowPainter, &showScale);        gridNextColumn();
             guiLabelZT(&rootWindowPainter, "show 16edo scale");        gridNextColumn();
 
-            STATIC(IMAGE*, gear, loadImageZT(GUI_RESOURCE_PATH, "settings30x30.png"));
+//            STATIC(IMAGE*, gear, loadImageZT(GUI_RESOURCE_PATH, "settings30x30.png"));
             Size size = {30,30};
-            if(guiToolButtonEx(&rootWindowPainter, gear, true, &size)) {
+            if(guiToolButtonEx(&rootWindowPainter, GUI_RESOURCE_PATH "/settings30x30.png", false, false, &size, 0)) {
                 settingsOpen = true;
                 guiShowWindow(settingsWindow);
                 guiRaiseWindow(settingsWindow);
             }   gridNextColumn();
-            STATIC(IMAGE*, magnet, loadImageZT(GUI_RESOURCE_PATH, "magnetic-icon.png"));
-            if(guiToolButtonEx(&rootWindowPainter, magnet, snap, &size)) {
+//            STATIC(IMAGE*, magnet, loadImageZT(GUI_RESOURCE_PATH, "magnetic-icon.png"));
+            if(guiToolButtonEx(&rootWindowPainter, GUI_RESOURCE_PATH "/magnetic-icon.png", true, snap, &size, 2)) {
                 snap = !snap;
             }   gridNextColumn();
             setCurrentGridPos(3,0);

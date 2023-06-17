@@ -88,7 +88,7 @@ static void setTakeMidiData() {
             3, {(u8)(note_off | note.midiChannel), (u8)mp.key, (u8)note.note.velocity}
         };
         d[3*i+2] = {
-            startppqpos, (char)(note.selected | (note.note.muted << 1)), 3,
+            startppqpos-1, (char)(note.selected | (note.note.muted << 1)), 3,
             {(u8)(pitch_wheel | note.midiChannel), (u8)(mp.wheel&0b1111111), (u8)(mp.wheel>>7)}
         };
     }
