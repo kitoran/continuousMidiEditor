@@ -12,6 +12,8 @@
 int currentPositionInSamples = 0;
 double cursorPosition = 0;
 bool playing = false;
+bool paused = false;
+bool repeatOn = false;
 char DebugBuffer[1000];
 double smoothstep (double edge0, double edge1, double x)
 {

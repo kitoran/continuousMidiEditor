@@ -5,7 +5,9 @@
 extern "C" {
 #endif
 void play();
+void togglePause();
 void stop();
+void toggleRepeat();
 
 void reaperSetPosition(double d);
 

@@ -134,6 +134,37 @@ extern void settingsGui(void) {
         }
     }
 }
+void transportPanel(Size buttonSizes)
+{
+    LineLayout transportLayout = makeHorizontalLayout(0);
+    transportLayout.pos = getPos(); pushLayout(&transportLayout);
+    if(guiToolButtonEx(&rootWindowPainter, MY_PATH "/resources/gen_home.png", false, false, &buttonSizes, 1)) {
+        //            SDL_PauseAudioDevice(audioDevice, 0);
+        reaperSetPosition(0);
+    }
+    if(guiToolButtonEx(&rootWindowPainter, MY_PATH "/resources/play.png", true, playing, &buttonSizes, 1)) {
+//            SDL_PauseAudioDevice(audioDevice, 0);
+        play();
+    }
+    if(guiToolButtonEx(&rootWindowPainter, MY_PATH "/resources/gen_pause.png", true, paused, &buttonSizes, 1)) {
+//            SDL_PauseAudioDevice(audioDevice, 0);
+        togglePause();
+    }
+    if(guiToolButtonEx(&rootWindowPainter, MY_PATH "/resources/gen_stop.png", false, false, &buttonSizes, 1)) {
+//            SDL_PauseAudioDevice(audioDevice, 0);
+        stop();
+    }
+    if(guiToolButtonEx(&rootWindowPainter, MY_PATH "/resources/gen_end.png", false, false, &buttonSizes, 1)) {
+//            SDL_PauseAudioDevice(audioDevice, 0);
+        reaperSetPosition(pieceLength);
+    }
+    if(guiToolButtonEx(&rootWindowPainter, MY_PATH "/resources/gen_repeat_off.png", true, repeatOn, &buttonSizes, 1)) {
+//            SDL_PauseAudioDevice(audioDevice, 0);
+        toggleRepeat();
+    }
+    popLayout(); feedbackSize(getLineSize(&transportLayout));
+}
+
 extern int pianorollgui(void) {
     SDL_SetHint( SDL_HINT_RENDER_SCALE_QUALITY, "2" );
     guiStartDrawingEx(false);
@@ -281,14 +312,8 @@ extern int pianorollgui(void) {
             setCurrentGridPos(0,0);
     //        SDL_FillRect(rootWindowPainter.drawable, &d, 0xffffff00);
             Size buttonSizes = {26,26};
-            if(guiToolButtonEx(&rootWindowPainter, MY_PATH "/resources/gen_play.png", true, playing, &buttonSizes, 2)) {
-    //            SDL_PauseAudioDevice(audioDevice, 0);
-                play();
-            } gridNextColumn();
-            if(guiButton(&rootWindowPainter, "stop", 4)) {
-    //            SDL_PauseAudioDevice(audioDevice, 1);
-                stop();
-            } gridNextColumn();
+            transportPanel(buttonSizes);
+            gridNextColumn();
 //            if(guiButton(&rootWindowPainter, "save", 4)) {
 //    #ifndef WIN32
 //                FILE* fp = popen(FILE_DIALOG_PATH" --file-selection --save", "r");
@@ -371,8 +396,11 @@ extern int pianorollgui(void) {
                 guiRaiseWindow(settingsWindow);
             }   gridNextColumn();
 //            STATIC(IMAGE*, magnet, loadImageZT(GUI_RESOURCE_PATH, "magnetic-icon.png"));
-            if(guiToolButtonEx(&rootWindowPainter, GUI_RESOURCE_PATH "/magnetic-icon.png", true, snap, &size, 2)) {
-                snap = !snap;
+            if(guiToolButtonEx(&rootWindowPainter, MY_PATH "/resources/magnetic-vertical.png", true, verticalsnap, &size, 2)) {
+                verticalsnap = !verticalsnap;
+            }   gridNextColumn();
+            if(guiToolButtonEx(&rootWindowPainter, MY_PATH "/resources/magnetic-horizontal.png", true, horizontalsnap, &size, 2)) {
+                horizontalsnap = !horizontalsnap;
             }   gridNextColumn();
             setCurrentGridPos(3,0);
             roll(&rootWindowPainter, getGridBottom(topLayout()));

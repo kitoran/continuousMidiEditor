@@ -377,7 +377,7 @@ void timer_function() {
         } else {
             char hash[sizeof(takeHash)];
             bool getHashRes = MIDI_GetHash(take, false, hash, sizeof(hash));
-            ASSERT(getHashRes, "MIDI_GetHash returned false ¯\_(ツ)_/¯");
+            ASSERT(getHashRes, "MIDI_GetHash returned false ¯\\_(ツ)_/¯");
             if(memcmp(hash, takeHash, sizeof(takeHash))) {
                 loadTake();
             }
@@ -392,16 +392,19 @@ void timer_function() {
     double deb2 = GetCursorPosition();
     sprintf(DebugBuffer, "playp %lf curp %lf", deb1, deb2);
     static int previousPlaying = false;
-    playing = GetPlayState() & 1;
+    int playstate = GetPlayState();
+    playing = playstate & 1;
+    paused = playstate & 2;
 //    if(previousPlaying < 10) {
 //        currentPositionInSamples = cursorPosition*44100;
 //    }
     previousPlaying = playing*(previousPlaying + playing);
-    if(playing) {
+    if(playing && !paused) {
         SDL_UserEvent userevent = {(u32)PlaybackEvent, SDL_GetTicks(), 0, 0, 0, 0};
         SDL_Event event; event.user = userevent;
         SDL_PushEvent(&event);
     }
+    repeatOn = GetSetRepeat(-1);
 }
 const DWORD MS_VC_EXCEPTION = 0x406D1388;
 #pragma pack(push,8)

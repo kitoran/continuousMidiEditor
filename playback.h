@@ -10,6 +10,8 @@ extern char DebugBuffer[1000];
 extern int currentPositionInSamples;
 extern double cursorPosition;
 extern bool playing;
+extern bool paused;
+extern bool repeatOn;
 extern int PlaybackEvent;
 #ifdef __cplusplus
 }

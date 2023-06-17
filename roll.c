@@ -18,7 +18,8 @@
 bool showChannels = false;
 bool showMidi = false;
 bool showScale = false;
-bool snap = true;
+bool verticalsnap = true;
+bool horizontalsnap = true;
 typedef struct {
     int num;
     int den;
@@ -361,6 +362,7 @@ Rect noteToRect(Size size, Point pos, IdealNote n) {
 double* timesOfGridLines = NULL;
 double closestTime(int width, int x) {
     double test = xToTime(width, x);
+    if(!horizontalsnap) return test;
     int il = 0, ih = arrlen(timesOfGridLines)-1;
     while(ih-il>1) {
         double interm = timesOfGridLines[(ih+il)/2];
@@ -386,7 +388,7 @@ double closestTime(int width, int x) {
 }
 
 double closestFreq(int height, Point pos, int y) {
-    if (base < 0 || arrlen(calculatedScale) == 0) return yToFreq(height, pos, y);
+    if (base < 0 || arrlen(calculatedScale) == 0 || !verticalsnap) return yToFreq(height, pos, y);
     double whatSearching;
     if(scale.relative == scale_relative) whatSearching = yToFreq(height, pos, y) / piece[base].note.freq;
     else whatSearching = yToFreq(height, pos, y);

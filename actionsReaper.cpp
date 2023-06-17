@@ -21,7 +21,14 @@ void play() {
     }
     OnPlayButton();
 }
-
+void togglePause() {
+    if(!reaperMainThread) {
+        actionChannel.name = __func__;
+        actionChannel.runInMainThread(&togglePause);
+        return;
+    }
+    OnPauseButton();
+}
 void stop() {
     if(!reaperMainThread) {
         actionChannel.name = __func__;
@@ -29,6 +36,14 @@ void stop() {
         return;
     }
     OnStopButton();
+}
+void toggleRepeat() {
+    if(!reaperMainThread) {
+        actionChannel.name = __func__;
+        actionChannel.runInMainThread(&toggleRepeat);
+        return;
+    }
+    GetSetRepeat(2);
 }
 
 
