@@ -490,9 +490,9 @@ bool sdlThreadStarted;
 
 bool hookCommandProc(int iCmd, int /*flag*/)
 {
-    char msg[100];
-    snprintf(msg, 100, "hookCommandProc! %d\n", iCmd);
-    ShowConsoleMsg(msg);
+//    char msg[100];
+//    snprintf(msg, 100, "hookCommandProc! %d\n", iCmd);
+//    ShowConsoleMsg(msg);
     if(iCmd == command) {
 
 
@@ -810,8 +810,8 @@ extern "C" REAPER_PLUGIN_DLL_EXPORT int REAPER_PLUGIN_ENTRYPOINT(
   custom_action_register_t action =
   {
     0, // 0/100=main/main alt, 32063=media explorer, 32060=midi editor, 32061=midi event list editor, 32062=midi inline editor, etc
-    "MyCommandName", // must be unique across all sections for actions, NULL for reascripts (automatically generated)
-    "My Command Name", // name as it is displayed in the action list, or full path to a reascript file
+    "MicrotonalMidiEditor", // must be unique across all sections for actions, NULL for reascripts (automatically generated)
+    "Microtonal MIDI editor", // name as it is displayed in the action list, or full path to a reascript file
     NULL // reserved for future use
   };
   command = rec->Register("custom_action",&action);
@@ -825,9 +825,9 @@ extern "C" REAPER_PLUGIN_DLL_EXPORT int REAPER_PLUGIN_ENTRYPOINT(
   int play =  rec->Register("command_id_lookup", name);
 
 
-  char msg[100];
-  snprintf(msg, 100, "Hello My Thing! %d play %d\n", command, play);
-  ShowConsoleMsg(msg);
+//  char msg[100];
+//  snprintf(msg, 100, "Hello My Thing! %d play %d\n", command, play);
+//  ShowConsoleMsg(msg);
 //  pianorollgui();
   return 1;
 }

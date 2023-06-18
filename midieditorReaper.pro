@@ -23,7 +23,9 @@ windows {
     QMAKE_LFLAGS += user32.lib SDL2.lib SDL2_ttf.lib
     QMAKE_CFLAGS += /std:c11 /we4013 /wd4838 /we4020  /we4133
     SDL2.dll.path = C:\src\SDL2-devel-2.26.5-VC\SDL2-2.26.5\
-        INSTALLS += SDL2.dll
+    INSTALLS += SDL2.dll
+    RC_FILE += resourses.rc
+#        RC_ICONS += resources/magnetic-horizontal.png
     #    QMAKE_CXXFLAGS += /D__cplusplus #wtf why was this not defined in the first place
 }
 include(../library/stb/stb_ds.pri)
@@ -67,3 +69,7 @@ HEADERS += \
 FORMS += \
     settingsform.ui
 OTHER_FILES += README.md
+
+DISTFILES += \
+    gui_resources.rc \
+    resourses.rc

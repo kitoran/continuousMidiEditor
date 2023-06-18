@@ -1,0 +1,12 @@
+#include "resource.h"
+
+magnetic-vertical.png RCDATA                  "resources\\magnetic-vertical.png"
+magnetic-horizontal.png RCDATA                  "resources\\magnetic-horizontal.png"
+gen_home.png RCDATA "resources\\gen_home.png"
+play.png RCDATA "resources\\play.png"
+gen_pause.png RCDATA "resources\\gen_pause.png"
+gen_stop.png RCDATA "resources\\gen_stop.png"
+gen_end.png RCDATA "resources\\gen_end.png"
+gen_repeat_off.png RCDATA "resources\\gen_repeat_off.png"
+
+#include "gui_resources.rc"

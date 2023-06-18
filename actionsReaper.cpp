@@ -179,13 +179,13 @@ extern "C" void message(const char* format, ...) {
     if(!reaperMainThread) {
         if(!timeToLeave) {
             actionChannel.name = __func__;
-            actionChannel.runInMainThread(ShowConsoleMsg, msg);
+//            actionChannel.runInMainThread(ShowConsoleMsg, msg);
         } else {
             fprintf(stderr, "%s", msg);
         }
         return;
     }
-    ShowConsoleMsg(msg);
+//    ShowConsoleMsg(msg);
     va_end(arg_ptr);
 }
 static int playedKey;
