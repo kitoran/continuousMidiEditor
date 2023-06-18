@@ -486,7 +486,7 @@ void noteArea(Painter* p, Size size) {
             volatile int e = 9;
         }
     }
-    guiSetForeground(p,0xff335566);
+    guiSetForeground(p,0xff339887);
     guiDrawLine(p, cursor , pos.y, cursor , pos.y+size.h);
     for(double freq = 440.0/32; freq < 20000; freq *= 2) {
         char ferf[30]; snprintf(ferf,30,"%5lf", freq);
