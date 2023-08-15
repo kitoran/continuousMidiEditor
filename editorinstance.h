@@ -110,12 +110,14 @@ typedef struct transientState {
 
 
     Step* calculatedScale;
+    Step* combinations;
 
     bool recalculateScale;
 
     Point dragStart;
     IdealNote draggedNoteInitialPos;
     int base;
+    int base2;
     int dragged;
     IdealNote newNote;
 

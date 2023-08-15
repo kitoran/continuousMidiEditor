@@ -153,6 +153,73 @@ void makeFareyScale()
     qsort(state.calculatedScale, arrlen(state.calculatedScale), sizeof(*state.calculatedScale),
           (_CoreCrtNonSecureSearchSortCompareFunction)compsteps);
 }
+void makeCombinations()
+{
+    QUICK_ASSERT(state.base >= 0);
+    QUICK_ASSERT(state.base2 >= 0);
+    double f1 = piece[state.base].note.freq;
+    double f2 = piece[state.base2].note.freq;
+    double s = f1+f2, rs = s/2, d = fabs(f1-f2);
+    double rd = d * pow(2, floor(log(rs/d)/log(2)));
+
+    arrsetlen(state.combinations, 0);
+    Step step = {
+        .ratio = s,
+        .desc = "sum tone",
+        .color = 0xeef255,
+    };
+    arrpush(state.combinations, step);
+    step = (Step){
+            .ratio = rs,
+            .desc = "reduced sum",
+            .color = 0xdde155,
+        };
+    arrpush(state.combinations, step);
+    step = (Step){
+            .ratio = d,
+            .desc = "difference",
+            .color = 0x44e1cc,
+        };
+    arrpush(state.combinations, step);
+    step = (Step){
+            .ratio = rd,
+            .desc = "red. dif.",
+            .color = 0x55e1dd,
+        };
+    arrpush(state.combinations, step);
+
+
+
+
+    step = (Step){
+            .ratio = 1/(1/f1+1/f2),
+            .desc = "red. dif.",
+            .color = 0xdd55ff,
+        };
+    arrpush(state.combinations, step);
+    step = (Step){
+            .ratio = 2/(1/f1+1/f2),
+            .desc = "red. dif.",
+            .color = 0xee55ff,
+        };
+    double dd = 1/fabs(1/f1-1/f2);
+    arrpush(state.combinations, step);
+    step = (Step){
+            .ratio = dd,
+            .desc = "red. dif.",
+            .color = 0xff44cc,
+        };
+    arrpush(state.combinations, step);
+    step = (Step){
+            .ratio = dd * pow(2, floor(log(rs/dd)/log(2))),
+            .desc = "red. dif.",
+            .color = 0xff55dd,
+        };
+    arrpush(state.combinations, step);
+
+    qsort(state.combinations, arrlen(state.combinations), sizeof(*state.combinations),
+          (_CoreCrtNonSecureSearchSortCompareFunction)compsteps);
+}
 #define FREQ_MIN 20
 #define FREQ_MAX 20000
 void makeEqualScale()
@@ -520,8 +587,15 @@ void noteArea(Painter* p, Size size) {
 //    guiDrawTextZT(p, "1760", (Point) { 10, freqToY(size.h,
 //                                    pos,
 //                                    1760)- digSize / 2 }, 0xffffffff);
-
-    if(state.base >= 0 || currentItemConfig->scale.relative == scale_absolute) {
+    if(state.base2 >= 0) {
+        FOR_STB_ARRAY(Step*, frac, state.combinations) {
+            guiSetForeground(p, frac->color);
+            int r = freqToY(size.h, pos, frac->ratio);
+            if(r >= pos.y && r < (int)(pos.y+size.h)) {
+                guiDrawLine(p, 0, r, size.w, r);
+            }
+        }
+    } else if(state.base >= 0 || currentItemConfig->scale.relative == scale_absolute) {
 //        FOR_STATIC_ARRAY(fraction*, frac, fractions) {
 
 //            guiSetForeground(p, gray((MAX_DEN+1-frac->den) *255 / (MAX_DEN+1)));
@@ -782,7 +856,15 @@ void noteArea(Painter* p, Size size) {
         double freq = 0;
 //        int vel = lastTouchedVel;
         if(select) {
-            if(e.button == 2) state.base = (int)(select-piece);
+            if(e.button == 2) {
+                if(km & (KMOD_SHIFT | KMOD_CTRL) && state.base >= 0) {
+                    state.base2 = (int)(select-piece);
+                    makeCombinations();
+                } else {
+                    state.base = (int)(select-piece);
+                    state.base2 = -1;
+                }
+            }
             if(e.button == 1)  {
                 Rect noteRect = noteToRect(size, pos, select->note);
                 if(e.x >= MAX(noteRect.x+noteRect.w-5, noteRect.x+noteRect.w/2)) {
