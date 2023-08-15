@@ -48,8 +48,8 @@ void toggleRepeat() {
 
 
 //void message(const char* format, ...);
-//extern double __declspec(selectany) itemStart;
-//extern double __declspec(selectany) itemStart;
+//extern double __declspec(selectany) state.itemStart;
+//extern double __declspec(selectany) state.itemStart;
 
 enum MidiEventType: u8 {
     note_off = 0b1000 << 4,
@@ -71,23 +71,23 @@ static void setTakeMidiData() {
         int msglen = 3;
         unsigned char msg[3] = { control_change | 1, all_notes_off, 0};
     } notesOff;
-    reapermidimessage d[3001];
+    reapermidimessage d[3002];
 #pragma pack(pop)
 //    d
 //    int offset = MIDI_get
-//    MIDI_SetAllEvts(take, (const char*)&notesOff, sizeof(notesOff));
+//    MIDI_SetAllEvts(state.take, (const char*)&notesOff, sizeof(notesOff));
 //    FOR_NOTES(anote, piece) {
 //        insertNoteImpl(*anote);
 //    }
     ASSERT(arrlen(piece) < 1000, "hi^)");
     for(int i = 0; i < arrlen(piece); i++) {
         RealNote note = piece[i];
-        int  startppqpos = MIDI_GetPPQPosFromProjTime(take,
-                                                                                     note.note.start+itemStart);
-        int endppqpos = MIDI_GetPPQPosFromProjTime(take,
-                                                                                     note.note.start+note.note.length+itemStart);
+        int  startppqpos = (int)MIDI_GetPPQPosFromProjTime(state.take,
+                                                                                     note.note.start+state.itemStart);
+        int endppqpos = (int)MIDI_GetPPQPosFromProjTime(state.take,
+                                                                                     note.note.start+note.note.length+state.itemStart);
 
-        MidiPitch mp = getMidiPitch(note.note.freq, currentItemConfig->value.pitchRange);
+        MidiPitch mp = getMidiPitch(note.note.freq, currentItemConfig->pitchRange);
         d[3*i] = {
             startppqpos,
             (char)(note.selected | (note.note.muted << 1)),
@@ -107,12 +107,16 @@ static void setTakeMidiData() {
             {(u8)(pitch_wheel | note.midiChannel), (u8)(mp.wheel&0b1111111), (u8)(mp.wheel>>7)}
         };
     }
-    int  takeendqpos = MIDI_GetPPQPosFromProjTime(take,
+    int  takeendqpos = MIDI_GetPPQPosFromProjTime(state.take,
                                                                                  pieceLength);
 
     d[3*arrlen(piece)] = {
             takeendqpos, 0, 3,
             {(u8)(control_change | 0), (u8)(123), (u8)(0)}
+        };
+    d[3*arrlen(piece)+1] = {
+            takeendqpos, 0, 3,
+            {(u8)(all_notes_off | 0), (u8)(123), (u8)(0)}
         };
     std::sort(d, d+arrlen(piece)*3, [](const reapermidimessage& a, const reapermidimessage& b) {
         return a.offset < b.offset;
@@ -123,7 +127,7 @@ static void setTakeMidiData() {
         d[i].offset -= lastOffset;
         lastOffset = r;
     }
-    MIDI_SetAllEvts(take, (const char*)&d, sizeof(reapermidimessage)*arrlen(piece)*3);
+    MIDI_SetAllEvts(state.take, (const char*)&d, sizeof(reapermidimessage)*arrlen(piece)*3);
 }
 
 void reaperSetPosition(double d) {
@@ -132,7 +136,7 @@ void reaperSetPosition(double d) {
         actionChannel.runInMainThread(&reaperSetPosition, d);
         return;
     }
-    SetEditCurPos(d+itemStart, false, true);
+    SetEditCurPos(d+state.itemStart, false, true);
 }
 void reaperOnCommand(u32 command) {
     if(!reaperMainThread) {
@@ -150,20 +154,20 @@ void reaperCommitChanges(char* undoMessage) {
         actionChannel.runInMainThread(&reaperCommitChanges, undoMessage/*, time, freq*/);
         return;
     }
-    MediaItem* item = GetMediaItemTake_Item(take);
+    MediaItem* item = GetMediaItemTake_Item(state.take);
     Undo_BeginBlock2(GetItemProjectContext(item));
     setTakeMidiData();
-//    MIDI_DisableSort(take);
+//    MIDI_DisableSort(state.take);
 //    for(RealNote* anote = piece + arrlen(piece) - 1; anote >= piece; anote--) {
 //        if(!anote->selected) continue;
-//        bool res = MIDI_DeleteNote(take, anote->reaperNumber);
+//        bool res = MIDI_DeleteNote(state.take, anote->reaperNumber);
 //        if(!res) ShowConsoleMsg("note deletion (while moving) failed");
 //    }
 //    for(RealNote* anote = piece + arrlen(piece) - 1; anote >= piece; anote--) {
 //        if(!anote->selected) continue;
 //        insertNoteImpl(*anote);
 //    }
-//    MIDI_Sort(take);
+//    MIDI_Sort(state.take);
 Undo_OnStateChange_Item(GetItemProjectContext(item), "undoMessage", item);
     Undo_EndBlock2(GetItemProjectContext(item), "undoMessage", 4);
 //    reload();
@@ -218,7 +222,7 @@ void startPlayingNote(double freq, int vel) {
 
 
 
-    double pitchInterval = currentItemConfig->value.pitchRange;
+    double pitchInterval = currentItemConfig->pitchRange;
     MidiPitch mp = getMidiPitch(freq, pitchInterval);
     ASSERT(mp.key < 128, "this note is too high");
     if(!reaperMainThread) {
@@ -226,31 +230,39 @@ void startPlayingNote(double freq, int vel) {
         actionChannel.runInMainThread(&startPlayingNote, freq, vel);
         return;
     }
+    if(playedKey >= 0 && playedKey != mp.key) {
+        stopPlayingNoteIfPlaying();
+    }
+
+
     int channel = 1;
-    u8 noteOnEvent[] = {note_on | channel, mp.key, vel};
-    StuffMIDIMessage(0, noteOnEvent[0], noteOnEvent[1], noteOnEvent[2]);
+    if(playedKey < 0) {
+        u8 noteOnEvent[] = {note_on | channel, mp.key, vel};
+        StuffMIDIMessage(0, noteOnEvent[0], noteOnEvent[1], noteOnEvent[2]);
+    }
     u8 pitchEvent[] = {pitch_wheel | channel, mp.wheel&0b1111111, mp.wheel>>7};
     StuffMIDIMessage(0, pitchEvent[0], pitchEvent[1], pitchEvent[2]);
     playedKey = mp.key;
 //    midiOutShortMsg(fweefwefwe,pack3((u8*)(i8*)noteOnEvent));
 //    midiOutShortMsg(fweefwefwe,pack3(pitchEvent));
-    u32 efgerg = pack3(noteOnEvent);
-    u32 efdgerg = pack3(pitchEvent);
-    fprintf(stderr, "%d \n", mp.key);
+//    u32 efgerg = pack3(noteOnEvent);
+//    u32 efdgerg = pack3(pitchEvent);
+//    fprintf(stderr, "%d \n", mp.key);
 }
-void stopPlayingNote() {
+void stopPlayingNoteIfPlaying() {
+    if(playedKey < 0) return;
     if(!reaperMainThread) {
         actionChannel.name = __func__;
-        actionChannel.runInMainThread(&stopPlayingNote);
+        actionChannel.runInMainThread(&stopPlayingNoteIfPlaying);
         return;
     }
-    ASSERT(playedKey >=0 && playedKey < 128, "hi");
+    ASSERT(playedKey >=0 && playedKey < 128, "hi %d", playedKey);
     int channel = 1;
     u8 noteOffEvent[] = {note_off | channel, playedKey, 100};
     StuffMIDIMessage(0, noteOffEvent[0], noteOffEvent[1], noteOffEvent[2]);
     char pitchEvent[] = {pitch_wheel | channel, 0, 0b01000000};
 //    StuffMIDIMessage(0, pitchEvent[0], pitchEvent[1], pitchEvent[2]);
-
+    playedKey = -1;
 //    midiOutShortMsg(fweefwefwe,pack3((u8*)noteOffEvent));
 
 }
@@ -261,7 +273,7 @@ void undo() {
         actionChannel.runInMainThread(&undo);
         return;
     }
-    Undo_DoUndo2(currentItemConfig->value.project);
+    Undo_DoUndo2(state.project);
     loadTake();
 }
 void redo() {
@@ -270,7 +282,7 @@ void redo() {
         actionChannel.runInMainThread(&redo);
         return;
     }
-    Undo_DoRedo2(currentItemConfig->value.project);
+    Undo_DoRedo2(state.project);
     loadTake();
 }
 void save() {
@@ -279,7 +291,7 @@ void save() {
         actionChannel.runInMainThread(&save);
         return;
     }
-    Main_SaveProject(GetItemProjectContext(GetMediaItemTake_Item(take)), false);
+    Main_SaveProject(GetItemProjectContext(GetMediaItemTake_Item(state.take)), false);
 }
 void reload() {
     if(!reaperMainThread) {

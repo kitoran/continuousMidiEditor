@@ -49,7 +49,7 @@ extern "C" {
     int pianorollgui(void);
     extern _Atomic bool running;
 }
-//extern double __declspec(selectany) itemStart;
+//extern double __declspec(selectany) state.itemStart;
 
 UINT command;
 
@@ -92,7 +92,20 @@ static bool ProcessExtensionLine(const char *line, ProjectStateContext *ctx, boo
                 0, 1,
                 0.2, 0.6,
                 midi_mode_mpe,
-                48
+                48,
+                false,
+
+                {.type = rational_intervals,
+                               .primes = {true, true, true, true},
+                               .maxComponent = 16,
+                              .relative = scale_relative,
+                              .equave = 2,
+                              .divisions = 31},
+                false,
+                false,
+                false,
+                true,
+                true
             }
         };
         while(true){
@@ -119,11 +132,13 @@ static bool ProcessExtensionLine(const char *line, ProjectStateContext *ctx, boo
                 continue;
             } else if ( sscanf(oneline, " PITCH_RANGE %lf", &cnfg.value.pitchRange) == 1 ){
                 continue;
+            } else if ( sscanf(oneline, " SUBGRID %d", &cnfg.value.subgridDen) == 1 ){
+                continue;
             } else {
                 continue;
             }
         }
-        cnfg.value.project = project;
+        state.project = project;
         ASSERT(cnfg.key != GUID_NULL, "cant parse project file");
 
 
@@ -139,7 +154,7 @@ static void SaveExtensionConfig(ProjectStateContext *ctx, bool /*isUndo*/, struc
     ReaProject* project = GetCurrentProjectInLoadSave();
     ctx->AddLine("<CONTINUOUSMIDIEDITOR");
     FOR_STB_MAP(CONTINUOUSMIDIEDITOR_Config*, cnfg, config) {
-        if(project != cnfg->value.project) {
+        if(project != state.project) {
             continue;
         }
         ctx->AddLine("<ITEM");
@@ -153,6 +168,7 @@ static void SaveExtensionConfig(ProjectStateContext *ctx, bool /*isUndo*/, struc
                      cnfg->value.verticalFrac);
         ctx->AddLine("FORMAT %s", NAME_FROM_VALUE(midi_mode_enum, cnfg->value.midiMode));
         ctx->AddLine("PITCH_RANGE %lf", cnfg->value.pitchRange);
+        ctx->AddLine("SUBGRID %d", cnfg->value.subgridDen);
 
         ctx->AddLine(">");
     }
@@ -165,80 +181,94 @@ static void SaveExtensionConfig(ProjectStateContext *ctx, bool /*isUndo*/, struc
 //// Reaper automatically checks menu items of customized menus using toggleActionHook above,
 //// but since we can't tell if a menu is customized we always check either way.
 //char fefwef[16];
-//static void swsMenuHook(const char* menustr, HMENU hMenu, int flag)
-//{
+static void menuHook(const char* menustr, HMENU hMenu, int flag)
+{
 //    ShowConsoleMsg("menustr: ");
 //    ShowConsoleMsg(menustr);
 //    ShowConsoleMsg("\n");
-//    if(strcmp("Media item context", menustr)) {
-//        return;
-//    }
-//    char* rerere = (char*)malloc(16+strlen(menustr)+20);
-////    memset(rerere, 0, 16+strlen(menustr)+20);
-//    memcpy(rerere, "hi this is menu", 17);
-//    memcpy(rerere+16, menustr, strlen(menustr));
-//    MENUITEMINFOA mii = {
-//        .cbSize=sizeof(MENUITEMINFO),
-//        .fMask=MIIM_STRING,
-//        .fType=MFT_STRING,
-//        .fState=MFS_ENABLED,
-//        .wID=command,
-//        .hSubMenu=0,
-//        .hbmpChecked=0,
-//        .hbmpUnchecked=0,
+    if(strcmp("Media item context", menustr)) {
+        return;
+    }
+    char* rerere = (char*)malloc(16+strlen(menustr)+20);
+//    memset(rerere, 0, 16+strlen(menustr)+20);
+    memcpy(rerere, "hi this is menu", 17);
+    memcpy(rerere+16, menustr, strlen(menustr));
+    MENUITEMINFOA mii = {
+        .cbSize=sizeof(MENUITEMINFO),
+        .fMask=MIIM_TYPE | MIIM_ID,
+        .fType=MFT_STRING,
+        .fState=MFS_ENABLED,
+        .wID=command,
+        .hSubMenu=0,
+        .hbmpChecked=0,
+        .hbmpUnchecked=0,
 
-//        .dwItemData=0,
-//        .dwTypeData=rerere,
-//        .cch=(UINT)strlen(rerere),
-//        .hbmpItem=0
+        .dwItemData=0,
+        .dwTypeData=rerere,
+        .cch=(UINT)strlen(rerere),
+        .hbmpItem=0
 
 
 
-//    };
-//    if(flag==0) {
-////        InsertMenu(hMenu, 0, 0, 0, NULL);
-//        InsertMenuItemA(hMenu, 0, TRUE, &mii);
-//    }
-//}
+    };
+    if(flag==0) {
+//        InsertMenu(hMenu, 0, 0, 0, NULL);
+        InsertMenuItemA(hMenu, 0, TRUE, &mii);
+    }
+}
 static char takeHash[16];
 void loadTake()
 {
     clearPiece();
     char guid[/*38*/64];
-    GetSetMediaItemTakeInfo_String(take, "GUID", guid, false);
-    message("take name is %s\nguid is %s", GetTakeName(take), guid);
+    GetSetMediaItemTakeInfo_String(state.take, "GUID", guid, false);
+    message("state.take name is %s\nguid is %s", GetTakeName(state.take), guid);
 
-    GUID currentGuid;
+//    GUID currentGuid;
     stringToGuid(guid, &currentGuid);
-    currentItemConfig = hmgetp_null(config, currentGuid);
+    CONTINUOUSMIDIEDITOR_Config* currevtcfg = hmgetp_null(config, currentGuid);
+
 //            cfg;
-    MediaItem* item = GetMediaItemTake_Item(take);
+    MediaItem* item = GetMediaItemTake_Item(state.take);
     ReaProject* project = GetItemProjectContext(item);
-    if(currentItemConfig  == NULL) {
+    if(currevtcfg  == NULL) {
         CONTINUOUSMIDIEDITOR_Config  cfg = {
             .key = currentGuid,
             .value = {
-                .windowGeometry = { 400, 400, 700, 700 },
+                .windowGeometry = { 400, 100, 700, 600 },
                 .horizontalScroll = 0,
                 .horizontalFrac = 0.1,
                 .verticalScroll = 0.5,
                 .verticalFrac = 0.1,
                 .midiMode = midi_mode_mpe,
                 .pitchRange = 48,
-                .project = project
+                .combinations = false,
+                .scale = {.type = rational_intervals,
+                     .primes = {true, true, true, true},
+                     .maxComponent = 16,
+                    .relative = scale_relative,
+                    .equave = 2,
+                    .divisions = 31},
+                .showChannels = false,
+                .showMidi = false,
+                .verticalSnap = true,
+                .horizontalSnap = true,
+                .subgridDen = 0,
             }
         };
         hmputs(config, cfg);
-        currentItemConfig  = hmgetp_null(config, currentGuid);
+        currentItemConfig  = &hmgetp_null(config, currentGuid)->value;
         ASSERT(currentItemConfig , "");
+    } else {
+         currentItemConfig =   &currevtcfg->value;
     }
 
-    bool res = true; //MIDI_GetAllEvts(take, events, &size);
+    bool res = true; //MIDI_GetAllEvts(state.take, events, &size);
     double ppqpos;
 //        int vel;
     int i = 0;
-    itemStart = GetMediaItemInfo_Value(item, "D_POSITION");
-    pieceLength = /*itemStart + */GetMediaItemInfo_Value(item, "D_LENGTH");
+    state.itemStart = GetMediaItemInfo_Value(item, "D_POSITION");
+    pieceLength = /*state.itemStart + */GetMediaItemInfo_Value(item, "D_LENGTH");
     // but allocate it anyway just 'cause
     int noteNumber = 0;
     struct channelProperty {
@@ -260,22 +290,22 @@ void loadTake()
     u8 msg[MAX_MIDI_EVENT_LENGTH+PADINCASEIMISSEDSOMELONGEREVENTS];
 
     int notecntOut, ccevtcntOut, textsyxevtcntOut;
-    int allevts = MIDI_CountEvts(take, &notecntOut,
+    int allevts = MIDI_CountEvts(state.take, &notecntOut,
                                  &ccevtcntOut,
                                  &textsyxevtcntOut);
 
     int size = 10003;
     double trertse;
-    bool getallevre = MIDI_GetAllEvts(take, (char*)msg, &size);
+    bool getallevre = MIDI_GetAllEvts(state.take, (char*)msg, &size);
 
     size = 10003;
-    getallevre = MIDI_GetEvt(take, 0, 0, 0, &trertse, (char*)(&msg[0]), &size);
+    getallevre = MIDI_GetEvt(state.take, 0, 0, 0, &trertse, (char*)(&msg[0]), &size);
     while(true) {
 
         bool muted;
         bool selected;
         int size = 3;
-        res = MIDI_GetEvt(take, i++, &selected, &muted, &ppqpos, (char*)(&msg[0]), &size);
+        res = MIDI_GetEvt(state.take, i++, &selected, &muted, &ppqpos, (char*)(&msg[0]), &size);
         if(!res) break;
         ASSERT(size <= 3, "got midi event longer than 3 bytes, dying\n");
         u8 channel = msg[0] & MIDI_CHANNEL_MASK;
@@ -284,15 +314,15 @@ void loadTake()
                    (msg[2] << 7) |
                    (msg[1]&MIDI_7HB_MASK);
            double differenceInTones =
-                   double(pitchWheel-0x2000)/0x2000 * currentItemConfig->value.pitchRange / 2.0;
+                   double(pitchWheel-0x2000)/0x2000 * currentItemConfig->pitchRange / 2.0;
            double ratio = pow(2, differenceInTones/6);
            channelProperties[channel].pitch = ratio;
         }
-//          res = MIDI_GetNote(take, i++, 0, 0, , &endppqpos, 0, &pitch, &vel);
+//          res = MIDI_GetNote(state.take, i++, 0, 0, , &endppqpos, 0, &pitch, &vel);
 
 // we think that all the simultaneous notes are on different channels
 // so to get note's key we only need to read it from onteOff event
-        double pos = MIDI_GetProjTimeFromPPQPos(take, ppqpos);
+        double pos = MIDI_GetProjTimeFromPPQPos(state.take, ppqpos);
         if((msg[0] & MIDI_COMMAND_MASK) == noteOn) {
             channelProperties[channel].noteStart = pos;
             channelProperties[channel].noteNumber = noteNumber;
@@ -310,7 +340,7 @@ void loadTake()
 //                    "start %lf  freq %lf", pos, channelNoteStarts[channel] , key, vel
 //                    , start, freq);
             appendRealNote({.note = {.freq = freq,
-                                     .start = channelProperties[channel].noteStart  - itemStart,
+                                     .start = channelProperties[channel].noteStart  - state.itemStart,
                                      .length = pos-channelProperties[channel].noteStart,
                                      .muted = channelProperties[channel].muted,
                                      .velocity = vel
@@ -328,8 +358,12 @@ void loadTake()
     TimeMap_GetTimeSigAtTime(NULL, 0, &projectSignature.num,
                              &projectSignature.denom, &projectSignature.qpm);
     arrsetlen(tempoMarkers, 0);
+    if(currentItemConfig->subgridDen == 0) {
+        currentItemConfig->subgridDen = projectSignature.denom;
+//        hmputs(config, currentItemConfig);
+    }
 
-    // Okay, hot take: time signature denominators are CRINGE. They may add some interpretive context
+    // Okay, hot state.take: time signature denominators are CRINGE. They may add some interpretive context
     // to musicians but it's actually not needed; in midi editors we don't specify when a certain note is D#
     // or Eb, and noone misses that, and the function of the note is clear from context and you can't
     // fully specify it with these alteration marks anyway. In the same way the denominator of the time signature
@@ -341,10 +375,10 @@ void loadTake()
         int measurepos, timesig_num, timesig_denom;
         bool linearTempo;
         GetTempoTimeSigMarker(NULL, i, &timepos, &measurepos, &beatpos, &mbpm, &timesig_num, &timesig_denom, &linearTempo);
-        arrpush(tempoMarkers, (TempoMarker{ .when = timepos-itemStart, .qpm = mbpm,
+        arrpush(tempoMarkers, (TempoMarker{ .when = timepos-state.itemStart, .qpm = mbpm,
                                             .num = timesig_num, .denom = timesig_denom}));
     }
-    bool getHashRes = MIDI_GetHash(take, false, takeHash, sizeof(takeHash));
+    bool getHashRes = MIDI_GetHash(state.take, false, takeHash, sizeof(takeHash));
     ASSERT(getHashRes, "MIDI_GetHash returned false");
     std::stable_sort(piece, piece+arrlen(piece), [](const RealNote& a, const RealNote& b){
         return a.reaperNumber < b.reaperNumber;
@@ -356,17 +390,17 @@ void timer_function() {
     std::unique_lock lk(actionChannel.mutex);
     if(actionChannel.pending) {
         actionChannel.action();
-        MIDI_GetHash(take, false, takeHash, sizeof(takeHash));
+        MIDI_GetHash(state.take, false, takeHash, sizeof(takeHash));
         actionChannel.pending = false;
     }
     actionChannel.action = decltype(actionChannel.action)();
-    if(take != 0) {
-        MediaItem_Take* newTake = GetMediaItemTakeByGUID((ReaProject*)currentItemConfig->value.project, &currentItemConfig->key);
-        ASSERT(newTake == 0 || newTake == take, "GetMediaItemTakeByGUID returned something weird");
+    if(state.take != 0) {
+        MediaItem_Take* newTake = GetMediaItemTakeByGUID((ReaProject*)state.project, &currentGuid);
+        ASSERT(newTake == 0 || newTake == state.take, "GetMediaItemTakeByGUID returned something weird");
         if(newTake == 0) {
             arrsetlen(tempoMarkers, 0);
             arrsetlen(piece, 0);
-            take = 0;
+            state.take = 0;
 
             SDL_WindowEvent windowEvent = {SDL_WINDOWEVENT,
                                            SDL_GetTicks(),
@@ -376,7 +410,7 @@ void timer_function() {
             SDL_PushEvent(&event);
         } else {
             char hash[sizeof(takeHash)];
-            bool getHashRes = MIDI_GetHash(take, false, hash, sizeof(hash));
+            bool getHashRes = MIDI_GetHash(state.take, false, hash, sizeof(hash));
             ASSERT(getHashRes, "MIDI_GetHash returned false ¯\\_(ツ)_/¯");
             if(memcmp(hash, takeHash, sizeof(takeHash))) {
                 loadTake();
@@ -386,8 +420,8 @@ void timer_function() {
     }
     lk.unlock();
     actionChannel.cv.notify_one();
-    currentPositionInSamples =  (int)round((GetPlayPosition()-itemStart)*44100);
-    cursorPosition = GetCursorPosition()-itemStart;
+    currentPositionInSamples =  (int)round((GetPlayPosition()-state.itemStart)*44100);
+    cursorPosition = GetCursorPosition()-state.itemStart;
     double deb1 = GetPlayPosition();
     double deb2 = GetCursorPosition();
     sprintf(DebugBuffer, "playp %lf curp %lf", deb1, deb2);
@@ -405,6 +439,20 @@ void timer_function() {
         SDL_PushEvent(&event);
     }
     repeatOn = GetSetRepeat(-1);
+
+
+    TimeMap_GetTimeSigAtTime(NULL, 0, &projectSignature.num,
+                             &projectSignature.denom, &projectSignature.qpm);
+    arrsetlen(tempoMarkers, 0);
+    int numberOfTempoMarkers = CountTempoTimeSigMarkers(NULL);
+    for(int i = 0; i < numberOfTempoMarkers; i ++) {
+        double timepos, beatpos, mbpm;
+        int measurepos, timesig_num, timesig_denom;
+        bool linearTempo;
+        GetTempoTimeSigMarker(NULL, i, &timepos, &measurepos, &beatpos, &mbpm, &timesig_num, &timesig_denom, &linearTempo);
+        arrpush(tempoMarkers, (TempoMarker{ .when = timepos-state.itemStart, .qpm = mbpm,
+                                            .num = timesig_num, .denom = timesig_denom}));
+    }
 }
 const DWORD MS_VC_EXCEPTION = 0x406D1388;
 #pragma pack(push,8)
@@ -516,12 +564,14 @@ bool hookCommandProc(int iCmd, int /*flag*/)
 //            std::lock_guard lg(mutex_);
         MediaItem* item = GetSelectedMediaItem(NULL, 0);
 
-        take = GetActiveTake(item);
+        state.take = GetActiveTake(item);
 
         ReaProject* project = GetItemProjectContext(item);
+        state.project = project;
 
-        double ppqpos = MIDI_GetPPQPosFromProjTime(take, 1.1);
-        volatile double pos = MIDI_GetProjTimeFromPPQPos(take, ppqpos);
+        state.base = -1;
+        double ppqpos = MIDI_GetPPQPosFromProjTime(state.take, 1.1);
+        volatile double pos = MIDI_GetProjTimeFromPPQPos(state.take, ppqpos);
 
 
 //        ReaProject* project = GetItemProjectContext(item);
@@ -771,9 +821,12 @@ extern "C" REAPER_PLUGIN_DLL_EXPORT int REAPER_PLUGIN_ENTRYPOINT(
 
 //CreatePopupMenu();
 
-//  .if (!rec->Register("hookcustommenu", (void*)swsMenuHook)) {
-//     abort();
-//  }
+  if (!rec->Register("hookcustommenu", (void*)menuHook)) {
+      MessageBoxA(0, "please tell the developer at kitttoran@gmail.com", \
+         "can't load microtonal midi editor", MB_OK | MB_SYSTEMMODAL);
+      return false;
+//      abort();
+  }
   if (!rec->Register("hookcommand2", (void*)hookCommandProc2)) {
       MessageBoxA(0, "please tell the developer at kitttoran@gmail.com", \
          "can't load microtonal midi editor", MB_OK | MB_SYSTEMMODAL);

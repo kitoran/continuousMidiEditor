@@ -75,7 +75,7 @@ extern void settingsGui(void) {
 //            guiLabelZT(&painter, "Scale type:");
 //            guiEnumComboBox(&painter, scale_type_enum, &scale.type);
 //          popLayout(); feedbackSize(getLineSize(&oneLine)); oneLine.filled = oneLine.across =0;
-          if(scale.type == rational_intervals) {
+          if(currentItemConfig->scale.type == rational_intervals) {
               guiLabelZT(&painter, "multipliers:");
               STATIC(Grid, primesGrid, allocateGrid(NUMBER_OF_PRIMES, 2, 5));
               primesGrid.gridStart = getPos();
@@ -87,21 +87,21 @@ extern void settingsGui(void) {
                     setCurrentGridPos(1, i);
                     e.exactPos = getPos(); e.exactPos.x += (primesGrid.gridWidths[i]+1)/2-5;
                     pushLayout(&e);
-                    guiCheckBox(&painter, &(scale.primes[i]));
+                    guiCheckBoxZT(&painter, &(currentItemConfig->scale.primes[i]), "");
                     popLayout();
-                    feedbackSize((Size){10, guiFontHeight()+10});
+                    feedbackSize(e.resultSize);
                 }
               popLayout();
               feedbackSize(getGridSize(&primesGrid));
               oneLine.pos = getPos(); pushLayout(&oneLine);
                 guiLabelZT(&painter, "Max denominator");
-                guiIntField(&painter, 2, &scale.maxComponent);
+                guiIntField(&painter, 2, &currentItemConfig->scale.maxComponent);
               popLayout(); feedbackSize(getLineSize(&oneLine)); oneLine.filled = oneLine.across =0;
-        } else if(scale.type == equal_intervals) {
+        } else if(currentItemConfig->scale.type == equal_intervals) {
             oneLine.pos = getPos(); pushLayout(&oneLine);
-            guiIntField(&painter, 3, &scale.divisions);
+            guiIntField(&painter, 3, &currentItemConfig->scale.divisions);
             guiLabelZT(&painter, "equal steps of ");
-            guiDoubleField(&painter, 4, &scale.equave);
+            guiDoubleField(&painter, 4, &currentItemConfig->scale.equave);
             popLayout();
             feedbackSize(getLineSize(&oneLine));
             oneLine.filled = oneLine.across =0;
@@ -113,22 +113,22 @@ extern void settingsGui(void) {
             popLayout(); feedbackSize(getLineSize(&oneLine)); oneLine.filled = oneLine.across =0;
         }
 //        guiRadioButtonGroup(&painter, scale_relativity_enum, &scale.relative);
-        if(&scale.relative == scale_absolute) {
+        if(&currentItemConfig->scale.relative == scale_absolute) {
             oneLine.pos = getPos(); pushLayout(&oneLine);
 
             guiLabelZT(&painter, "The root of the scale");
-            guiDoubleField(&painter, 5, &scale.root);
+            guiDoubleField(&painter, 5, &currentItemConfig->scale.root);
 
             popLayout(); feedbackSize(getLineSize(&oneLine)); oneLine.filled = oneLine.across =0;
         }
         if(guiButtonZT(&painter, "OK")) {
-            recalculateScale = true;
+            state.recalculateScale = true;
             settingsOpen = false;
             guiHideWindow(settingsWindow);
         }
         popLayout();
         if(event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE) {
-            recalculateScale = true;
+            state.recalculateScale = true;
             settingsOpen = false;
             guiHideWindow(settingsWindow);
         }
@@ -215,15 +215,18 @@ extern int pianorollgui(void) {
 #ifndef REAPER
     openAudio();
 #endif
-    Grid grid = allocateGrid(100, 100, 5);
-    grid.gridStart.x = grid.gridStart.y = 0;
-    pushLayout(&grid);
+//    Grid grid = allocateGrid(100, 100, 5);
+
+//    layout.pos.x = layout.pos.y = 0;
 
     SDL_LockMutex(mutex_);
 
 
     PlaybackEvent = SDL_RegisterEvents(1);
+    LineLayout layout = makeVerticalLayout(5);
+    pushLayout(&layout);
     while(1) {
+        layout = makeVerticalLayout(5);
         SDL_UnlockMutex(mutex_);
         guiNextEvent(/*.dontblock = *//*playing*/); // let's hope that i don't add any
         // support for hooks that are to be run inside guiNextEvent
@@ -234,7 +237,7 @@ extern int pianorollgui(void) {
             break;
         }
         if(timeToShow) {
-            Rect rect = currentItemConfig->value.windowGeometry;
+            Rect rect = currentItemConfig->windowGeometry;
             guiMoveWindow(rootWindow, rect.x, rect.y);
             SDL_SetWindowSize(rootWindow, rect.w, rect.h);
         }
@@ -310,19 +313,23 @@ extern int pianorollgui(void) {
                     break;
     #else
                     SDL_HideWindow(rootWindow);
-                    take = 0;
+                    state.take = 0;
     //                currentItemConfig = NULL;
     #endif
                 }
                 if(event.window.event == SDL_WINDOWEVENT_MOVED) {
                     ASSERT(currentItemConfig != 0, "")
-                    currentItemConfig->value.windowGeometry.x = event.window.data1;
-                    currentItemConfig->value.windowGeometry.y = event.window.data2;
+                    currentItemConfig->windowGeometry.x = event.window.data1;
+                    currentItemConfig->windowGeometry.y = event.window.data2;
                 }
                 if(event.window.event == SDL_WINDOWEVENT_RESIZED) {
                     ASSERT(currentItemConfig != 0, "")
-                        currentItemConfig->value.windowGeometry.w = event.window.data1;
-                        currentItemConfig->value.windowGeometry.h = event.window.data2;
+                    currentItemConfig->windowGeometry.w = event.window.data1;
+                    currentItemConfig->windowGeometry.h = event.window.data2;
+//                    for(int i = 0; i < grid.gridWidthsLen; i++)
+//                        grid.gridWidths[i] = 0;
+//                    for(int i = 0; i < grid.gridHeightsLen; i++)
+//                        grid.gridHeights[i] = 0;
                 }
     //            continue;
             }
@@ -336,9 +343,9 @@ extern int pianorollgui(void) {
                     {
                         showDebug = !showDebug;
                         CheckMenuItem(hView, COMMAND_SHOWDEBUG, showDebug ? MF_CHECKED:0);
-                        for(int i = 0; i < grid.gridWidthsLen; i++) {
-                            grid.gridWidths[i] = 0;
-                        }
+//                        for(int i = 0; i < grid.gridWidthsLen; i++) {
+//                            grid.gridWidths[i] = 0;
+//                        }
                     }
                 }
                 continue;
@@ -348,11 +355,10 @@ extern int pianorollgui(void) {
     //        SDL_FillRect(rootWindowPainter.drawable, &d, 0xffffff00);
             guiClearWindow(&rootWindowPainter);
     //        SDL_FillRect(rootWindowPainter.drawable, &d, 0xffffff00);
-            setCurrentGridPos(0,0);
+//            setCurrentGridPos(0,0);
     //        SDL_FillRect(rootWindowPainter.drawable, &d, 0xffffff00);
-            Size buttonSizes = {26,26};
-            transportPanel(buttonSizes);
-            gridNextColumn();
+
+//            gridNextColumn();
 //            if(guiButton(&rootWindowPainter, "save", 4)) {
 //    #ifndef WIN32
 //                FILE* fp = popen(FILE_DIALOG_PATH" --file-selection --save", "r");
@@ -414,39 +420,63 @@ extern int pianorollgui(void) {
             persistentDoubleField(&rootWindowPainter, 6, projectSignature.qpm); gridNextColumn();
             guiLabelZT(&rootWindowPainter, "bpm"); gridNextColumn();
     #endif
-
-            guiLabelZT(&rootWindowPainter, "pitch wheel range in semitones");        gridNextColumn();
-            if(guiDoubleField(&rootWindowPainter, 6, &(currentItemConfig->value.pitchRange))); gridNextColumn();
+            LineLayout rowLayout =  makeHorizontalLayout(5);
+            pushLayout(&rowLayout);
+            guiLabelZT(&rootWindowPainter, "pitch wheel range in semitones");        //gridNextColumn();
+            if(guiDoubleField(&rootWindowPainter, 6, &(currentItemConfig->pitchRange))); //gridNextColumn();
     //        const char* elements;
-            guiEnumComboBox(&rootWindowPainter, midi_mode_enum, (int*)&(currentItemConfig->value.midiMode));//"use 1st channel", "don't use");
-            gridNextColumn();
+            guiEnumComboBox(&rootWindowPainter, midi_mode_enum, (int*)&(currentItemConfig->midiMode));//"use 1st channel", "don't use");
+//            gridNextColumn();
             if(showDebug) {
-                guiCheckBox(&rootWindowPainter, &showChannels);        gridNextColumn();
-                guiLabelZT(&rootWindowPainter, "show channels");        gridNextColumn();
-                guiCheckBox(&rootWindowPainter, &showMidi);        gridNextColumn();
-                guiLabelZT(&rootWindowPainter, "show midi");        gridNextColumn();
+                guiCheckBoxZT(&rootWindowPainter, &currentItemConfig->showChannels, "show channels");  //gridNextColumn();
+                guiCheckBoxZT(&rootWindowPainter, &currentItemConfig->showMidi, "show midi"); //gridNextColumn();
             }
-//            guiCheckBox(&rootWindowPainter, &showScale);        gridNextColumn();
 //            guiLabelZT(&rootWindowPainter, "show 16edo scale");        gridNextColumn();
 
 //            STATIC(IMAGE*, gear, loadImageZT(GUI_RESOURCE_PATH, "settings30x30.png"));
             Size size = {30,30};
+//            if(guiToolButtonEx(&rootWindowPainter,
+//                            "toolbar_midi_mode_named_notes.png",
+//                            true,
+//                            currentItemConfig->showScale,
+//                            &size, 2)) {
+//                currentItemConfig->showScale = !currentItemConfig->showScale;
+//            } gridNextColumn();
+            guiCheckBoxZT(&rootWindowPainter, &currentItemConfig->showScale, "show 12edo scale");
+//            gridNextColumn();
             if(guiToolButtonEx(&rootWindowPainter, "settings30x30.png", false, false, &size, 0)) {
                 settingsOpen = true;
                 guiShowWindow(settingsWindow);
                 guiRaiseWindow(settingsWindow);
-            }   gridNextColumn();
+            }   //gridNextColumn();
 //            STATIC(IMAGE*, magnet, loadImageZT(GUI_RESOURCE_PATH, "magnetic-icon.png"));
-            if(guiToolButtonEx(&rootWindowPainter, "magnetic-vertical.png", true, verticalsnap, &size, 2)) {
-                verticalsnap = !verticalsnap;
-            }   gridNextColumn();
-            if(guiToolButtonEx(&rootWindowPainter, "magnetic-horizontal.png", true, horizontalsnap, &size, 2)) {
-                horizontalsnap = !horizontalsnap;
-            }   gridNextColumn();
+            if(guiToolButtonEx(&rootWindowPainter, "magnetic-vertical.png", true, currentItemConfig->verticalSnap, &size, 2)) {
+                currentItemConfig->verticalSnap = !currentItemConfig->verticalSnap;
+            }   //gridNextColumn();
+            if(guiToolButtonEx(&rootWindowPainter, "magnetic-horizontal.png", true, currentItemConfig->horizontalSnap, &size, 2)) {
+                currentItemConfig->horizontalSnap = !currentItemConfig->horizontalSnap;
+            }   //gridNextColumn();
+            popLayout(); feedbackSize(getLineSize(&rowLayout));
 //            STATIC(IMAGE*, magnet, loadResourceImagePngZT("magnet"));
 //            guiDrawImage(&rootWindowPainter, magnet, getPos().x, getPos().y);
-            setCurrentGridPos(3,0);
-            roll(&rootWindowPainter, getGridBottom(topLayout()));
+//            setCurrentGridPos(3,0);
+            int ww, wh;
+            SDL_GetWindowSize(rootWindow, &ww, &wh);
+            roll(&rootWindowPainter, (Size){ww, wh - getPos().y - 26 - layout.spacing});
+//            setCurrentGridPos(4,0);
+            bool d;
+            Size buttonSizes = {26,26};
+            rowLayout =  makeHorizontalLayout(5);
+            rowLayout.pos = getPos();
+            pushLayout(&rowLayout);
+            transportPanel(buttonSizes);
+
+            guiLabelZT(&rootWindowPainter, "Grid: 1/");
+//            static int gridden;
+            guiIntField(&rootWindowPainter, 5, &currentItemConfig->subgridDen);
+            popLayout();
+
+//            guiCheckBoxZT(&rootWindowPainter, &d, "hi^)");
         }
         if(settingsOpen) {
             settingsGui();

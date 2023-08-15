@@ -12,7 +12,7 @@ void stop() {
 void startPlayingNote(double freq) {
     abort();
 }
-void stopPlayingNote(double freq) {
+void stopPlayingNoteIfPlaying(double freq) {
     abort();
 }
 void message(const char* format, ...) {

@@ -2,6 +2,7 @@
 #define EDITORINSTANCE_H
 #include "misc.h"
 #include "shittyintrospection.h"
+#include "melody.h"
 //__pragma( warning (push) )
 //__pragma( warning (disable:4100 ) )
 //#include "reaper_plugin.h"
@@ -14,17 +15,21 @@
 //};
 #include <guiddef.h>
 #ifdef __cplusplus
+#define CLASS(a) class a;
 class MediaItem_Take;
 class ReaProject;
 extern "C" {
-extern MediaItem_Take* take;
 #else
+#define CLASS(a) struct a; typedef struct a a;
 struct MediaItem_Take;
 struct ReaProject;
 typedef struct ReaProject ReaProject;
-extern struct MediaItem_Take* take;
+typedef struct MediaItem_Take MediaItem_Take;
 #endif
-
+struct Step;
+typedef struct Step Step;
+//struct IdealNote;
+//typedef struct IdealNote Step;
 INTROSPECT_ENUM_VISIBLE_NAMES(scale_type_enum,
                               rational_intervals, "Rational intervals",
                               equal_intervals, "equal steps");
@@ -41,8 +46,6 @@ typedef struct Scale {
     int divisions;
     double root;
 } Scale;
-extern bool recalculateScale;
-extern Scale scale;
 static struct {
     int prime;
     char text[4];
@@ -58,19 +61,18 @@ static struct {
 static_assert (sizeof(primes)/sizeof(*primes) >= NUMBER_OF_PRIMES, "");
 
 
-
+//extern int subgridDen;
 
 INTROSPECT_ENUM_VISIBLE_NAMES(midi_mode_enum,
                 midi_mode_regular, "No MPE (use 16 channels)",
                 midi_mode_mpe, "MPE (use channels 2-16)")
 
-extern bool showRationalIntervals;
-extern bool showScale;
+//extern bool showRationalIntervals;
+//extern bool showScale;
 
-extern double itemStart;
 typedef struct CONTINUOUSMIDIEDITOR_Config {
     GUID key;
-        struct {
+        struct ConfigValue {
             Rect windowGeometry;
             double horizontalScroll;
             double horizontalFrac;
@@ -79,12 +81,60 @@ typedef struct CONTINUOUSMIDIEDITOR_Config {
             midi_mode_enum midiMode;
             double pitchRange;
             bool combinations;
-            ReaProject* project;
+
+            Scale scale;
+
+            bool showChannels;
+            bool showMidi ;
+            bool showScale ;
+            bool verticalSnap ;
+            bool horizontalSnap ;
+
+
+            int subgridDen;
         } value;
 } CONTINUOUSMIDIEDITOR_Config;
 extern CONTINUOUSMIDIEDITOR_Config* config;
 //extern GUID currentGuid/*[16]*/;
-extern CONTINUOUSMIDIEDITOR_Config* currentItemConfig;
+#ifdef __cplusplus
+typedef CONTINUOUSMIDIEDITOR_Config::ConfigValue ConfigValue;
+#else
+typedef struct ConfigValue ConfigValue;
+#endif
+extern ConfigValue* currentItemConfig;
+extern GUID currentGuid;
+typedef struct transientState {
+
+    MediaItem_Take* take;
+    ReaProject* project;
+
+
+    Step* calculatedScale;
+
+    bool recalculateScale;
+
+    Point dragStart;
+    IdealNote draggedNoteInitialPos;
+    int base;
+    int dragged;
+    IdealNote newNote;
+
+    double  itemStart;
+    double* timesOfGridLines;
+    enum {
+        justMovingMouse,
+        selectingARange,
+        draggingLeftEdge,
+        draggingRightEdge,
+        draggingVelocity,
+        movingNote,
+        copyingNote,
+        limboCopyingOrDeselecting,
+        stretchingRight
+    } mouseMode;
+
+} transientState;
+extern transientState state;
 #ifdef __cplusplus
 }
 #endif

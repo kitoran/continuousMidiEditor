@@ -50,6 +50,7 @@ linux {
 }
 QMAKE_LIBDIR += C:\src\SDL2-devel-2.26.5-VC\SDL2-2.26.5\lib\x64 C:\src\SDL2-devel-2.26.5-VC\SDL2_ttf-2.20.1\lib\x64
 HEADERS += \
+    12edo.h \
     actions.h \
     actionsReaper.h \
     editorinstance.h \
@@ -71,5 +72,5 @@ FORMS += \
 OTHER_FILES += README.md
 
 DISTFILES += \
-    gui_resources.rc \
+    C:/src/library/gui/gui/icons/gui_resources.rc \
     resourses.rc

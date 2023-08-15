@@ -24,7 +24,7 @@ void reassignChannels() {
     bool warned = false;
     FOR_NOTES(anote, piece) {
         bool found = false;
-        for(int i = (currentItemConfig->value.midiMode==midi_mode_mpe?1:0);i<16;i++) {
+        for(int i = (currentItemConfig->midiMode==midi_mode_mpe?1:0);i<16;i++) {
             if(untilWhenChannelsOccupied[i] <= anote->note.start) {
                 anote->midiChannel=i;
                 untilWhenChannelsOccupied[i] = anote->note.start + anote->note.length;
@@ -68,7 +68,7 @@ int insertNote(IdealNote note) {
     arrpush(piece, runningNote);
 
     bool freeChannelFound = false;
-    for(int i = (currentItemConfig->value.midiMode==midi_mode_mpe?1:0);i<16;i++) {
+    for(int i = (currentItemConfig->midiMode==midi_mode_mpe?1:0);i<16;i++) {
         if(occupiedChannels[i] == false) {
             piece[res].midiChannel=i;
             freeChannelFound = true;
