@@ -1,4 +1,17 @@
 static Step twelveEdo[] = {
+
+    {8.18, "C-2", 0xffffffff},
+    {8.66, "C#-2", 0xff000000},
+    {9.18, "D-2", 0xffffffff},
+    {9.72,  "D#-2", 0xff000000},
+    {10.30, "E-2", 0xffffffff},
+    {10.91, "F-2", 0xffffffff},
+    {11.56, "F#-2", 0xff000000},
+    {12.25, "G-2", 0xffffffff},
+    {12.98, "G#-2", 0xff000000},
+    {13.75, "A-1", 0xffffffff},
+    {14.57, "A#-1", 0xff000000},
+    {15.43, "B-1", 0xffffffff},
     {16.35, "C0", 0xffffffff},
     {17.32, "C#0", 0xff000000},
     {18.35, "D0", 0xffffffff},
@@ -106,4 +119,12 @@ static Step twelveEdo[] = {
     {6644.88, "G#8", 0xff000000},
     {7040.00, "A8", 0xffffffff},
     {7458.62, "A#8", 0xff000000},
-    {7902.13, "B8", 0xffffffff}};
+    {7902.13, "B8", 0xffffffff},
+    {8372.02, "C9", 0xffffffff},
+    {8869.84, "C#9", 0xff000000},
+    {9397.27, "D9", 0xffffffff},
+    {9956.06, "D#9", 0xff000000},
+    {10548.08, "E9", 0xffffffff},
+    {11175.30, "F9", 0xffffffff},
+    {11839.82, "F#9", 0xff000000},
+    {12543.85, "G9", 0xffffffff}};

@@ -220,8 +220,8 @@ void makeCombinations()
     qsort(state.combinations, arrlen(state.combinations), sizeof(*state.combinations),
           (_CoreCrtNonSecureSearchSortCompareFunction)compsteps);
 }
-#define FREQ_MIN 20
-#define FREQ_MAX 20000
+#define FREQ_MIN 8.1758
+#define FREQ_MAX 12543.85
 void makeEqualScale()
 {
     FOR_STB_ARRAY(Step*, step, state.calculatedScale) {
@@ -255,6 +255,31 @@ void makeEqualScale()
 
         arrpush(state.calculatedScale, s);
         i++;
+    }
+}
+void zoomInTime(double myFrac, int amount)
+{
+    double partOfItemToLeftOfScreen = currentItemConfig->horizontalScroll;
+    double partOfItemToLeftOfMouse = partOfItemToLeftOfScreen + currentItemConfig->horizontalFrac*myFrac;
+    currentItemConfig->horizontalFrac /= pow(1.5, amount);
+    double newPartOfItemToLeftOfScreen = partOfItemToLeftOfMouse - currentItemConfig->horizontalFrac*myFrac;
+    currentItemConfig->horizontalScroll = newPartOfItemToLeftOfScreen;
+    if(currentItemConfig->horizontalScroll < 0) currentItemConfig->horizontalScroll = 0;
+}
+void zoomInFreq(double myFrac, int amount)
+{
+    double partOfRangeBelowScreen = 1-currentItemConfig->verticalFrac-currentItemConfig->verticalScroll;
+    double partOfRangeBelowMouse = partOfRangeBelowScreen + currentItemConfig->verticalFrac*myFrac;
+    currentItemConfig->verticalFrac /= pow(1.5, amount);
+    double newPartOfRangeBelowScreen = partOfRangeBelowMouse - currentItemConfig->verticalFrac*myFrac;
+    currentItemConfig->verticalScroll = 1 - currentItemConfig->verticalFrac - newPartOfRangeBelowScreen;
+
+    if(currentItemConfig->verticalFrac > 1) currentItemConfig->verticalFrac = 1;
+    if(currentItemConfig->verticalScroll < 0) {
+        currentItemConfig->verticalScroll = 0;
+    }
+    if(currentItemConfig->verticalScroll + currentItemConfig->verticalFrac > 1) {
+        currentItemConfig->verticalFrac = 1 - currentItemConfig->verticalScroll;
     }
 }
 
@@ -298,11 +323,29 @@ void roll(Painter* p, Size size) {
     noteArea(p, noteAreaSize);
 //    gridNextRow();
     el.exactPos.y+=noteAreaSize.h;
-    guiScrollBar(p,size.w-SCROLLBAR_THICKNESS, &currentItemConfig->horizontalScroll, currentItemConfig->horizontalFrac, true);
+    guiScrollBar(p,size.w-SCROLLBAR_THICKNESS*3, &currentItemConfig->horizontalScroll, currentItemConfig->horizontalFrac, true);
 //    setCurrentGridPos(1, 1);
+    Size bsize = {SCROLLBAR_THICKNESS, SCROLLBAR_THICKNESS};
+    el.exactPos.x+=size.w-SCROLLBAR_THICKNESS*3;
+    if(guiToolButtonEx(p, "plus.png", false, false, &bsize, 0)) {
+        zoomInTime(0.5, 1);
+    }
+    el.exactPos.x+=SCROLLBAR_THICKNESS;
+    if(guiToolButtonEx(p, "minus.png", false, false, &bsize, 0)) {
+        zoomInTime(0.5, -1);
+    }
+
     el.exactPos.y=pos.y+NAVIGATION_THICKNESS;
-    el.exactPos.x+=noteAreaSize.w;
-    guiScrollBar(p,noteAreaSize.h, &currentItemConfig->verticalScroll, currentItemConfig->verticalFrac, false);
+    el.exactPos.x=pos.x+noteAreaSize.w;
+    guiScrollBar(p,noteAreaSize.h-=SCROLLBAR_THICKNESS*2, &currentItemConfig->verticalScroll, currentItemConfig->verticalFrac, false);
+    el.exactPos.y+=noteAreaSize.h;
+    if(guiToolButtonEx(p, "plus.png", false, false, &bsize, 0)) {
+        zoomInFreq(0.5, 1);
+    }
+    el.exactPos.y+=SCROLLBAR_THICKNESS;
+    if(guiToolButtonEx(p, "minus.png", false, false, &bsize, 0)) {
+        zoomInFreq(0.5, -1);
+    }
     popLayout();
 //    Size size = getGridSize(&grid);
     feedbackSize(size); // in principle i should probavly call feedbackSize() here but maybe not
@@ -490,6 +533,8 @@ inline double subbeatTime(TempoMarker* tm) {
 
 //RealNote** selectionSA = NULL;
 const char* channelnames[]={"1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16"};
+
+
 void noteArea(Painter* p, Size size) {
     Point pos = getPos();
     Rect rect = {0, pos.y, size.w, size.h};
@@ -504,7 +549,7 @@ void noteArea(Painter* p, Size size) {
     int numOfBeat = 0;
     int numOfSubgrid = 0;
     double projectTime = 0;
-    int measure = 0;
+    int measure = 1;
     arrsetlen(state.timesOfGridLines, 0);
 
     for(; projectTime < lastVisibleTime+state.itemStart; projectTime += subbeatTime(&last)) {
@@ -569,6 +614,9 @@ void noteArea(Painter* p, Size size) {
         playback = timeToX(size.w, samplesToTime(currentPositionInSamples));
         if(playback > size.w) {
             currentItemConfig->horizontalScroll += currentItemConfig->horizontalFrac;
+        }
+        if(playback < 0) {
+            currentItemConfig->horizontalScroll -= currentItemConfig->horizontalFrac;
         }
         guiSetForeground(p,  0x55999955);
         guiDrawLine(p, playback, pos.y, playback, pos.y+size.h);
@@ -744,7 +792,8 @@ void noteArea(Painter* p, Size size) {
 //            IdealNote draggedNote = piece[state.dragged].note;
             if(state.mouseMode == copyingNote) {
                 commitChanges( &state.dragged, &state.base, "copy note(s)");
-            } else if(state.mouseMode == stretchingRight) {
+            } else if(state.mouseMode == stretchingRight ||
+                      state.mouseMode == stretchingLeft) {
                 commitChanges( &state.dragged, &state.base, "stretch note(s)");
             } else if(state.mouseMode == limboCopyingOrDeselecting) {
                 piece[state.dragged].selected = false;
@@ -808,20 +857,12 @@ void noteArea(Painter* p, Size size) {
         DEBUG_PRINT(e.y, "%d");
         if(km & KMOD_CTRL) {
             double myFrac = 1 - (e.mouseY - pos.y) * 1.0/ size.h;
-            double partOfRangeBelowScreen = 1-currentItemConfig->verticalFrac-currentItemConfig->verticalScroll;
-            double partOfRangeBelowMouse = partOfRangeBelowScreen + currentItemConfig->verticalFrac*myFrac;
-            currentItemConfig->verticalFrac /= pow(1.5, e.y);
-            double newPartOfRangeBelowScreen = partOfRangeBelowMouse - currentItemConfig->verticalFrac*myFrac;
-            currentItemConfig->verticalScroll = 1 - currentItemConfig->verticalFrac - newPartOfRangeBelowScreen;
+            int amount = e.y;
+            zoomInFreq(myFrac, amount);
 
         } else {
             double myFrac = (e.mouseX - pos.x) * 1.0/ size.w;
-            double partOfItemToLeftOfScreen = currentItemConfig->horizontalScroll;
-            double partOfItemToLeftOfMouse = partOfItemToLeftOfScreen + currentItemConfig->horizontalFrac*myFrac;
-            currentItemConfig->horizontalFrac /= pow(1.5, e.y);
-            double newPartOfItemToLeftOfScreen = partOfItemToLeftOfMouse - currentItemConfig->horizontalFrac*myFrac;
-            currentItemConfig->horizontalScroll = newPartOfItemToLeftOfScreen;
-            if(currentItemConfig->horizontalScroll < 0) currentItemConfig->horizontalScroll = 0;
+            zoomInTime(myFrac, e.y);
 //            currentItemConfig->horizontalFrac /= pow(1.5, e.y);
 //            double playhead = samplesToTime(currentPositionInSamples);
 //            currentItemConfig->horizontalScroll = (playhead - 1.0/2*pieceLength*currentItemConfig->horizontalFrac)/pieceLength;
@@ -870,7 +911,7 @@ void noteArea(Painter* p, Size size) {
                 if(e.x >= MAX(noteRect.x+noteRect.w-5, noteRect.x+noteRect.w/2)) {
                     state.mouseMode = km&KMOD_ALT?stretchingRight:draggingRightEdge;
                 } else if(e.x <= MIN(noteRect.x+5, noteRect.x+noteRect.w/2)) {
-                    state.mouseMode = draggingLeftEdge;
+                    state.mouseMode = km&KMOD_ALT?stretchingLeft:draggingLeftEdge;
                 } else if(e.y <= noteRect.y+RANGE_FOR_VELOCITY_DRAGGING) {
                     state.mouseMode = draggingVelocity;
                 } else if( select->selected
@@ -886,18 +927,22 @@ void noteArea(Painter* p, Size size) {
             lastTouchedVel = select->note.velocity;
             state.draggedNoteInitialPos = select->note;
         }
-
+        else if (e.x >= timeToX(size.w, pieceLength) - 5
+                                &&
+                  e.x <= timeToX(size.w, pieceLength) + 5) {
+            state.mouseMode = draggingEnd;
+        } else
 //        coord c = {yToFreq(size.h, pos, e.y), xToTime(size.w, e.x)};
-        double time = closestTime(size.w, e.x);
 //        DEBUG_PRINT(select, "%ld");
 
         if(select == NULL && e.button == 1) {
             freq = closestFreq(size.h, pos, e.y);
+            double time = closestTime(size.w, e.x);
             state.newNote = (IdealNote){ freq, time, xToTime(size.w, e.x+1)-time, false, lastTouchedVel};
-        }
+        } else
         if(select == NULL && e.button == 3) {
             state.mouseMode = selectingARange;
-        }
+        } else
         if(select == NULL && e.button == 2) {
             state.base = -1;
         }
@@ -982,6 +1027,24 @@ void noteArea(Painter* p, Size size) {
                     }
                 }
             }
+            if(state.mouseMode == stretchingLeft) {
+                double end = -1;
+                FOR_NOTES(anote,piece ) {
+                    if(anote->selected && anote->note.start+anote->note.length>end) {
+                        end = anote->note.start+anote->note.length;
+                    }
+                }
+                double scale = (end - xToTime(size.w,e.x))/(end - piece[state.dragged].note.start)*0.99;
+                FOR_NOTES(anote, piece) {
+                    if(anote->selected) {
+
+//                        double noteEnd = anote->note.start + anote->note.length;
+//                        anote->note.end = (anote->note.end - end)*scale+end;
+                        anote->note.start = (anote->note.start - end)*scale+end;//(noteEnd - end)*scale -anote->note.length  ;
+                        anote->note.length *= scale;
+                    }
+                }
+            }
             if(state.mouseMode == draggingLeftEdge) {
                 double t = draggedNote.start;
                 draggedNote.start = closestTime(size.w,
@@ -1005,7 +1068,7 @@ void noteArea(Painter* p, Size size) {
                    chf = draggedNote.freq/piece[state.dragged].note.freq,
                    chl = draggedNote.length-piece[state.dragged].note.length;
 
-            if(state.mouseMode != stretchingRight) {
+            if(state.mouseMode != stretchingRight && state.mouseMode != stretchingLeft) {
                 FOR_NOTES(anote, piece) {
                     if(anote->selected) {
                         anote->note.start += chs;
@@ -1024,8 +1087,20 @@ void noteArea(Painter* p, Size size) {
 //            }
 //            stopPlayingNote();
             startPlayingNote(draggedNote.freq, draggedNote.velocity);
+        } else if(state.mouseMode == draggingEnd) {
+            pieceLength = xToTime(size.w, e.x);
+//            timeToX(pieceLength) = e.x;
+            double leftTime = xToTime(size.w, 0);
+//            (pieceLength - pieceLength*horizontalScroll)*width/pieceLength/currentItemConfig->horizontalFrac = e.x;
+//            (leftTime - pieceLength*horizontalScroll)*width/pieceLength/currentItemConfig->horizontalFrac = 0;
+
+            currentItemConfig->horizontalFrac = (pieceLength - leftTime)*size.w/pieceLength/e.x;
+            currentItemConfig->horizontalScroll = leftTime/pieceLength;
+
+
         } else {
             STATIC(SDL_Cursor*, defaultCursor, SDL_GetDefaultCursor());
+            STATIC(SDL_Cursor*, leftRight, SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZEWE));
             RealNote* noteUnderCursor = NULL;
             FOR_NOTES(anote, piece) {
                 Rect noteRect = noteToRect(size, pos, anote->note);
@@ -1035,7 +1110,6 @@ void noteArea(Painter* p, Size size) {
                     if(e.x >= MAX(noteRect.x+noteRect.w-5, noteRect.x/*+noteRect.w/2*/)
                             ||
                         e.x <= MIN(noteRect.x+5, noteRect.x+noteRect.w/*/2*/)) {
-                        STATIC(SDL_Cursor*, leftRight, SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZEWE));
                         SDL_SetCursor(leftRight);
                     } else if(e.y <= noteRect.y+RANGE_FOR_VELOCITY_DRAGGING) {
                         STATIC(SDL_Cursor*, upDown, SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZENS));
@@ -1045,7 +1119,11 @@ void noteArea(Painter* p, Size size) {
                     }
                 }
             }
-            if(noteUnderCursor == NULL) {
+            if(e.x >= timeToX(size.w, pieceLength)-5
+                    &&
+                    e.x <= timeToX(size.w, pieceLength)+5) {
+                SDL_SetCursor(leftRight);
+            } else if(noteUnderCursor == NULL) {
                 SDL_SetCursor(defaultCursor);
             }
         }

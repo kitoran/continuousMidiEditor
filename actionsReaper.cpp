@@ -51,28 +51,11 @@ void toggleRepeat() {
 //extern double __declspec(selectany) state.itemStart;
 //extern double __declspec(selectany) state.itemStart;
 
-enum MidiEventType: u8 {
-    note_off = 0b1000 << 4,
-    note_on = 0b1001 << 4,
-    pitch_wheel = 0b1110 << 4,
-    control_change = 0b1011 << 4,
-};
-enum MidiCCEvent: u8 {
-    all_notes_off = 123,
-};
 
 
+static reapermidimessage d[3002];
 static void setTakeMidiData() {
-#pragma pack(push)
-#pragma pack( 1)
-    struct reapermidimessage {
-        int offset = 0;
-        char flag = 0;
-        int msglen = 3;
-        unsigned char msg[3] = { control_change | 1, all_notes_off, 0};
-    } notesOff;
-    reapermidimessage d[3002];
-#pragma pack(pop)
+
 //    d
 //    int offset = MIDI_get
 //    MIDI_SetAllEvts(state.take, (const char*)&notesOff, sizeof(notesOff));
@@ -82,7 +65,7 @@ static void setTakeMidiData() {
     ASSERT(arrlen(piece) < 1000, "hi^)");
     for(int i = 0; i < arrlen(piece); i++) {
         RealNote note = piece[i];
-        int  startppqpos = (int)MIDI_GetPPQPosFromProjTime(state.take,
+        int startppqpos = (int)MIDI_GetPPQPosFromProjTime(state.take,
                                                                                      note.note.start+state.itemStart);
         int endppqpos = (int)MIDI_GetPPQPosFromProjTime(state.take,
                                                                                      note.note.start+note.note.length+state.itemStart);
@@ -107,8 +90,8 @@ static void setTakeMidiData() {
             {(u8)(pitch_wheel | note.midiChannel), (u8)(mp.wheel&0b1111111), (u8)(mp.wheel>>7)}
         };
     }
-    int  takeendqpos = MIDI_GetPPQPosFromProjTime(state.take,
-                                                                                 pieceLength);
+    int  takeendqpos = MIDI_GetPPQPosFromProjTime(state.take, state.itemStart+pieceLength);
+                                                                  //               pieceLength);
 
     d[3*arrlen(piece)] = {
             takeendqpos, 0, 3,
@@ -122,12 +105,12 @@ static void setTakeMidiData() {
         return a.offset < b.offset;
     });
     int lastOffset = 0;
-    for(int i = 0; i < arrlen(piece)*3; i++) {
+    for(int i = 0; i <= arrlen(piece)*3; i++) {
         int r = d[i].offset;
         d[i].offset -= lastOffset;
         lastOffset = r;
     }
-    MIDI_SetAllEvts(state.take, (const char*)&d, sizeof(reapermidimessage)*arrlen(piece)*3);
+    MIDI_SetAllEvts(state.take, (const char*)&d, sizeof(reapermidimessage)*(arrlen(piece)*3+1));
 }
 
 void reaperSetPosition(double d) {

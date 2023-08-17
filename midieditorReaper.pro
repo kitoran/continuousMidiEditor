@@ -20,10 +20,12 @@ windows {
     #Kernel32
     QMAKE_CXXFLAGS += /Zc:preprocessor /wd4838
 #    -lSDL2main -lShell32
-    QMAKE_LFLAGS += user32.lib SDL2.lib SDL2_ttf.lib
+    QMAKE_LFLAGS += user32.lib  SDL2_ttf.lib SDL2.lib freetype.lib gdi32.lib Shell32.lib Setupapi.lib Advapi32.lib \
+                Ole32.lib Version.lib Imm32.lib  	OleAut32.lib
     QMAKE_CFLAGS += /std:c11 /we4013 /wd4838 /we4020  /we4133
-    SDL2.dll.path = C:\src\SDL2-devel-2.26.5-VC\SDL2-2.26.5\
-    INSTALLS += SDL2.dll
+    SDL2.lib.path = C:\src\SDL2-2.28.2\build\Release
+    #C:\src\SDL2-devel-2.26.5-VC\SDL2-2.26.5\
+    INSTALLS += SDL2.lib
     RC_FILE += resourses.rc
 #        RC_ICONS += resources/magnetic-horizontal.png
     #    QMAKE_CXXFLAGS += /D__cplusplus #wtf why was this not defined in the first place
@@ -48,7 +50,8 @@ SOURCES += \
 linux {
    LIBS += -lsmf -lrtmidi
 }
-QMAKE_LIBDIR += C:\src\SDL2-devel-2.26.5-VC\SDL2-2.26.5\lib\x64 C:\src\SDL2-devel-2.26.5-VC\SDL2_ttf-2.20.1\lib\x64
+QMAKE_LIBDIR += C:\src\SDL2-2.28.2\build\Release C:\src\SDL2_ttf-2.20.2\build\Release C:\src\staticlibs
+#C:\src\SDL2-devel-2.26.5-VC\SDL2-2.26.5\lib\x64 C:\src\SDL2-devel-2.26.5-VC\SDL2_ttf-2.20.1\lib\x64
 HEADERS += \
     12edo.h \
     actions.h \

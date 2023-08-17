@@ -132,7 +132,9 @@ typedef struct transientState {
         movingNote,
         copyingNote,
         limboCopyingOrDeselecting,
-        stretchingRight
+        stretchingRight,
+        stretchingLeft,
+        draggingEnd
     } mouseMode;
 
 } transientState;

@@ -37,7 +37,7 @@
 
 //SDL_Renderer* renderer;
 
-char* appName = "piano roll continous";
+char* appName = "Continouos piano roll";
 #ifdef _WIN32
 #define FILE_DIALOG_PATH "C:\src\exercises\build-FileDialog-Desktop_Qt_6_4_1_MSVC2019_64bit-Debug\debug\FileDialog.exe"
 #else
@@ -197,9 +197,6 @@ void makeMenu(/*GuiWindow window*/) {
 }
 bool showDebug = false;
 extern int pianorollgui(void) {
-
-
-
 
     SDL_SetHint( SDL_HINT_RENDER_SCALE_QUALITY, "2" );
     guiStartDrawingEx(false);
@@ -466,7 +463,7 @@ extern int pianorollgui(void) {
 //            setCurrentGridPos(4,0);
             bool d;
             Size buttonSizes = {26,26};
-            rowLayout =  makeHorizontalLayout(5);
+            rowLayout = makeHorizontalLayout(5);
             rowLayout.pos = getPos();
             pushLayout(&rowLayout);
             transportPanel(buttonSizes);
