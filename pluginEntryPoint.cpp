@@ -300,18 +300,21 @@ void loadTake()
     double trertse;
     size = 10003;
     bool getallevre = MIDI_GetAllEvts(state.take, (char*)msg, &size);
-
+    QUICK_ASSERT(size < 10003);
 //    getallevre = MIDI_GetEvt(state.take, 0, 0, 0, &trertse, (char*)(&msg[0]), &size);
 //    int evtIndex = -1;
     long long offset = 0;
     int i = -1;
     while(true) {
         i++;
+        QUICK_ASSERT(i < 9999);
 //        ASSERT(i < evtCount, "problem when loading take %d, %d", i, evtCount);
 //        bool muted;
 //        bool selected;
         int size = 3;
         reapermidimessage event = msg[i];
+
+        QUICK_ASSERT(event.offset >= 0);
         ASSERT(event.msglen == 3, "got midi event not 3 bytes, dying\n");
         offset += event.offset;
         u8 channel = event.msg[0] & MIDI_CHANNEL_MASK;
@@ -345,9 +348,14 @@ void loadTake()
 //            message("st %lf end %lf pitch %d vel %d\n"
 //                    "start %lf  freq %lf", pos, channelNoteStarts[channel] , key, vel
 //                    , start, freq);
+//            QUICK_ASSERT(pos - channelProperties[channel].noteStart > 0);
+            double length = pos-channelProperties[channel].noteStart;
+            if(length == 0) {
+                length = 0.01;
+            }
             appendRealNote({.note = {.freq = freq,
                                      .start = channelProperties[channel].noteStart  - state.itemStart,
-                                     .length = pos-channelProperties[channel].noteStart,
+                                     .length = length,
                                      .muted = channelProperties[channel].muted,
                                      .velocity = vel
                                     },
@@ -400,9 +408,13 @@ void loadTake()
     });
 
 }
+extern "C" SDL_mutex* mutex_; // I use SDL_mutex because MSVC doesn't provide thread.h
+extern "C" SDL_cond* condVar;
 
 void timer_function() {
-    std::unique_lock lk(actionChannel.mutex);
+    SDL_LockMutex(mutex_);
+//    std::unique_lock lk(actionChannel.mutex);
+//    if(!sdlThreadStarted // we should p
     if(actionChannel.pending) {
         actionChannel.action();
         MIDI_GetHash(state.take, false, takeHash, sizeof(takeHash));
@@ -433,13 +445,13 @@ void timer_function() {
             guiRedrawFromOtherThread(rootWindow);
         }
     }
-    lk.unlock();
-    actionChannel.cv.notify_one();
+//    lk.unlock();
+//    actionChannel.cv.notify_one();
     currentPositionInSamples =  (int)round((GetPlayPosition()-state.itemStart)*44100);
     cursorPosition = GetCursorPosition()-state.itemStart;
     double deb1 = GetPlayPosition();
     double deb2 = GetCursorPosition();
-    sprintf(DebugBuffer, "playp %lf curp %lf", deb1, deb2);
+    snprintf(DebugBuffer, sizeof(DebugBuffer), "playp %lf curp %lf", deb1, deb2);
     static int previousPlaying = false;
     int playstate = GetPlayState();
     playing = playstate & 1;
@@ -468,6 +480,8 @@ void timer_function() {
         arrpush(tempoMarkers, (TempoMarker{ .when = timepos-state.itemStart, .qpm = mbpm,
                                             .num = timesig_num, .denom = timesig_denom}));
     }
+    SDL_UnlockMutex(mutex_);
+    SDL_CondSignal(condVar);
 }
 const DWORD MS_VC_EXCEPTION = 0x406D1388;
 #pragma pack(push,8)
@@ -495,8 +509,6 @@ extern "C" void SetThreadName(DWORD dwThreadID, const char* threadName) {
 #pragma warning(pop)
 }
 //std::thread th;
-extern "C" SDL_mutex* mutex_; // I use SDL_mutex because MSVC doesn't provide thread.h
-//extern "C" SDL_cond* condVar;
 //bool data_ready = false;
 extern "C" extern bool timeToLeave;
 extern "C" bool timeToShow;
@@ -853,6 +865,8 @@ extern "C" REAPER_PLUGIN_DLL_EXPORT int REAPER_PLUGIN_ENTRYPOINT(
          "can't load microtonal midi editor", MB_OK | MB_SYSTEMMODAL);
       return false;
   }
+  mutex_ = SDL_CreateMutex();
+  condVar = SDL_CreateCond();
   if (!rec->Register("timer", (void*)timer_function)) {
       MessageBoxA(0, "please tell the developer at kitttoran@gmail.com", \
          "can't load microtonal midi editor", MB_OK | MB_SYSTEMMODAL);

@@ -23,6 +23,7 @@ transientState state = {
     .dragStart = {-1,-1},
     .draggedNoteInitialPos = {0},
     .base = -1,
+    .base2 = -1,
     .dragged = -1,
     .newNote = {-1, -1, -1},
     .itemStart = 0,

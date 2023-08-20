@@ -9,6 +9,7 @@
 
 #include "stb_ds.h"
 #include <algorithm>
+#include <SDL_thread.h>
 thread_local bool reaperMainThread;
 extern "C" {
 extern bool timeToLeave;
@@ -53,7 +54,7 @@ void toggleRepeat() {
 
 
 
-static reapermidimessage d[3002];
+static reapermidimessage d[3002]; //FIXME make a normal number
 static void setTakeMidiData() {
 
 //    d
@@ -62,7 +63,7 @@ static void setTakeMidiData() {
 //    FOR_NOTES(anote, piece) {
 //        insertNoteImpl(*anote);
 //    }
-    ASSERT(arrlen(piece) < 1000, "hi^)");
+    ASSERT(arrlen(piece) < 1000, "there can be 1000 notes maximum");
     for(int i = 0; i < arrlen(piece); i++) {
         RealNote note = piece[i];
         int startppqpos = (int)MIDI_GetPPQPosFromProjTime(state.take,
@@ -86,9 +87,10 @@ static void setTakeMidiData() {
             3, {(u8)(note_off | note.midiChannel), (u8)mp.key, (u8)note.note.velocity}
         };
         d[3*i+2] = {
-            startppqpos-1, (char)(note.selected | (note.note.muted << 1)), 3,
+            startppqpos, (char)(note.selected | (note.note.muted << 1)), 3,
             {(u8)(pitch_wheel | note.midiChannel), (u8)(mp.wheel&0b1111111), (u8)(mp.wheel>>7)}
         };
+        QUICK_ASSERT(startppqpos < endppqpos);
     }
     int  takeendqpos = MIDI_GetPPQPosFromProjTime(state.take, state.itemStart+pieceLength);
                                                                   //               pieceLength);
@@ -102,14 +104,20 @@ static void setTakeMidiData() {
             {(u8)(all_notes_off | 0), (u8)(123), (u8)(0)}
         };
     std::sort(d, d+arrlen(piece)*3, [](const reapermidimessage& a, const reapermidimessage& b) {
-        return a.offset < b.offset;
+        if(a.offset != b.offset) return a.offset < b.offset;
+        return a.msg[0] < b.msg[0]; // we want note_off messages
+        // to be earlier than note_on
     });
     int lastOffset = 0;
     for(int i = 0; i <= arrlen(piece)*3; i++) {
         int r = d[i].offset;
         d[i].offset -= lastOffset;
         lastOffset = r;
+
+        QUICK_ASSERT(d[i].offset >= 0);
+        QUICK_ASSERT(d[i].offset < 2000000);
     }
+
     MIDI_SetAllEvts(state.take, (const char*)&d, sizeof(reapermidimessage)*(arrlen(piece)*3+1));
 }
 
@@ -168,7 +176,7 @@ extern "C" void message(const char* format, ...) {
             actionChannel.name = __func__;
 //            actionChannel.runInMainThread(ShowConsoleMsg, msg);
         } else {
-            fprintf(stderr, "%s", msg);
+            DEBUG_FPRINTF("%s", msg);
         }
         return;
     }
@@ -176,17 +184,20 @@ extern "C" void message(const char* format, ...) {
     va_end(arg_ptr);
 }
 static int playedKey;
+static int playedVelocity;
 //static int playedVelocity;
+extern "C"  SDL_mutex* mutex_; // I use SDL_mutex because MSVC doesn't provide thread.h
+extern "C"  SDL_cond* condVar;
 template <typename F, typename... Args>
 void ActionChannel::runInMainThread(F f, Args... args) {
-    std::unique_lock lk(actionChannel.mutex);
+//    std::unique_lock lk(actionChannel.mutex);
     auto closure = [=] () { f(args...); };
     actionChannel.action = closure;
     actionChannel.pending = true;
-    actionChannel.cv.wait(lk, [](){
-                         return actionChannel.pending
-                                 == false;});
-
+//    actionChannel.cv.wait(lk, [](){
+//                         return actionChannel.pending
+//                                 == false;});
+    SDL_CondWait(condVar, mutex_);
 }
 UINT32 pack3(u8* a) {
     return a[2]<<16|a[1]<<8|a[0];
@@ -213,7 +224,7 @@ void startPlayingNote(double freq, int vel) {
         actionChannel.runInMainThread(&startPlayingNote, freq, vel);
         return;
     }
-    if(playedKey >= 0 && playedKey != mp.key) {
+    if(playedKey >= 0 && playedKey != mp.key || playedVelocity != vel) {
         stopPlayingNoteIfPlaying();
     }
 

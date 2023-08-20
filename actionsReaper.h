@@ -18,8 +18,8 @@ enum MidiCCEvent: u8 {
 extern thread_local bool reaperMainThread;
 extern struct ActionChannel {
     std::function<void()> action;
-    std::mutex mutex;
-    std::condition_variable cv;
+//    std::mutex mutex;
+//    std::condition_variable cv;
     bool pending=false;
     const char* name;
     template <typename F, typename... Args>
@@ -29,9 +29,9 @@ extern struct ActionChannel {
 #pragma pack(push)
 #pragma pack( 1)
     static struct reapermidimessage {
-        int offset = 0;
-        char flag = 0;
-        int msglen = 3;
+        i32 offset = 0;
+        i8 flag = 0;
+        i32 msglen = 3;
         unsigned char msg[3] = { control_change | 1, all_notes_off, 0};
     } notesOff;
 #pragma pack(pop)

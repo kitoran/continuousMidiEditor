@@ -30,9 +30,9 @@ int piecelen();
 //void copyNotes(int *dragged, int* base);
 int insertNote(IdealNote note);
 void appendRealNote(RealNote note);
-void removeNotes(int* base);
+void removeNotes(int* base, int *base2);
 
-void commitChanges(int *dragged, int* base, char* undoName);
+void commitChanges(int *dragged, int* base, int *base2, char* undoName);
 void clearPiece();
 typedef struct {
     double when;

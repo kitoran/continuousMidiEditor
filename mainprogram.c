@@ -141,6 +141,7 @@ void transportPanel(Size buttonSizes)
     if(guiToolButtonEx(&rootWindowPainter, "gen_home.png", false, false, &buttonSizes, 1)) {
         //            SDL_PauseAudioDevice(audioDevice, 0);
         reaperSetPosition(0);
+        currentItemConfig->horizontalScroll = 0;
     }
     if(guiToolButtonEx(&rootWindowPainter, "play.png", true, playing, &buttonSizes, 1)) {
 //            SDL_PauseAudioDevice(audioDevice, 0);
@@ -157,6 +158,9 @@ void transportPanel(Size buttonSizes)
     if(guiToolButtonEx(&rootWindowPainter, "gen_end.png", false, false, &buttonSizes, 1)) {
 //            SDL_PauseAudioDevice(audioDevice, 0);
         reaperSetPosition(pieceLength);
+        if(currentItemConfig->horizontalScroll + currentItemConfig->horizontalFrac < 1) {
+            currentItemConfig->horizontalScroll = 1 - currentItemConfig->horizontalFrac*0.9;
+        }
     }
     if(guiToolButtonEx(&rootWindowPainter, "gen_repeat_off.png", true, repeatOn, &buttonSizes, 1)) {
 //            SDL_PauseAudioDevice(audioDevice, 0);
@@ -168,7 +172,8 @@ enum {
     COMMAND_IMPORT,
     COMMAND_CONVERT,
     COMMAND_REOPEN,
-    COMMAND_SHOWDEBUG
+    COMMAND_SHOWDEBUG,
+    COMMAND_ABOUT
 };
 HMENU hView;
 void makeMenu(/*GuiWindow window*/) {
@@ -193,6 +198,8 @@ void makeMenu(/*GuiWindow window*/) {
     AppendMenuA(hMenuBar, MF_POPUP, (UINT_PTR)hView, "&View");
     AppendMenuA(hView, MF_POPUP, COMMAND_SHOWDEBUG, "Show debug widgets");
 
+//    AppendMenuA(hMenuBar, MF_POPUP, (UINT_PTR)hView, "&View");
+    AppendMenuA(hMenuBar, MF_POPUP, COMMAND_ABOUT, "About");
     SetMenu(hwnd, hMenuBar);
 }
 bool showDebug = false;
@@ -204,9 +211,9 @@ extern int pianorollgui(void) {
     makeMenu();
     SDL_EventState(SDL_SYSWMEVENT, SDL_ENABLE);
 
-    mutex_ = SDL_CreateMutex();
+//    mutex_ = SDL_CreateMutex();
 
-    condVar = SDL_CreateCond();
+//    condVar = SDL_CreateCond();
 
     SetThreadName(-1, "midicont");
 #ifndef REAPER
@@ -343,6 +350,17 @@ extern int pianorollgui(void) {
 //                        for(int i = 0; i < grid.gridWidthsLen; i++) {
 //                            grid.gridWidths[i] = 0;
 //                        }
+                    }
+                    if (event.syswm.msg->msg.win.wParam == COMMAND_ABOUT)
+                    {
+                        MessageBoxA(
+                                NULL,
+                                "Portions of this software are copyright (c) 2023 The FreeType"
+                                    " Project (www.freetype.org).  All rights reserved.\n\n"
+                                    "This software uses the SDL2 library.",
+                                "About Continuous Midi Editor",
+                                MB_OK
+                            );
                     }
                 }
                 continue;

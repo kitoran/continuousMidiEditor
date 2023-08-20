@@ -33,6 +33,7 @@ void reassignChannels() {
             }
         }
         if(!warned && !found) {
+            fprintf(stderr, "gone here");
             MessageBoxInfo("not enough channels", "this piece may sound wrong because it's too polyphonic");
             warned = true;
         }
@@ -89,7 +90,7 @@ void appendRealNote(RealNote note) {
     arrpush(piece, note);
 //    if(note.note.start + note.note.length > end) end = note.note.start + note.note.length;
 }
-void removeNotes(int* base) {
+void removeNotes(int* base, int* base2) {
 //    assert(note - piece < arrlen(piece));
 //#if REAPER
 //    reaperDeleteSelected();
@@ -101,13 +102,23 @@ void removeNotes(int* base) {
             if(*base == readingIndex) {
                 *base = -1;
             }
+            if(*base2 == readingIndex) {
+                *base2 = -1;
+            }
         } else {
             if(*base == readingIndex) {
                 *base = writingIndex;
             }
+            if(*base2 == readingIndex) {
+                *base2 = writingIndex;
+            }
             piece[writingIndex] = piece[readingIndex];
             writingIndex++;
         }
+    }
+    if(*base == -1) {
+        *base = *base2;
+        *base2 = -1;
     }
     arrsetlen(piece, writingIndex);
 #if REAPER
@@ -183,7 +194,7 @@ u32 timerCallback (u32 interval, void *param) {
 
     freq1 = 220*pow(in, notes[index]);
     index = (index+1)%sizeof(notes);
-    fprintf(stderr, "freq=%lf in=%lf\n", freq1,in);
+    DEBUG_FPRINTF("freq=%lf in=%lf\n", freq1,in);
     return 250;
 }
 
@@ -215,13 +226,14 @@ int cmpStarts(void const* n1, void const*n2) { // shut up
 
 //}
 
-void commitChanges(int *dragged, int* base, char* undoName)
+void commitChanges(int *dragged, int* base, int* base2, char* undoName)
 {
     reassignChannels();
 #ifdef REAPER
     reaperCommitChanges(undoName);
     RealNote draggedNote = piece[*dragged];
     RealNote baseNote = {0}; if(*base>=0)baseNote=piece[*base]; // I'm sorry i'm doing it this way, i really should just sort with my own code or reload piece from reaper
+    RealNote baseNote2 = {0}; if(*base2>=0)baseNote2=piece[*base2]; // I'm sorry i'm doing it this way, i really should just sort with my own code or reload piece from reaper
 #else
     ABORT("");
 #endif
@@ -233,7 +245,10 @@ void commitChanges(int *dragged, int* base, char* undoName)
         RealNote* newBase = bsearch(&baseNote, piece, arrlen(piece), sizeof(*piece), cmpStarts);
         *base = (int)(newBase-piece);
     }
-
+    if(*base2 >=0) {
+        RealNote* newBase2 = bsearch(&baseNote2, piece, arrlen(piece), sizeof(*piece), cmpStarts);
+        *base2 = (int)(newBase2-piece);
+    }
 }
 
 

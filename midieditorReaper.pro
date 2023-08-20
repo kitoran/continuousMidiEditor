@@ -18,11 +18,11 @@ windows {
     CONFIG -= console
     LIBS += /lwinmm
     #Kernel32
-    QMAKE_CXXFLAGS += /Zc:preprocessor /wd4838
+    QMAKE_CXXFLAGS += /Zc:preprocessor /wd4838 /RTC1 /MDd
 #    -lSDL2main -lShell32
     QMAKE_LFLAGS += user32.lib  SDL2_ttf.lib SDL2.lib freetype.lib gdi32.lib Shell32.lib Setupapi.lib Advapi32.lib \
                 Ole32.lib Version.lib Imm32.lib  	OleAut32.lib
-    QMAKE_CFLAGS += /std:c11 /we4013 /wd4838 /we4020  /we4133
+    QMAKE_CFLAGS += /std:c11 /we4013 /wd4838 /we4020  /we4133 /RTC1 /MDd
     SDL2.lib.path = C:\src\SDL2-2.28.2\build\Release
     #C:\src\SDL2-devel-2.26.5-VC\SDL2-2.26.5\
     INSTALLS += SDL2.lib
