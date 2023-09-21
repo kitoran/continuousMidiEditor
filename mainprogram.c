@@ -37,7 +37,7 @@
 
 //SDL_Renderer* renderer;
 
-char* appName = "Continouos piano roll";
+char* appName = "Microtonal piano roll";
 #ifdef _WIN32
 #define FILE_DIALOG_PATH "C:\src\exercises\build-FileDialog-Desktop_Qt_6_4_1_MSVC2019_64bit-Debug\debug\FileDialog.exe"
 #else
@@ -358,7 +358,7 @@ extern int pianorollgui(void) {
                                 "Portions of this software are copyright (c) 2023 The FreeType"
                                     " Project (www.freetype.org).  All rights reserved.\n\n"
                                     "This software uses the SDL2 library.",
-                                "About Continuous Midi Editor",
+                                "About Microtonal Midi Editor",
                                 MB_OK
                             );
                     }

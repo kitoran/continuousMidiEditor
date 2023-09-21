@@ -389,6 +389,20 @@ void navigationBar(Painter* p, Size size) {
     guiSetForeground(p, gray(0x44));
     guiFillRectangle(p, rect);
     if(event.type == SDL_MOUSEMOTION) {
+//        Point mp = {GET_X(event), GET_Y(event)};
+//        if(state.mouseMode == justMoving) {
+//            int cursorCoord = timeToX(size.w, cursorPosition);
+//            if(mp.x - 5 <= cursorCoord &&
+//                    mp.x + 5 >= cursorCoord) {
+//                STATIC(SDL_Cursor*, hand, SDL_GetSystemCursor(hand));
+//                SDL_SetCursor(hand);
+//            } else
+
+//        }
+//        if(state.mouseMode == movingPlayheadOrDrawingLoop) {
+//            state.mouseMode = drawingLoop;
+
+//        }
         update = event.motion.state != 0;
     }
     if(update)  {
