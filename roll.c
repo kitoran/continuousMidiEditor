@@ -15,6 +15,7 @@
 #include <math.h>
 #include <stdio.h>
 
+#include <time.h>
 //typedef struct {
 //    int num;
 //    int den;
@@ -87,7 +88,7 @@ typedef struct {
 
 //void rollCl(Painter* p, int y);
 void navigationBar(Painter* p, Size size);
-void noteArea(Painter* p, Size size);
+void noteArea(Painter* p, Size size, bool moreEvents);
 #define NAVIGATION_THICKNESS 30
 
 int compsteps(Step* a, Step* b) {
@@ -283,7 +284,7 @@ void zoomInFreq(double myFrac, int amount)
     }
 }
 
-void roll(Painter* p, Size size) {
+void roll(Painter* p, Size size, bool moreEvents) {
 //    Point pos = getPos();
     if(state.calculatedScale == 0 || state.recalculateScale) {
 //        FOR(i, 20) {
@@ -318,12 +319,27 @@ void roll(Painter* p, Size size) {
 //    setCurrentGridPos(0, 0);
 //    Size windowSize; SDL_GetWindowSize(rootWindow, &windowSize.w, &windowSize.h);//.size;
     Size navigationSize = {size.w - SCROLLBAR_THICKNESS, NAVIGATION_THICKNESS};
-    navigationBar(p, navigationSize);
+    bool render;
+    STATIC(clock_t, lastRender, clock());
+    clock_t now = clock();
+//    DEBUG_PRINT(now - lastRender,"%ld");
+//    DEBUG_PRINT(CLOCKS_PER_SEC/30x,"%ld");
+    if((now - lastRender < (CLOCKS_PER_SEC/30)) && moreEvents) {
+        render = false;
+    } else {
+        render = true;
+        lastRender = now;
+    }
+    if(render) {
+        navigationBar(p, navigationSize);
+    }
     el.exactPos.y+=NAVIGATION_THICKNESS;
 //    gridNextRow();
     Size noteAreaSize = {size.w - SCROLLBAR_THICKNESS, size.h-NAVIGATION_THICKNESS+5/*-NAVIGATION_THICKNESS*/
                         - SCROLLBAR_THICKNESS};
-    noteArea(p, noteAreaSize);
+
+
+    noteArea(p, noteAreaSize, render);
 //    gridNextRow();
     el.exactPos.y+=noteAreaSize.h;
     guiScrollBar(p,size.w-SCROLLBAR_THICKNESS*3, &currentItemConfig->horizontalScroll, currentItemConfig->horizontalFrac, true);
@@ -519,7 +535,7 @@ double closestFreq(int height, Point pos, int y) {
     double le = yToFreq(height, pos, y + 5);
     double mo = yToFreq(height, pos, y - 5);
     if(state.base2 >= 0) {
-        Step step = searchStep(state.combinations, arrlen(state.combinations), yToFreq(height, pos, y));
+        Step step = searchStep(state.combinations, (int)arrlen(state.combinations), yToFreq(height, pos, y));
         double tarfreq = step.ratio;
         if (le < tarfreq &&
             mo > tarfreq
@@ -532,7 +548,7 @@ double closestFreq(int height, Point pos, int y) {
         double whatSearching;
         if(currentItemConfig->scale.relative == scale_relative) whatSearching = yToFreq(height, pos, y) / piece[state.base].note.freq;
         else whatSearching = yToFreq(height, pos, y);
-        Step step = searchStep(state.calculatedScale, arrlen(state.calculatedScale), whatSearching);
+        Step step = searchStep(state.calculatedScale, (int)arrlen(state.calculatedScale), whatSearching);
 
         int mm = freqToY(height, pos, mo);
         volatile double mo2 = yToFreq(height, pos, y);
@@ -581,70 +597,69 @@ const char* channelnames[]={"1","2","3","4","5","6","7","8","9","10","11","12","
 //    }
 //}
 
-void noteArea(Painter* p, Size size) {
-    Point pos = getPos();
-    Rect rect = {0, pos.y, size.w, size.h};
+clock_t renderNoteArea(Rect rect,  Painter* p, Point pos,  Size size, double lastVisibleTime)
+{
     guiSetForeground(p,0x555555);
     guiFillRectangle(p, rect);
-    STATIC(int, digSize, guiTextExtents("3/5", 3).h);
-    double lastVisibleTime = xToTime(size.w, size.w);
-//    double a = state.itemStart/BEAT;
-//    double a = state.itemStart/BEAT;
-    TempoMarker last = projectSignature; int next = 0; //double lastFraction = 0;
-    int lastpixel = -10;
-    int numOfBeat = 0;
-    int numOfSubgrid = 0;
-    double projectTime = 0;
-    int measure = 1;
-    arrsetlen(state.timesOfGridLines, 0);
 
-    for(; projectTime < lastVisibleTime+state.itemStart; projectTime += subbeatTime(&last)) {
-        while(next < arrlen(tempoMarkers) && projectTime >= tempoMarkers[next].when) {
-            ASSERT(tempoMarkers[next].num != 0, "time signature is 0????");
-            if(tempoMarkers[next].num > 0) {
-                numOfBeat = 0;
-                projectTime = tempoMarkers[next].when;
-                last = tempoMarkers[next];
-            } else {
-                double partOfTheBeatBeforeMarker = (tempoMarkers[next].when - (projectTime-subbeatTime(&last)))/subbeatTime(&last);
-                last.when = tempoMarkers[next].when;
-                last.qpm = tempoMarkers[next].qpm;
-//                projectTime = tempoMarkers[next].when + (1-partOfTheBeatBeforeMarker)*(beatTime(&last));
-                projectTime = tempoMarkers[next].when + (1-partOfTheBeatBeforeMarker)*(subbeatTime(&last));
+    STATIC(int, digSize, guiTextExtents("3/5", 3).h);
+    {
+        int lastpixel = -10;
+        int numOfBeat = 0;
+        int numOfSubgrid = 0;
+        double projectTime = 0;
+        int measure = 1;
+        TempoMarker last = projectSignature; int next = 0;
+        for(; projectTime < lastVisibleTime+state.itemStart; projectTime += subbeatTime(&last)) {
+            while(next < arrlen(tempoMarkers) && projectTime >= tempoMarkers[next].when) {
+                ASSERT(tempoMarkers[next].num != 0, "time signature is 0????");
+                if(tempoMarkers[next].num > 0) {
+                    numOfBeat = 0;
+                    projectTime = tempoMarkers[next].when;
+                    last = tempoMarkers[next];
+                } else {
+                    double partOfTheBeatBeforeMarker = (tempoMarkers[next].when - (projectTime-subbeatTime(&last)))/subbeatTime(&last);
+                    last.when = tempoMarkers[next].when;
+                    last.qpm = tempoMarkers[next].qpm;
+    //                projectTime = tempoMarkers[next].when + (1-partOfTheBeatBeforeMarker)*(beatTime(&last));
+                    projectTime = tempoMarkers[next].when + (1-partOfTheBeatBeforeMarker)*(subbeatTime(&last));
+                }
+                next++;
             }
-            next++;
-        }
-        int c = timeToX(size.w, projectTime-state.itemStart);
-        if(c >= rect.w) {
-            break;
-        }
-        lastpixel = c;
-        if(c >= 0) {
-//            fprintf(stderr, "%d -----------------%d\n", c, c>=0);
-            if(numOfBeat == 0 && numOfSubgrid == 0) {
-                guiSetForeground(p, 0x626262);
-            } else if(numOfSubgrid == 0) {
-                guiSetForeground(p, 0x434343);
-            } else {
-                guiSetForeground(p, 0x4b4b4b);
+            int c = timeToX(size.w, projectTime-state.itemStart);
+            if(c >= rect.w) {
+                break;
             }
-            arrpush(state.timesOfGridLines, projectTime-state.itemStart);
-            guiDrawLine(p, c, pos.y, c, pos.y+size.h);
-            if(numOfBeat == 0 && numOfSubgrid == 0) {
-                guiDrawLine(p, c, pos.y - NAVIGATION_THICKNESS, c, pos.y);
-                char num[5];
-                snprintf(num, 5, "%d", measure);
-                guiDrawTextZT(p, num, (Point){c+2, pos.y-15}, 0xaaaaaa);
+            lastpixel = c;
+            if(c >= 0) {
+    //            fprintf(stderr, "%d -----------------%d\n", c, c>=0);
+                if(numOfBeat == 0 && numOfSubgrid == 0) {
+                    guiSetForeground(p, 0x626262);
+                } else if(numOfSubgrid == 0) {
+                    guiSetForeground(p, 0x434343);
+                } else {
+                    guiSetForeground(p, 0x4b4b4b);
+                }
+                arrpush(state.timesOfGridLines, projectTime-state.itemStart);
+                guiDrawLine(p, c, pos.y, c, pos.y+size.h);
+                if(numOfBeat == 0 && numOfSubgrid == 0) {
+                    guiDrawLine(p, c, pos.y - NAVIGATION_THICKNESS, c, pos.y);
+                    char num[5];
+                    snprintf(num, 5, "%d", measure);
+                    guiDrawTextZT(p, num, (Point){c+2, pos.y-15}, 0xaaaaaa);
+                }
             }
-        }
-        numOfSubgrid = (numOfSubgrid+1)%(currentItemConfig->subgridDen/last.denom);
-        if(numOfSubgrid == 0) {
-            numOfBeat = last.num?(numOfBeat+1)%last.num:0;
-            if(numOfBeat == 0) {
-                measure++;
+            numOfSubgrid = (numOfSubgrid+1)%(currentItemConfig->subgridDen/last.denom);
+            if(numOfSubgrid == 0) {
+                numOfBeat = last.num?(numOfBeat+1)%last.num:0;
+                if(numOfBeat == 0) {
+                    measure++;
+                }
             }
         }
     }
+    clock_t tempoLoopEnd= clock();
+
     guiSetClipRect(p, rect);
     if(pieceLength < lastVisibleTime) {
         int endX = timeToX(size.w, pieceLength);
@@ -726,7 +741,7 @@ void noteArea(Painter* p, Size size) {
 //                guiDrawLine(p, 0, r, size.w, r);
 //            }
 //        }
-        FOR_STATIC_ARRAY(Step*, s, twelveEdo) {
+        FOR_STATIC_ARRAY_MSVC(Step*, s, twelveEdo) {
             int r = freqToY(size.h, pos, s->ratio);
             if(r >= pos.y && r < (int)(pos.y+size.h)) {
                 guiSetForeground(p, s->color);
@@ -739,7 +754,97 @@ void noteArea(Painter* p, Size size) {
     int dummy = (int)arrlen(piece);
     STATIC(unsigned char *, midiNoteMap, stbi_load(MY_PATH "/midi_note_colormap.png",
                                         &dummy, &dummy, &dummy, 0));
+//    static Rect* unselected[128] = {0};
+//    static Rect* selected[128] = {0};
+//    FOR_STATIC_ARRAY_MSVC(Rect**, arr, unselected) {
+//        arrsetlen(*arr, 0);
+//    }
+//    FOR_STATIC_ARRAY_MSVC(Rect**, arr, selected) {
+//        arrsetlen(*arr, 0);
+//    }
+//    static Rect* unselectedBacks = 0;
+//    arrsetlen(unselectedBacks, 0);
+//    static Rect* selectedBacks = 0;
+//    arrsetlen(unselectedBacks, 0);
+//    STATIC(SDL_Surface*, mySurface,
+//           SDL_CreateRGBSurface
+//               (0, 1300, 800, 32,
+//                0,0,0,0));
+//    FOR_NOTES(anote, piece) {
+//        Rect r = noteToRect(size, pos, anote->note);
+//        Rect** array = anote->selected?selected:unselected;
+//        Rect* backArray = anote->selected?selectedBacks:unselectedBacks;
+//        bool base = anote == piece + state.base ||
+//                        anote == piece + state.base2;
+//        if(!base) arrpush(backArray, r);
 
+//        int coef = (base)?3:1;
+//        r = (Rect){.x=r.x+1*coef, .y=r.y+1*coef, .w=r.w-2*coef, .h=r.h-2*coef};
+//        if(anote->note.muted) {
+//            arrpush(array[128], r);
+//        } else {
+//            if(currentItemConfig->showChannels) {
+//                arrpush(array[anote->midiChannel], r);
+//            } else {
+//                arrpush(array[anote->note.velocity], r);
+//            }
+//        }
+//        if(currentItemConfig->showChannels || state.mouseMode == draggingVelocity) {
+//            //TODO: fix
+////            guiDrawTextZT(p, channelnames[anote->midiChannel], r.pos,
+////                    anote->selected||anote == piece + state.base?0:0xffffffff);
+//            char fwef[40];// = "30";
+//            if(currentItemConfig->showChannels) snprintf(fwef, sizeof(fwef), "%d  %d   %d", (int)(anote-piece), anote->reaperNumber, anote->midiChannel);
+//            if(currentItemConfig->showMidi) {
+//                MidiPitch mp = getMidiPitch(anote->note.freq, currentItemConfig->pitchRange);
+//                snprintf(fwef, sizeof(fwef), "%d %d", mp.key, mp.wheel);
+//            }
+//            if(state.mouseMode == draggingVelocity) snprintf(fwef, sizeof(fwef), "%d", anote->note.velocity);
+//            guiDrawTextZT(p, fwef, r.pos,
+//                    anote->selected||base?0:0xffffffff);
+//        }
+//    }
+//    SDL_FillRects(mySurface, (SDL_Rect*)unselectedBacks,
+//                  arrlen(unselectedBacks),0xff333333);
+//    SDL_FillRects(mySurface, (SDL_Rect*)selectedBacks,
+//                  arrlen(selectedBacks),0xff777777);
+
+//    FOR_STATIC_ARRAY_MSVC(Rect**, arr, unselected) {
+//        if(arrlen(arr) == 0) continue;
+//        int color;
+//        if(arr-unselected==128) {
+//            color = 0xff1b1b1b;
+//        } else {
+//            if(currentItemConfig->showChannels) {
+//                double hue = 360/16*(arr-unselected);
+//                color = hsvd2bgr(hue,1,1);
+//            } else {
+//                unsigned char* velbase = midiNoteMap+3*12+3*(arr-unselected);
+//                color = rgb(velbase[0], velbase[1], velbase[2]);
+//            }
+//        }
+//        SDL_FillRects(mySurface, (SDL_Rect*)*arr, arrlen(*arr),
+//                      color);
+//    }
+//    FOR_STATIC_ARRAY_MSVC(Rect**, arr, selected) {
+//        if(arrlen(arr) == 0) continue;
+//        int color;
+//        if(arr-unselected==128) {
+//            color = 0xff1b1b1b;
+//        } else {
+//            if(currentItemConfig->showChannels) {
+//                double hue = 360/16*(arr-unselected);
+//                color = hsvd2bgr(hue,0.3,1);
+//            } else {
+//                unsigned char* velbase = midiNoteMap+3*12+3*(arr-unselected);
+//                velbase += 157*65*3;
+//                color = rgb(velbase[0], velbase[1], velbase[2]);
+//            }
+//        }
+
+//        SDL_FillRects(mySurface, (SDL_Rect*)*arr, arrlen(*arr),
+//                      color);
+//    }
     FOR_NOTES(anote, piece) {
         Rect r = noteToRect(size, pos, anote->note);
         guiSetForeground(p, anote->selected?0xff777777:0xff333333);
@@ -779,6 +884,7 @@ void noteArea(Painter* p, Size size) {
                     anote->selected||base?0:0xffffffff);
         }
     }
+
     if(state.base >= 0|| currentItemConfig->scale.relative == scale_absolute) {
         FOR_STB_ARRAY(Step*, frac, state.base2 < 0?state.calculatedScale:state.combinations) {
             guiSetForeground(p, frac->color);
@@ -791,7 +897,7 @@ void noteArea(Painter* p, Size size) {
         }
     }
     if(currentItemConfig->showScale) {
-        FOR_STATIC_ARRAY(Step*, frac, twelveEdo) {
+        FOR_STATIC_ARRAY_MSVC(Step*, frac, twelveEdo) {
             guiSetForeground(p, frac->color);
             int r = freqToY(size.h, pos, frac->ratio);
             char str[30];
@@ -807,6 +913,23 @@ void noteArea(Painter* p, Size size) {
         guiFillRectangle(p,
                          r);
     }
+
+    guiUnsetClipRect(p);
+    return tempoLoopEnd;
+}
+
+void noteArea(Painter* p, Size size, bool render) {
+    clock_t noteAreastart = clock();
+    Point pos = getPos();
+    Rect rect = {0, pos.y, size.w, size.h};
+    double lastVisibleTime = xToTime(size.w, size.w);
+//    double a = state.itemStart/BEAT;
+//    double a = state.itemStart/BEAT;
+     //double lastFraction = 0;
+
+
+    arrsetlen(state.timesOfGridLines, 0);
+
 
     static int lastTouchedVel = 100;
     if(state.mouseMode == selectingARange) {
@@ -916,9 +1039,9 @@ void noteArea(Painter* p, Size size) {
     }
     if(event.type == MouseWheel) {
         SDL_MouseWheelEvent e = event.wheel;
-
-        DEBUG_PRINT(e.x, "%d");
-        DEBUG_PRINT(e.y, "%d");
+        DEBUG_FPRINTF("wheel! render is %d", render);
+//        DEBUG_PRINT(e.x, "%d");
+//        DEBUG_PRINT(e.y, "%d");
         if(km & KMOD_CTRL) {
             double myFrac = 1 - (e.mouseY - pos.y) * 1.0/ size.h;
             int amount = e.y;
@@ -1250,7 +1373,17 @@ void noteArea(Painter* p, Size size) {
     }
 
     fuckThisEvent:
-    guiUnsetClipRect(p);
+
+    if(render) renderNoteArea(rect, p, pos, size, lastVisibleTime);
+
     feedbackSize(size);
+
+//    clock_t noteAreaend = clock();
+//    volatile double noteAreaendtime = (double)(noteAreaend - noteAreastart) / CLOCKS_PER_SEC*1000;
+//    if(noteAreaendtime > 100) {
+////        volatile double tempoLooptime = (double)(tempoLoopEnd - tempoLoopStart) / CLOCKS_PER_SEC*1000;
+//        DEBUG_PRINT(noteAreaendtime, "%lf");
+////        DEBUG_PRINT(tempoLooptime, "%lf");
+//    }
 
 }

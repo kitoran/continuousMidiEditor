@@ -54,7 +54,7 @@ void toggleRepeat() {
 
 
 
-static reapermidimessage d[3002]; //FIXME make a normal number
+static reapermidimessage3bytes d[3002]; //FIXME make a normal number
 static void setTakeMidiData() {
 
 //    d
@@ -103,7 +103,7 @@ static void setTakeMidiData() {
             takeendqpos, 0, 3,
             {(u8)(all_notes_off | 0), (u8)(123), (u8)(0)}
         };
-    std::sort(d, d+arrlen(piece)*3, [](const reapermidimessage& a, const reapermidimessage& b) {
+    std::sort(d, d+arrlen(piece)*3, [](const reapermidimessage3bytes& a, const reapermidimessage3bytes& b) {
         if(a.offset != b.offset) return a.offset < b.offset;
         return a.msg[0] < b.msg[0]; // we want note_off messages
         // to be earlier than note_on
@@ -118,7 +118,7 @@ static void setTakeMidiData() {
         QUICK_ASSERT(d[i].offset < 2000000);
     }
 
-    MIDI_SetAllEvts(state.take, (const char*)&d, sizeof(reapermidimessage)*(arrlen(piece)*3+1));
+    MIDI_SetAllEvts(state.take, (const char*)&d, sizeof(reapermidimessage3bytes)*(arrlen(piece)*3+1));
 }
 
 void reaperSetPosition(double d) {

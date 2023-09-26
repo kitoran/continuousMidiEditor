@@ -28,11 +28,18 @@ extern struct ActionChannel {
 } actionChannel;
 #pragma pack(push)
 #pragma pack( 1)
-    static struct reapermidimessage {
+    static struct reapermidimessage3bytes {
         i32 offset = 0;
         i8 flag = 0;
         i32 msglen = 3;
         unsigned char msg[3] = { control_change | 1, all_notes_off, 0};
     } notesOff;
+
+    struct reapermidimessage {
+        i32 offset = 0;
+        i8 flag = 0;
+        i32 msglen = 3;
+        unsigned char msg[];
+    };
 #pragma pack(pop)
 #endif // ACTIONSREAPER_H

@@ -44,7 +44,8 @@ SOURCES += \
     pluginEntryPoint.cpp \
     roll.c \
     save.c \
-    sortediterable.c
+    sortediterable.c \
+    test.cpp
 #main.c \
 #LIBS += -lSDL2 -lSDL2_ttf
 linux {
@@ -64,7 +65,8 @@ HEADERS += \
     playback.h \
     roll.h \
     save.h \
-    sortediterable.h
+    sortediterable.h \
+    test.h
 
 #CONFIG += link_pkgconfig
 

@@ -1,6 +1,5 @@
 #include "editorinstance.h"
 #include "combobox.h"
-#include <gui.h>
 //struct editorInstance
 //{
 //    MediaItem_Take take;
@@ -35,6 +34,9 @@
 
 #include <gui.h>
 
+
+
+#include <time.h>
 //SDL_Renderer* renderer;
 
 char* appName = "Microtonal piano roll";
@@ -68,7 +70,7 @@ extern void settingsGui(void) {
     LineLayout settingsLayout = makeVerticalLayout(5);
     if(guiSameWindow(&painter, /*false*/true)) {
         guiSetForeground(&painter, 0);
-        guiClearWindow(&painter);
+//        guiClearWindow(&painter);
         pushLayout(&settingsLayout);
           LineLayout oneLine = makeHorizontalLayout(5);
 //          oneLine.pos = getPos(); pushLayout(&oneLine);
@@ -236,6 +238,7 @@ extern int pianorollgui(void) {
         // support for hooks that are to be run inside guiNextEvent
         // and potentially have access to things that should
         // be protected with mutex_
+        clock_t iterStart = clock();
         SDL_LockMutex(mutex_);
         if(timeToLeave) {
             break;
@@ -368,7 +371,7 @@ extern int pianorollgui(void) {
     //        SDL_FillRect(rootWindowPainter.drawable, &d, 0xffffff00);
             guiSetForeground(&rootWindowPainter,0);
     //        SDL_FillRect(rootWindowPainter.drawable, &d, 0xffffff00);
-            guiClearWindow(&rootWindowPainter);
+//            guiClearWindow(&rootWindowPainter);
     //        SDL_FillRect(rootWindowPainter.drawable, &d, 0xffffff00);
 //            setCurrentGridPos(0,0);
     //        SDL_FillRect(rootWindowPainter.drawable, &d, 0xffffff00);
@@ -477,7 +480,12 @@ extern int pianorollgui(void) {
 //            setCurrentGridPos(3,0);
             int ww, wh;
             SDL_GetWindowSize(rootWindow, &ww, &wh);
-            roll(&rootWindowPainter, (Size){ww, wh - getPos().y - 26 - layout.spacing});
+            SDL_Event e;
+            SDL_PumpEvents();
+            int moreevents = SDL_PeepEvents(&e, 1,
+                                         SDL_PEEKEVENT,
+                                          SDL_FIRSTEVENT, RedrawEvent);
+            roll(&rootWindowPainter, (Size){ww, wh - getPos().y - 26 - layout.spacing}, moreevents > 0);
 //            setCurrentGridPos(4,0);
             bool d;
             Size buttonSizes = {26,26};
@@ -508,6 +516,8 @@ extern int pianorollgui(void) {
         if(event.type == SDL_QUIT) {
             continue;
         }
+        clock_t iterEnd = clock();
+//        DEBUG_PRINT((double)(iterEnd-iterStart)/CLOCKS_PER_SEC, "%lf");
     }
 
     SDL_UnlockMutex(mutex_);

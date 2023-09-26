@@ -22,7 +22,6 @@
 // cl /nologo /O2 /Z7 /Zo /DUNICODE main.cpp /link /DEBUG /OPT:REF /PDBALTPATH:%_PDB% /DLL /OUT:reaper_barebone.dll
 
 #define REAPERAPI_IMPLEMENT
-//#define __cplusplus // wtf why was this not defined in the first place/
 #include  <thread>
 #include  <condition_variable>
 #include  <algorithm>
@@ -277,6 +276,7 @@ void loadTake()
         double noteStart;
         int noteNumber;
         bool selected; bool muted;
+        int velocity;
     } channelProperties[16] = {0};
 
     for(int i = 0; i < 16; i++) {
@@ -294,34 +294,50 @@ void loadTake()
     int evtCount = notecntOut*2 + ccevtcntOut + textsyxevtcntOut+1;
 //    reapermidimessage *msg = (reapermidimessage*)calloc(evtCount,
 //                                                        sizeof(reapermidimessage));
-    reapermidimessage msg[10000];
 //    GetMediaItemInfo_Value(item, "D_LENGTH");
-    int size = (evtCount)*sizeof(reapermidimessage);
+    int size = 100;
+    reapermidimessage* msg = (reapermidimessage*)malloc(size+100);
     double trertse;
-    size = 10003;
-    bool getallevre = MIDI_GetAllEvts(state.take, (char*)msg, &size);
-    QUICK_ASSERT(size < 10003);
+//    size = 10003;
+    int returnedSize = size;
+    while(true) {
+        bool getallevre = MIDI_GetAllEvts(state.take, (char*)msg, &returnedSize);
+        if(returnedSize == size) {
+            msg = (reapermidimessage*)realloc(msg, size*2);
+            size*=2;
+            returnedSize = size;
+        } else break;
+    }
+
+//    QUICK_ASSERT(size == (evtCount)*sizeof(reapermidimessage));
 //    getallevre = MIDI_GetEvt(state.take, 0, 0, 0, &trertse, (char*)(&msg[0]), &size);
 //    int evtIndex = -1;
     long long offset = 0;
-    int i = -1;
-    while(true) {
-        i++;
-        QUICK_ASSERT(i < 9999);
+//    int i = -1;
+    reapermidimessage * event = msg;
+
+
+    for(int i = 0; i < evtCount; i++) {
+//        i++;
+//        QUICK_ASSERT(i < evtCount);
 //        ASSERT(i < evtCount, "problem when loading take %d, %d", i, evtCount);
 //        bool muted;
 //        bool selected;
-        int size = 3;
-        reapermidimessage event = msg[i];
+        char debug[100];
+        memcpy(debug, event, 100);
 
-        QUICK_ASSERT(event.offset >= 0);
-        ASSERT(event.msglen == 3, "got midi event not 3 bytes, dying\n");
-        offset += event.offset;
-        u8 channel = event.msg[0] & MIDI_CHANNEL_MASK;
-        if((event.msg[0] & MIDI_COMMAND_MASK) == pitchWheelEvent) {
+
+        int size = 3;
+
+
+        QUICK_ASSERT(event->offset >= 0);
+//        ASSERT(event.msglen == 3, "got midi event not 3 bytes, dying\n");
+        offset += event->offset;
+        u8 channel = event->msg[0] & MIDI_CHANNEL_MASK;
+        if((event->msg[0] & MIDI_COMMAND_MASK) == pitchWheelEvent) {
            i16 pitchWheel =
-                   (event.msg[2] << 7) |
-                   (event.msg[1]&MIDI_7HB_MASK);
+                   (event->msg[2] << 7) |
+                   (event->msg[1]&MIDI_7HB_MASK);
            double differenceInTones =
                    double(pitchWheel-0x2000)/0x2000 * currentItemConfig->pitchRange / 2.0;
            double ratio = pow(2, differenceInTones/6);
@@ -332,17 +348,20 @@ void loadTake()
 // we think that all the simultaneous notes are on different channels
 // so to get note's key we only need to read it from onteOff event
         double pos = MIDI_GetProjTimeFromPPQPos(state.take, offset);
-        if((event.msg[0] & MIDI_COMMAND_MASK) == noteOn) {
+        if((event->msg[0] & MIDI_COMMAND_MASK) == noteOn
+                && event->msg[2] != 0) {
             channelProperties[channel].noteStart = pos;
             channelProperties[channel].noteNumber = noteNumber;
-            channelProperties[channel].selected = event.flag&1;
-            channelProperties[channel].muted = event.flag&2;
+            channelProperties[channel].selected = event->flag&1;
+            channelProperties[channel].muted = event->flag&2;
             channelProperties[channel].savedPitch = channelProperties[channel].pitch;
+            channelProperties[channel].velocity = event->msg[2];
             noteNumber++;
         }
-        if((event.msg[0] & MIDI_COMMAND_MASK) == noteOff) {
-            int key = event.msg[1];
-            int vel = event.msg[2];
+        if((event->msg[0] & MIDI_COMMAND_MASK) == noteOff
+                || ((event->msg[0] & MIDI_COMMAND_MASK) == noteOn && event->msg[2] == 0)) {
+            int key = event->msg[1];
+//            int vel = event->msg[2];
             double freq = (440.0 / 32) * pow(2, ((key - 9) / 12.0));
             freq *= channelProperties[channel].savedPitch;
 //            message("st %lf end %lf pitch %d vel %d\n"
@@ -354,22 +373,28 @@ void loadTake()
                 length = 0.01;
             }
             appendRealNote({.note = {.freq = freq,
-                                     .start = channelProperties[channel].noteStart  - state.itemStart,
+                                     .start = MAX(0, channelProperties[channel].noteStart  - state.itemStart),
                                      .length = length,
                                      .muted = channelProperties[channel].muted,
-                                     .velocity = vel
+                                     .velocity = channelProperties[channel].velocity
                                     },
                             .midiChannel = channel,
                             .selected = channelProperties[channel].selected,
                            .reaperNumber = channelProperties[channel].noteNumber});
         }
-        if((event.msg[0] & MIDI_COMMAND_MASK) == control_change
-                && event.msg[1] == all_notes_off) {
+        if( i == evtCount-1) {
+            QUICK_ASSERT((event->msg[0] & MIDI_COMMAND_MASK) == control_change);
+            QUICK_ASSERT(event->msg[1] == all_notes_off)
             pieceLength = pos - state.itemStart;
-            break;
+//            break;
         }
+        static_assert(sizeof(reapermidimessage) == 9);
+        event = (reapermidimessage*)((char*)event + event->msglen + sizeof(reapermidimessage));
+
     }
 
+
+    free(msg);
 //    free(msg);
        /*state.itemStart + *//*GetMediaItemInfo_Value(item, "D_LENGTH");*/
 
@@ -441,8 +466,8 @@ void timer_function() {
             ASSERT(getHashRes, "MIDI_GetHash returned false ¯\\_(ツ)_/¯");
             if(memcmp(hash, takeHash, sizeof(takeHash))) {
                 loadTake();
+                guiRedrawFromOtherThread(rootWindow);
             }
-            guiRedrawFromOtherThread(rootWindow);
         }
     }
 //    lk.unlock();

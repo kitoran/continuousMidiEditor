@@ -9,5 +9,6 @@ gen_pause.png RCDATA "resources\\gen_pause.png"
 gen_stop.png RCDATA "resources\\gen_stop.png"
 gen_end.png RCDATA "resources\\gen_end.png"
 gen_repeat_off.png RCDATA "resources\\gen_repeat_off.png"
+symphony RCDATA "resources\\symphony_9_1_(c)cvikl.mid"
 
 #include "../library/gui/gui/icons/gui_resources.rc"
